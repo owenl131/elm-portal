@@ -11,7 +11,19 @@ import Maybe.Extra
 import RemoteData exposing (WebData)
 import Task
 import Time
-import Tutor exposing (Gender, Tutor, TutorStatus, datestringEncoder, tutorDecoder)
+import Tutor
+    exposing
+        ( AdminLevel
+        , Gender
+        , Tutor
+        , TutorStatus
+        , datestringEncoder
+        , toGender
+        , toTutorAdminLevel
+        , toTutorStatus
+        , tutorDecoder
+        )
+import Url.Parser.Query as Query
 
 
 type alias Pagination =
@@ -29,29 +41,17 @@ defaultPagination =
     }
 
 
-type TutorFilter
-    = FilterStatus (List TutorStatus)
-    | FilterGender (List Gender)
-    | FilterName String
-    | FilterSchool String
-    | FilterDateOfBirth (Maybe Time.Posix) (Maybe Time.Posix)
-    | FilterJoinDate (Maybe Time.Posix) (Maybe Time.Posix)
-
-
-
--- | FilterClass String
-
-
 type alias TutorFilters =
-    { statuses : Maybe (List TutorStatus)
-    , genders : Maybe (List Gender)
-    , names : Maybe (List String)
-    , schools : Maybe (List String)
+    { statuses : List TutorStatus
+    , genders : List Gender
+    , admins : List AdminLevel
+    , names : List String
+    , schools : List String
     , dobLower : Maybe Date.Date
     , dobUpper : Maybe Date.Date
     , joinDateLower : Maybe Date.Date
     , joinDateUpper : Maybe Date.Date
-    , classes : Maybe (List String)
+    , classes : List String
     , joinLowerPicker : DatePicker.Model
     , joinUpperPicker : DatePicker.Model
     }
@@ -59,18 +59,49 @@ type alias TutorFilters =
 
 emptyTutorFilter : TutorFilters
 emptyTutorFilter =
-    { statuses = Nothing
-    , genders = Nothing
-    , names = Nothing
-    , schools = Nothing
+    { statuses = []
+    , genders = []
+    , admins = []
+    , names = []
+    , schools = []
     , dobLower = Nothing
     , dobUpper = Nothing
     , joinDateLower = Nothing
     , joinDateUpper = Nothing
-    , classes = Nothing
+    , classes = []
     , joinLowerPicker = DatePicker.init
     , joinUpperPicker = DatePicker.init
     }
+
+
+applyParser : Query.Parser a -> Query.Parser (a -> b) -> Query.Parser b
+applyParser argParser funcParser =
+    Query.map2 (<|) funcParser argParser
+
+
+type alias Tmp =
+    { key1 : List TutorStatus
+    , key2 : List Gender
+    , key3 : List String
+    }
+
+
+tutorFiltersFromUrl : Query.Parser TutorFilters
+tutorFiltersFromUrl =
+    Query.map (\x -> x DatePicker.init DatePicker.init)
+        -- Handle the two widgets
+        (Query.map TutorFilters
+            (Query.custom "status" (List.filterMap (String.toInt >> Maybe.andThen toTutorStatus)))
+            |> applyParser (Query.custom "gender" (List.filterMap toGender))
+            |> applyParser (Query.custom "admin" (List.filterMap (String.toInt >> Maybe.andThen toTutorAdminLevel)))
+            |> applyParser (Query.custom "name" (\x -> x))
+            |> applyParser (Query.custom "school" (\x -> x))
+            |> applyParser (Query.string "dobLower" |> Query.map (Maybe.andThen (Date.fromIsoString >> Result.toMaybe)))
+            |> applyParser (Query.string "dobUpper" |> Query.map (Maybe.andThen (Date.fromIsoString >> Result.toMaybe)))
+            |> applyParser (Query.string "joinLower" |> Query.map (Maybe.andThen (Date.fromIsoString >> Result.toMaybe)))
+            |> applyParser (Query.string "joinUpper" |> Query.map (Maybe.andThen (Date.fromIsoString >> Result.toMaybe)))
+            |> applyParser (Query.custom "classes" (\x -> x))
+        )
 
 
 type alias Model =

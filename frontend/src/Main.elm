@@ -3,14 +3,15 @@ module Main exposing (main)
 import Browser exposing (UrlRequest)
 import Browser.Navigation as Navigation
 import Element exposing (Element)
+import Element.Background as Background
 import Element.Input as Input
 import Page.Home as Home
 import Page.Login as Login
 import Page.Tutor as TutorPage
 import Page.TutorList as TutorListPage
 import Url exposing (Url)
-import Url.Parser as UrlParser
-
+import Url.Parser as UrlParser exposing ((<?>), (</>))
+import Url.Parser.Query as Query
 
 type alias Credentials =
     { email : String
@@ -43,6 +44,20 @@ type Model
 -- | ClassPage
 -- | AttendancePage
 -- | AdminPage
+
+
+type Route
+    = RouteHome
+    | RouteTutors (Maybe String)
+    | RouteTutor String
+
+
+routeParser =
+    UrlParser.oneOf
+        [ UrlParser.map RouteHome (UrlParser.s "home")
+        , UrlParser.map RouteTutors 
+            (UrlParser.s "tutors" 
+                <?> Query.string "name") ]
 
 
 getNavigationKey : Model -> Navigation.Key
@@ -156,7 +171,11 @@ viewDrawerElement label url =
 viewDrawer : Model -> Element Msg
 viewDrawer _ =
     Element.column
-        []
+        [ Element.height Element.fill
+        , Element.padding 40
+        , Element.spacing 10
+        , Background.color (Element.rgb255 100 100 100)
+        ]
         [ viewDrawerElement "Home" "/home"
         , viewDrawerElement "Tutors" "/tutors"
         , viewDrawerElement "Logout" "/"
@@ -170,7 +189,12 @@ viewWrapped model body =
         , Element.height Element.fill
         ]
         [ viewDrawer model
-        , body
+        , Element.el
+            [ Element.width Element.fill
+            , Element.height Element.fill
+            , Element.padding 50
+            ]
+            body
         ]
 
 

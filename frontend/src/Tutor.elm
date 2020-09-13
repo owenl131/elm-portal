@@ -1,4 +1,15 @@
-module Tutor exposing (AdminLevel, Gender, Tutor, TutorStatus, tutorDecoder, tutorEncoder, datestringEncoder)
+module Tutor exposing
+    ( AdminLevel
+    , Gender
+    , Tutor
+    , TutorStatus
+    , datestringEncoder
+    , toGender
+    , toTutorAdminLevel
+    , toTutorStatus
+    , tutorDecoder
+    , tutorEncoder
+    )
 
 import Iso8601 exposing (toTime)
 import Json.Decode as Decode
@@ -70,26 +81,33 @@ datestringDecoder =
             )
 
 
+toGender : String -> Maybe Gender
+toGender gender =
+    case String.toLower gender of
+        "m" ->
+            Just Male
+
+        "f" ->
+            Just Female
+
+        "male" ->
+            Just Male
+
+        "female" ->
+            Just Female
+
+        _ ->
+            Nothing
+
+
 genderDecoder : Decode.Decoder Gender
 genderDecoder =
     Decode.string
         |> Decode.andThen
             (\val ->
-                case String.toLower val of
-                    "m" ->
-                        Decode.succeed Male
-
-                    "f" ->
-                        Decode.succeed Female
-
-                    "male" ->
-                        Decode.succeed Male
-
-                    "female" ->
-                        Decode.succeed Female
-
-                    _ ->
-                        Decode.fail "Invalid gender"
+                toGender val
+                    |> Maybe.map Decode.succeed
+                    |> Maybe.withDefault (Decode.fail "Invalid gender")
             )
 
 
@@ -106,22 +124,32 @@ tutorStatusEncoder status =
             2
 
 
+toTutorStatus : Int -> Maybe TutorStatus
+toTutorStatus status =
+    case status of
+        0 ->
+            Just Inactive
+
+        1 ->
+            Just Active
+
+        2 ->
+            Just New
+
+        _ ->
+            Nothing
+
+
 tutorStatusDecoder : Decode.Decoder TutorStatus
 tutorStatusDecoder =
     Decode.int
         |> Decode.andThen
             (\val ->
-                case val of
-                    0 ->
-                        Decode.succeed Inactive
+                case toTutorStatus val of
+                    Just status ->
+                        Decode.succeed status
 
-                    1 ->
-                        Decode.succeed Active
-
-                    2 ->
-                        Decode.succeed New
-
-                    _ ->
+                    Nothing ->
                         Decode.fail "Invalid status"
             )
 
@@ -136,19 +164,29 @@ tutorAdminLevelEncoder admin =
             1
 
 
+toTutorAdminLevel : Int -> Maybe AdminLevel
+toTutorAdminLevel lvl =
+    case lvl of
+        0 ->
+            Just LvlAdmin
+
+        1 ->
+            Just LvlTutor
+
+        _ ->
+            Nothing
+
+
 tutorAdminLevelDecoder : Decode.Decoder AdminLevel
 tutorAdminLevelDecoder =
     Decode.int
         |> Decode.andThen
             (\val ->
-                case val of
-                    0 ->
-                        Decode.succeed LvlAdmin
+                case toTutorAdminLevel val of
+                    Just lvl ->
+                        Decode.succeed lvl
 
-                    1 ->
-                        Decode.succeed LvlTutor
-
-                    _ ->
+                    Nothing ->
                         Decode.fail "Invalid admin level"
             )
 
