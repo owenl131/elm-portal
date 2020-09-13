@@ -1,4 +1,4 @@
-module Page.TutorList exposing (..)
+module Page.TutorList exposing (Model, Msg, Pagination, TutorFilters, init, tutorFiltersFromUrl, update, view)
 
 import Browser.Navigation as Navigation
 import Date
@@ -10,7 +10,6 @@ import Json.Decode as Decode
 import Maybe.Extra
 import RemoteData exposing (WebData)
 import Task
-import Time
 import Tutor
     exposing
         ( AdminLevel
@@ -79,13 +78,6 @@ applyParser argParser funcParser =
     Query.map2 (<|) funcParser argParser
 
 
-type alias Tmp =
-    { key1 : List TutorStatus
-    , key2 : List Gender
-    , key3 : List String
-    }
-
-
 tutorFiltersFromUrl : Query.Parser TutorFilters
 tutorFiltersFromUrl =
     Query.map (\x -> x DatePicker.init DatePicker.init)
@@ -126,11 +118,11 @@ type Msg
     | SetToday Date.Date
 
 
-init : Navigation.Key -> ( Model, Cmd Msg )
-init key =
+init : Navigation.Key -> TutorFilters -> ( Model, Cmd Msg )
+init key filters =
     ( { key = key
       , pagination = defaultPagination
-      , filters = emptyTutorFilter
+      , filters = filters
       , data = RemoteData.Loading
       , joinLowerDate = Maybe.Nothing
       , joinUpperDate = Maybe.Nothing
@@ -267,7 +259,7 @@ viewFilters filters =
 
 
 viewPagination : Pagination -> Element Msg
-viewPagination pagination =
+viewPagination _ =
     Element.row
         [ Element.width Element.fill ]
         [ Input.button [] { onPress = Just ChangePagePrevious, label = Element.text "<" }

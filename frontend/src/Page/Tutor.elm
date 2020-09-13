@@ -3,7 +3,6 @@ module Page.Tutor exposing (..)
 import Browser.Navigation
 import Element exposing (Element)
 import Http
-import Page.TutorList exposing (Msg(..))
 import RemoteData exposing (WebData)
 import Tutor exposing (Tutor, tutorDecoder)
 

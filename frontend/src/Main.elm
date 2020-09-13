@@ -8,10 +8,10 @@ import Element.Input as Input
 import Page.Home as Home
 import Page.Login as Login
 import Page.Tutor as TutorPage
-import Page.TutorList as TutorListPage
+import Page.TutorList as TutorListPage exposing (TutorFilters, tutorFiltersFromUrl)
 import Url exposing (Url)
-import Url.Parser as UrlParser exposing ((<?>), (</>))
-import Url.Parser.Query as Query
+import Url.Parser as UrlParser exposing ((</>), (<?>))
+
 
 type alias Credentials =
     { email : String
@@ -29,10 +29,6 @@ type Msg
     | GotTutorMsg TutorPage.Msg
 
 
-type Context
-    = Context Navigation.Key
-
-
 type Model
     = LoggedOut Login.Model
     | Home Home.Model
@@ -48,16 +44,19 @@ type Model
 
 type Route
     = RouteHome
-    | RouteTutors (Maybe String)
+    | RouteTutors TutorFilters
     | RouteTutor String
+    | NotFound
 
 
+routeParser : UrlParser.Parser (Route -> Route) Route
 routeParser =
     UrlParser.oneOf
         [ UrlParser.map RouteHome (UrlParser.s "home")
-        , UrlParser.map RouteTutors 
-            (UrlParser.s "tutors" 
-                <?> Query.string "name") ]
+        , UrlParser.map RouteTutors
+            (UrlParser.s "tutors" <?> tutorFiltersFromUrl)
+        , UrlParser.map RouteTutor (UrlParser.s "tutor" </> UrlParser.string)
+        ]
 
 
 getNavigationKey : Model -> Navigation.Key
@@ -78,18 +77,27 @@ getNavigationKey model =
 
 handleUrlChange : Url -> Model -> ( Model, Cmd Msg )
 handleUrlChange url model =
-    case url.path of
-        "/home" ->
-            ( Home.init (getNavigationKey model), Cmd.none )
+    let
+        key =
+            getNavigationKey model
+    in
+    case Maybe.withDefault NotFound (UrlParser.parse routeParser url) of
+        RouteHome ->
+            ( Home.init key, Cmd.none )
                 |> Tuple.mapFirst Home
 
-        "/tutors" ->
-            TutorListPage.init (getNavigationKey model)
+        RouteTutors filters ->
+            TutorListPage.init key filters
                 |> Tuple.mapFirst TutorListPage
                 |> Tuple.mapSecond (Cmd.map GotTutorListMsg)
 
-        _ ->
-            ( Home.init (getNavigationKey model), Cmd.none )
+        RouteTutor id ->
+            TutorPage.init key id
+                |> Tuple.mapFirst TutorPage
+                |> Tuple.mapSecond (Cmd.map GotTutorMsg)
+
+        NotFound ->
+            ( Home.init key, Cmd.none )
                 |> Tuple.mapFirst Home
 
 
