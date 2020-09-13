@@ -40,5 +40,13 @@ def hello_world():
 def getTutors():
     return jsonify(tutors[:10])
 
+
+@app.route('/tutor/<id>')
+def getTutor(id):
+    for tutor in tutors:
+        if tutor['id'] == id:
+            return jsonify(tutor)
+    return "Record not found", 400
+
 if __name__ == '__main__':
     app.run(host='localhost', port=5000)
