@@ -1,4 +1,4 @@
-module Tutor exposing (AdminLevel, Gender, Tutor, TutorStatus, tutorDecoder, tutorEncoder)
+module Tutor exposing (AdminLevel, Gender, Tutor, TutorStatus, tutorDecoder, tutorEncoder, datestringEncoder)
 
 import Iso8601 exposing (toTime)
 import Json.Decode as Decode
@@ -76,6 +76,12 @@ genderDecoder =
         |> Decode.andThen
             (\val ->
                 case String.toLower val of
+                    "m" ->
+                        Decode.succeed Male
+
+                    "f" ->
+                        Decode.succeed Female
+
                     "male" ->
                         Decode.succeed Male
 

@@ -65,11 +65,17 @@ handleUrlChange : Url -> Model -> ( Model, Cmd Msg )
 handleUrlChange url model =
     case url.path of
         "/home" ->
-            ( Home (Home.init (getNavigationKey model)), Cmd.none )
+            ( Home.init (getNavigationKey model), Cmd.none )
+                |> Tuple.mapFirst Home
 
-        -- "/tutors" ->
+        "/tutors" ->
+            TutorListPage.init (getNavigationKey model)
+                |> Tuple.mapFirst TutorListPage
+                |> Tuple.mapSecond (Cmd.map GotTutorListMsg)
+
         _ ->
-            ( Home (Home.init (getNavigationKey model)), Cmd.none )
+            ( Home.init (getNavigationKey model), Cmd.none )
+                |> Tuple.mapFirst Home
 
 
 init : () -> Url -> Navigation.Key -> ( Model, Cmd Msg )
@@ -118,20 +124,24 @@ update msg model =
                     ignore
 
         GotTutorListMsg tutorListMsg ->
-            case model of 
+            case model of
                 TutorListPage tutorListModel ->
-                    case TutorListPage.update tutorListMsg tutorListModel of 
+                    case TutorListPage.update tutorListMsg tutorListModel of
                         ( newModel, newMsg ) ->
-                            ( TutorListPage newModel, Cmd.map GotTutorListMsg newMsg ) 
-                _ -> ignore 
+                            ( TutorListPage newModel, Cmd.map GotTutorListMsg newMsg )
+
+                _ ->
+                    ignore
 
         GotTutorMsg tutorMsg ->
-            case model of 
+            case model of
                 TutorPage tutorModel ->
-                    case TutorPage.update tutorMsg tutorModel of 
+                    case TutorPage.update tutorMsg tutorModel of
                         ( newModel, newMsg ) ->
-                            ( TutorPage newModel, Cmd.map GotTutorMsg newMsg ) 
-                _ -> ignore 
+                            ( TutorPage newModel, Cmd.map GotTutorMsg newMsg )
+
+                _ ->
+                    ignore
 
 
 viewDrawerElement : String -> String -> Element Msg
