@@ -11,6 +11,16 @@ def get_random_string(length):
 app = Flask(__name__)
 CORS(app)
 
+def makeClass(id):
+    return {
+        'id': id,
+        'name': 'Class ' + get_random_string(4),
+        'days': [1, 2],
+        'active': True,
+        'duration': 2,
+        'timeslot': '8.00 - 10.00pm'
+    }
+
 def makeTutor():
     return {
         'id': 'id' + get_random_string(10),
@@ -25,7 +35,7 @@ def makeTutor():
     }
 
 tutors = [makeTutor() for _ in range(30)]
-
+classes = [makeClass(i) for i in range(3)]
 
 @app.route('/')
 def hello_world():
@@ -40,6 +50,9 @@ def hello_world():
 def getTutors():
     return jsonify(tutors[:10])
 
+@app.route('/classes')
+def getClasses():
+    return jsonify(classes)
 
 @app.route('/tutor/<id>')
 def getTutor(id):

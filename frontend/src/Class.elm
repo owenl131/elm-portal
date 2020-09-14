@@ -1,13 +1,30 @@
 module Class exposing (..)
 
 import Date
+import Json.Decode as Decode
+import Json.Decode.Pipeline as Pipeline 
+
+weekdayDecoder : Decode.Decoder Date.Weekday
+weekdayDecoder = 
+    Decode.int |> Decode.map Date.numberToWeekday
+
+classDecoder : Decode.Decoder Class
+classDecoder = 
+    Decode.succeed Class
+        |> Pipeline.required "id" Decode.int
+        |> Pipeline.required "name" Decode.string
+        |> Pipeline.required "days" (Decode.list weekdayDecoder)
+        |> Pipeline.required "timeslot" Decode.string 
+        |> Pipeline.required "duration" Decode.float
+        |> Pipeline.required "active" Decode.bool
 
 type alias Class = 
     { id : Int 
     , name : String 
-    , day : Date.Weekday
+    , days : List Date.Weekday
     , timeslot : String
     , duration : Float
+    , active : Bool
     }
 
 type alias ClassExtended =  

@@ -5,10 +5,11 @@ import Browser.Navigation as Navigation
 import Element exposing (Element)
 import Element.Background as Background
 import Element.Input as Input
+import Page.ClassList as ClassListPage
 import Page.Home as Home
 import Page.Login as Login
 import Page.Tutor as TutorPage
-import Page.TutorList as TutorListPage exposing (TutorFilters, tutorFiltersFromUrl)
+import Page.TutorList as TutorListPage
 import Url exposing (Url)
 import Url.Parser as UrlParser exposing ((</>), (<?>))
 
@@ -27,6 +28,7 @@ type Msg
     | GotHomeMsg Home.Msg
     | GotTutorListMsg TutorListPage.Msg
     | GotTutorMsg TutorPage.Msg
+    | GotClassListMsg ClassListPage.Msg
 
 
 type Model
@@ -34,6 +36,7 @@ type Model
     | Home Home.Model
     | TutorListPage TutorListPage.Model
     | TutorPage TutorPage.Model
+    | ClassListPage ClassListPage.Model
 
 
 
@@ -44,8 +47,9 @@ type Model
 
 type Route
     = RouteHome
-    | RouteTutors TutorFilters
+    | RouteTutors TutorListPage.TutorFilters
     | RouteTutor String
+    | RouteClasses ClassListPage.ClassFilters
     | NotFound
 
 
@@ -54,8 +58,10 @@ routeParser =
     UrlParser.oneOf
         [ UrlParser.map RouteHome (UrlParser.s "home")
         , UrlParser.map RouteTutors
-            (UrlParser.s "tutors" <?> tutorFiltersFromUrl)
+            (UrlParser.s "tutors" <?> TutorListPage.tutorFiltersFromUrl)
         , UrlParser.map RouteTutor (UrlParser.s "tutor" </> UrlParser.string)
+        , UrlParser.map RouteClasses
+            (UrlParser.s "classes" <?> ClassListPage.classFiltersFromUrl)
         ]
 
 
@@ -72,6 +78,9 @@ getNavigationKey model =
             submodel.key
 
         TutorPage submodel ->
+            submodel.key
+
+        ClassListPage submodel ->
             submodel.key
 
 
@@ -95,6 +104,11 @@ handleUrlChange url model =
             TutorPage.init key id
                 |> Tuple.mapFirst TutorPage
                 |> Tuple.mapSecond (Cmd.map GotTutorMsg)
+
+        RouteClasses filters ->
+            ClassListPage.init key filters
+                |> Tuple.mapFirst ClassListPage
+                |> Tuple.mapSecond (Cmd.map GotClassListMsg)
 
         NotFound ->
             ( Home.init key, Cmd.none )
@@ -166,6 +180,16 @@ update msg model =
                 _ ->
                     ignore
 
+        GotClassListMsg classListMsg ->
+            case model of
+                ClassListPage classListModel ->
+                    case ClassListPage.update classListMsg classListModel of
+                        ( newModel, newMsg ) ->
+                            ( ClassListPage newModel, Cmd.map GotClassListMsg newMsg )
+
+                _ ->
+                    ignore
+
 
 viewDrawerElement : String -> String -> Element Msg
 viewDrawerElement label url =
@@ -186,6 +210,7 @@ viewDrawer _ =
         ]
         [ viewDrawerElement "Home" "/home"
         , viewDrawerElement "Tutors" "/tutors"
+        , viewDrawerElement "Classes" "/classes"
         , viewDrawerElement "Logout" "/"
         ]
 
@@ -225,6 +250,9 @@ view model =
 
                 TutorPage tutorModel ->
                     viewWrapped model <| Element.map GotTutorMsg (TutorPage.view tutorModel)
+
+                ClassListPage classListModel ->
+                    viewWrapped model <| Element.map GotClassListMsg (ClassListPage.view classListModel)
 
         -- ClassPage ->
         --     Element.none

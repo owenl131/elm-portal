@@ -1,4 +1,13 @@
-module Page.TutorList exposing (Model, Msg, Pagination, TutorFilters, init, tutorFiltersFromUrl, update, view)
+module Page.TutorList exposing
+    ( Model
+    , Msg
+    , Pagination
+    , TutorFilters
+    , init
+    , tutorFiltersFromUrl
+    , update
+    , view
+    )
 
 import Browser.Navigation as Navigation
 import Date
@@ -76,21 +85,6 @@ type alias TutorFilters =
     }
 
 
-emptyTutorFilter : TutorFilters
-emptyTutorFilter =
-    { statuses = []
-    , genders = []
-    , admins = []
-    , names = []
-    , schools = []
-    , dobLower = Nothing
-    , dobUpper = Nothing
-    , joinDateLower = Nothing
-    , joinDateUpper = Nothing
-    , classes = []
-    }
-
-
 applyParser : Query.Parser a -> Query.Parser (a -> b) -> Query.Parser b
 applyParser argParser funcParser =
     Query.map2 (<|) funcParser argParser
@@ -132,8 +126,6 @@ type alias Model =
     , filters : TutorFilters
     , filtersForm : TutorFiltersForm
     , data : WebData (List Tutor)
-    , joinLowerDate : Maybe Date.Date
-    , joinUpperDate : Maybe Date.Date
     }
 
 
@@ -174,8 +166,6 @@ init key filters =
       , filters = filters
       , filtersForm = emptyForm
       , data = RemoteData.Loading
-      , joinLowerDate = Maybe.Nothing
-      , joinUpperDate = Maybe.Nothing
       }
     , Cmd.batch
         [ Http.get
