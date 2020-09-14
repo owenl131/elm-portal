@@ -4,9 +4,11 @@ import Browser.Navigation as Navigation
 import Date
 import DatePicker
 import Element exposing (Element)
+import Element.Background as Background
 import Element.Input as Input
 import Http
 import Json.Decode as Decode
+import List.Extra
 import Maybe.Extra
 import RemoteData exposing (WebData)
 import Task
@@ -142,6 +144,12 @@ type Msg
     | EnteredNameFilter String
     | EnteredSchoolFilter String
     | EnteredClassFilter String
+    | AddNameFilter
+    | AddSchoolFilter
+    | AddClassFilter
+    | RemoveNameFilter String
+    | RemoveSchoolFilter String
+    | RemoveClassFilter String
 
 
 init : Navigation.Key -> TutorFilters -> ( Model, Cmd Msg )
@@ -241,6 +249,24 @@ update msg model =
         EnteredClassFilter class ->
             ( { model | filtersForm = { filtersForm | classFilter = class } }, Cmd.none )
 
+        AddNameFilter ->
+            ( { model | filters = { filters | names = filtersForm.nameFilter :: filters.names |> List.sort |> List.Extra.unique }, filtersForm = { filtersForm | nameFilter = "" } }, Cmd.none )
+
+        AddSchoolFilter ->
+            ( { model | filters = { filters | schools = filtersForm.schoolFilter :: filters.schools |> List.sort |> List.Extra.unique }, filtersForm = { filtersForm | schoolFilter = "" } }, Cmd.none )
+
+        AddClassFilter ->
+            ( { model | filters = { filters | classes = filtersForm.classFilter :: filters.classes |> List.sort |> List.Extra.unique }, filtersForm = { filtersForm | classFilter = "" } }, Cmd.none )
+
+        RemoveNameFilter name ->
+            ( { model | filters = { filters | names = List.filter ((/=) name) filters.names } }, Cmd.none )
+
+        RemoveSchoolFilter school ->
+            ( { model | filters = { filters | schools = List.filter ((/=) school) filters.schools } }, Cmd.none )
+
+        RemoveClassFilter class ->
+            ( { model | filters = { filters | classes = List.filter ((/=) class) filters.classes } }, Cmd.none )
+
         SetToday whichDatePicker today ->
             ( { model
                 | filtersForm = updatePicker whichDatePicker (DatePicker.setToday today) filtersForm
@@ -276,10 +302,17 @@ update msg model =
                     )
 
 
+viewFilterSingle : (String -> Msg) -> String -> Element Msg
+viewFilterSingle action label =
+    Element.row
+        [ Background.color <| Element.rgb255 100 100 255 ]
+        [ Element.text label
+        , Input.button [] { label = Element.text "x", onPress = Just (action label) }
+        ]
+
+
 viewFilters : TutorFiltersForm -> TutorFilters -> Element Msg
 viewFilters form filters =
-    -- Display add filter form
-    -- Display existing filters
     Element.row
         [ Element.width Element.fill
         ]
@@ -287,37 +320,43 @@ viewFilters form filters =
             [ Element.width Element.fill ]
             [ Element.row
                 []
-                [ Input.text
+                ([ Input.text
                     []
                     { label = Input.labelLeft [] (Element.text "Filter Name")
                     , onChange = EnteredNameFilter
                     , placeholder = Nothing
                     , text = form.nameFilter
                     }
-                , Input.button [] { label = Element.text "+", onPress = Nothing }
-                ]
+                 , Input.button [] { label = Element.text "+", onPress = Just AddNameFilter }
+                 ]
+                    ++ List.map (viewFilterSingle RemoveNameFilter) filters.names
+                )
             , Element.row
                 []
-                [ Input.text
+                ([ Input.text
                     []
                     { label = Input.labelLeft [] (Element.text "Filter School")
                     , onChange = EnteredSchoolFilter
                     , placeholder = Nothing
                     , text = form.schoolFilter
                     }
-                , Input.button [] { label = Element.text "+", onPress = Nothing }
-                ]
+                 , Input.button [] { label = Element.text "+", onPress = Just AddSchoolFilter }
+                 ]
+                    ++ List.map (viewFilterSingle RemoveSchoolFilter) filters.schools
+                )
             , Element.row
                 []
-                [ Input.text
+                ([ Input.text
                     []
                     { label = Input.labelLeft [] (Element.text "Filter Classes")
                     , onChange = EnteredClassFilter
                     , placeholder = Nothing
                     , text = form.classFilter
                     }
-                , Input.button [] { label = Element.text "+", onPress = Nothing }
-                ]
+                 , Input.button [] { label = Element.text "+", onPress = Just AddClassFilter }
+                 ]
+                    ++ List.map (viewFilterSingle RemoveClassFilter) filters.classes
+                )
             , Element.row
                 []
                 [ DatePicker.input
@@ -365,9 +404,6 @@ viewFilters form filters =
                     }
                 ]
             ]
-        , Element.column
-            []
-            [ Element.text "Filters:" ]
         ]
 
 
