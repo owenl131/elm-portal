@@ -14,10 +14,7 @@ import RemoteData exposing (WebData)
 import Task
 import Tutor
     exposing
-        ( AdminLevel
-        , Gender
-        , Tutor
-        , TutorStatus
+        ( Tutor
         , datestringEncoder
         , toGender
         , toTutorAdminLevel
@@ -66,9 +63,9 @@ emptyForm =
 
 
 type alias TutorFilters =
-    { statuses : List TutorStatus
-    , genders : List Gender
-    , admins : List AdminLevel
+    { statuses : List Tutor.TutorStatus
+    , genders : List Tutor.Gender
+    , admins : List Tutor.AdminLevel
     , names : List String
     , schools : List String
     , dobLower : Maybe Date.Date
@@ -150,6 +147,9 @@ type Msg
     | RemoveNameFilter String
     | RemoveSchoolFilter String
     | RemoveClassFilter String
+    | ToggleStatus Tutor.TutorStatus
+    | ToggleGender Tutor.Gender
+    | ToggleAdminLvl Tutor.AdminLevel
 
 
 init : Navigation.Key -> TutorFilters -> ( Model, Cmd Msg )
@@ -267,6 +267,51 @@ update msg model =
         RemoveClassFilter class ->
             ( { model | filters = { filters | classes = List.filter ((/=) class) filters.classes } }, Cmd.none )
 
+        ToggleStatus status ->
+            ( { model
+                | filters =
+                    { filters
+                        | statuses =
+                            if List.member status filters.statuses then
+                                List.filter ((/=) status) filters.statuses
+
+                            else
+                                status :: filters.statuses
+                    }
+              }
+            , Cmd.none
+            )
+
+        ToggleAdminLvl adminLvl ->
+            ( { model
+                | filters =
+                    { filters
+                        | admins =
+                            if List.member adminLvl filters.admins then
+                                List.filter ((/=) adminLvl) filters.admins
+
+                            else
+                                adminLvl :: filters.admins
+                    }
+              }
+            , Cmd.none
+            )
+
+        ToggleGender gender ->
+            ( { model
+                | filters =
+                    { filters
+                        | genders =
+                            if List.member gender filters.genders then
+                                List.filter ((/=) gender) filters.genders
+
+                            else
+                                gender :: filters.genders
+                    }
+              }
+            , Cmd.none
+            )
+
         SetToday whichDatePicker today ->
             ( { model
                 | filtersForm = updatePicker whichDatePicker (DatePicker.setToday today) filtersForm
@@ -300,6 +345,44 @@ update msg model =
                     ( { model | filtersForm = updatePicker whichDatePicker (DatePicker.update subMsg) filtersForm }
                     , Cmd.none
                     )
+
+
+viewToggleFilter : List ( a, String ) -> (a -> Msg) -> List a -> Element Msg
+viewToggleFilter all toggle selected =
+    let
+        filterUnused =
+            List.isEmpty selected
+
+        disabledGrey =
+            Element.rgb255 200 200 200
+
+        activeGreen =
+            Element.rgb 0 255 0
+
+        inactiveWhite =
+            Element.rgb 255 255 255
+
+        backgroundColor : Bool -> Bool -> Element.Color
+        backgroundColor disabled active =
+            if disabled then
+                disabledGrey
+
+            else if active then
+                activeGreen
+
+            else
+                inactiveWhite
+    in
+    Element.row
+        []
+        (List.map
+            (\( x, label ) ->
+                Input.button
+                    [ Background.color (backgroundColor filterUnused (List.member x selected)) ]
+                    { label = Element.text label, onPress = Just (toggle x) }
+            )
+            all
+        )
 
 
 viewFilterSingle : (String -> Msg) -> String -> Element Msg
@@ -402,6 +485,18 @@ viewFilters form filters =
                     , text = Maybe.withDefault "No bound" (Maybe.map Date.toIsoString filters.dobUpper)
                     , model = form.dobUpperPicker
                     }
+                ]
+            , Element.row [] 
+                [ Element.text "Filter by Status: "
+                , viewToggleFilter [ ( Tutor.Active, "Active" ), ( Tutor.Inactive, "Inactive" ), ( Tutor.New, "New" ) ] ToggleStatus filters.statuses
+                ]
+            , Element.row []
+                [ Element.text "Filter by Gender: "
+                , viewToggleFilter [ ( Tutor.Male, "M" ), ( Tutor.Female, "F" ) ] ToggleGender filters.genders
+                ]
+            , Element.row []
+                [ Element.text "Filter by Role: " 
+                , viewToggleFilter [ ( Tutor.LvlAdmin, "Admin" ), ( Tutor.LvlTutor, "Tutor" ) ] ToggleAdminLvl filters.admins
                 ]
             ]
         ]

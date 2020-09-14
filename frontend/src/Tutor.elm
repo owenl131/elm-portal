@@ -1,8 +1,8 @@
 module Tutor exposing
-    ( AdminLevel
-    , Gender
+    ( AdminLevel(..)
+    , Gender(..)
     , Tutor
-    , TutorStatus
+    , TutorStatus(..)
     , datestringEncoder
     , toGender
     , toTutorAdminLevel
