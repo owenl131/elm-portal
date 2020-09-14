@@ -3,81 +3,33 @@ module Tutor exposing
     , Gender(..)
     , Tutor
     , TutorStatus(..)
-    , datestringEncoder
+    , genderToString
     , toGender
     , toTutorAdminLevel
     , toTutorStatus
     , tutorDecoder
     , tutorEncoder
+    , tutorStatusEncoder 
+    , tutorAdminLevelEncoder
     )
 
-import Iso8601 exposing (toTime)
+import Date
 import Json.Decode as Decode
 import Json.Decode.Pipeline as Pipeline
 import Json.Encode as Encode
-import Time
 
 
-monthToInt : Time.Month -> Int
-monthToInt month =
-    case month of
-        Time.Jan ->
-            1
-
-        Time.Feb ->
-            2
-
-        Time.Mar ->
-            3
-
-        Time.Apr ->
-            4
-
-        Time.May ->
-            5
-
-        Time.Jun ->
-            6
-
-        Time.Jul ->
-            7
-
-        Time.Aug ->
-            8
-
-        Time.Sep ->
-            9
-
-        Time.Oct ->
-            10
-
-        Time.Nov ->
-            11
-
-        Time.Dec ->
-            12
-
-
-datestringEncoder : Time.Posix -> String
-datestringEncoder time =
-    String.join "-"
-        [ Time.toYear Time.utc time |> String.fromInt
-        , Time.toMonth Time.utc time |> monthToInt |> String.fromInt |> String.padLeft 2 '0'
-        , Time.toDay Time.utc time |> String.fromInt |> String.padLeft 2 '0'
-        ]
-
-
-datestringDecoder : Decode.Decoder Time.Posix
-datestringDecoder =
+dateDecoder : Decode.Decoder Date.Date
+dateDecoder =
     Decode.string
         |> Decode.andThen
             (\val ->
-                case toTime val of
-                    Ok posix ->
-                        Decode.succeed posix
+                case Date.fromIsoString val of
+                    Ok date ->
+                        Decode.succeed date
 
-                    Err _ ->
-                        Decode.fail <| "Unable to decode date string " ++ val
+                    Err error ->
+                        Decode.fail error
             )
 
 
@@ -98,6 +50,16 @@ toGender gender =
 
         _ ->
             Nothing
+
+
+genderToString : Gender -> String
+genderToString gender =
+    case gender of
+        Male ->
+            "m"
+
+        Female ->
+            "f"
 
 
 genderDecoder : Decode.Decoder Gender
@@ -212,8 +174,8 @@ type alias Tutor =
     , name : String
     , email : String
     , school : String
-    , dateOfBirth : Time.Posix
-    , dateOfRegistration : Time.Posix
+    , dateOfBirth : Date.Date
+    , dateOfRegistration : Date.Date
     , gender : Gender
     , status : TutorStatus
     , admin : AdminLevel
@@ -227,8 +189,8 @@ tutorDecoder =
         |> Pipeline.required "name" Decode.string
         |> Pipeline.required "email" Decode.string
         |> Pipeline.required "school" Decode.string
-        |> Pipeline.required "dateOfBirth" datestringDecoder
-        |> Pipeline.required "dateOfRegistration" datestringDecoder
+        |> Pipeline.required "dateOfBirth" dateDecoder
+        |> Pipeline.required "dateOfRegistration" dateDecoder
         |> Pipeline.required "gender" genderDecoder
         |> Pipeline.required "status" tutorStatusDecoder
         |> Pipeline.required "admin" tutorAdminLevelDecoder
@@ -240,8 +202,5 @@ tutorEncoder tutor =
         [ ( "id", Encode.string tutor.id )
         , ( "name", Encode.string tutor.name )
         , ( "email", Encode.string tutor.email )
-        , ( "dateOfBirth"
-          , Encode.string <|
-                datestringEncoder tutor.dateOfBirth
-          )
+        , ( "dateOfBirth", Encode.string (Date.toIsoString tutor.dateOfBirth) )
         ]

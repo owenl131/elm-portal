@@ -1,4 +1,4 @@
-module Page.Tutor exposing (..)
+module Page.Tutor exposing (Model, Msg, init, update, view)
 
 import Browser.Navigation
 import Element exposing (Element)
@@ -53,6 +53,10 @@ view model =
             Element.column
                 []
                 [ viewRow "Name" data .name
+                , viewRow "Email" data .email
+                , viewRow "School" data .school
+                , viewRow "School" data .school
+                , viewRow "School" data .school
                 , viewRow "School" data .school
                 ]
 

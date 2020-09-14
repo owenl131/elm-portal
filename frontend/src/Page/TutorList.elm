@@ -15,12 +15,12 @@ import Task
 import Tutor
     exposing
         ( Tutor
-        , datestringEncoder
         , toGender
         , toTutorAdminLevel
         , toTutorStatus
         , tutorDecoder
         )
+import Url.Builder as Builder
 import Url.Parser.Query as Query
 
 
@@ -112,6 +112,20 @@ tutorFiltersFromUrl =
         |> applyParser (Query.custom "classes" (\x -> x))
 
 
+tutorFiltersToQueryList : TutorFilters -> List Builder.QueryParameter
+tutorFiltersToQueryList filters =
+    List.map (Tutor.genderToString >> Builder.string "gender") filters.genders
+        ++ List.map (Tutor.tutorAdminLevelEncoder >> Builder.int "admin") filters.admins
+        ++ List.map (Tutor.tutorStatusEncoder >> Builder.int "status") filters.statuses
+        ++ List.map (Builder.string "name") filters.names
+        ++ List.map (Builder.string "school") filters.schools
+        ++ List.map (Date.toIsoString >> Builder.string "dobLower") (Maybe.Extra.toList filters.dobLower)
+        ++ List.map (Date.toIsoString >> Builder.string "dobUpper") (Maybe.Extra.toList filters.dobUpper)
+        ++ List.map (Date.toIsoString >> Builder.string "joinLower") (Maybe.Extra.toList filters.joinDateLower)
+        ++ List.map (Date.toIsoString >> Builder.string "joinUpper") (Maybe.Extra.toList filters.joinDateUpper)
+        ++ List.map (Builder.string "classes") filters.classes
+
+
 type alias Model =
     { key : Navigation.Key
     , pagination : Pagination
@@ -150,6 +164,7 @@ type Msg
     | ToggleStatus Tutor.TutorStatus
     | ToggleGender Tutor.Gender
     | ToggleAdminLvl Tutor.AdminLevel
+    | UpdateUrl
 
 
 init : Navigation.Key -> TutorFilters -> ( Model, Cmd Msg )
@@ -346,6 +361,9 @@ update msg model =
                     , Cmd.none
                     )
 
+        UpdateUrl ->
+            ( model, Navigation.pushUrl model.key ("/tutors" ++ Builder.toQuery (tutorFiltersToQueryList model.filters)) )
+
 
 viewToggleFilter : List ( a, String ) -> (a -> Msg) -> List a -> Element Msg
 viewToggleFilter all toggle selected =
@@ -486,7 +504,7 @@ viewFilters form filters =
                     , model = form.dobUpperPicker
                     }
                 ]
-            , Element.row [] 
+            , Element.row []
                 [ Element.text "Filter by Status: "
                 , viewToggleFilter [ ( Tutor.Active, "Active" ), ( Tutor.Inactive, "Inactive" ), ( Tutor.New, "New" ) ] ToggleStatus filters.statuses
                 ]
@@ -495,9 +513,10 @@ viewFilters form filters =
                 , viewToggleFilter [ ( Tutor.Male, "M" ), ( Tutor.Female, "F" ) ] ToggleGender filters.genders
                 ]
             , Element.row []
-                [ Element.text "Filter by Role: " 
+                [ Element.text "Filter by Role: "
                 , viewToggleFilter [ ( Tutor.LvlAdmin, "Admin" ), ( Tutor.LvlTutor, "Tutor" ) ] ToggleAdminLvl filters.admins
                 ]
+            , Input.button [] { label = Element.text "Update", onPress = Just UpdateUrl }
             ]
         ]
 
@@ -538,7 +557,7 @@ viewData data =
                       }
                     , { header = Element.text "Commencement"
                       , width = Element.fill
-                      , view = .dateOfRegistration >> datestringEncoder >> Element.text
+                      , view = .dateOfRegistration >> Date.toIsoString >> Element.text
                       }
                     , { header = Element.text "Details"
                       , width = Element.fill
