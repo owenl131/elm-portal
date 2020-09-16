@@ -28,10 +28,9 @@ update msg model =
 view : Model -> Element Msg
 view model =
     Element.column
-        [ Element.spacing 5]
+        [ Element.spacing 5 ]
         [ Element.text "Home - Use this for short term dev goals"
         , Element.text "Update tutor fields"
-        , Element.text "Push filters to url"
         , Element.text "Get and parse pagination set up from server"
         , Element.text "Implement class in front and backend"
         , Element.text "Implement attendance in front and backend"

@@ -60,6 +60,11 @@ view model =
             Element.text (Debug.toString err)
 
         RemoteData.Success data ->
+            -- Display tutor classes
+            -- Display tutor recently attended sessions
+            -- Display tutor hours with breakdown by class
+            -- Display tutor trainings
+            -- Display chart of attended sessions over last year
             Element.column
                 []
                 [ viewRow "Name" data .name

@@ -5,6 +5,7 @@ import Browser.Navigation as Navigation
 import Element exposing (Color, Element)
 import Element.Background as Background
 import Element.Input as Input
+import Page.Class as ClassPage
 import Page.ClassList as ClassListPage
 import Page.Home as Home
 import Page.Login as Login
@@ -30,6 +31,7 @@ type Msg
     | GotTutorListMsg TutorListPage.Msg
     | GotTutorMsg TutorPage.Msg
     | GotClassListMsg ClassListPage.Msg
+    | GotClassMsg ClassPage.Msg
 
 
 type Model
@@ -38,6 +40,7 @@ type Model
     | TutorListPage TutorListPage.Model
     | TutorPage TutorPage.Model
     | ClassListPage ClassListPage.Model
+    | ClassPage ClassPage.Model
 
 
 
@@ -51,6 +54,7 @@ type Route
     | RouteTutors TutorListPage.TutorFilters
     | RouteTutor String
     | RouteClasses ClassListPage.ClassFilters
+    | RouteClass Int
     | NotFound
 
 
@@ -63,6 +67,8 @@ routeParser =
         , UrlParser.map RouteTutor (UrlParser.s "tutor" </> UrlParser.string)
         , UrlParser.map RouteClasses
             (UrlParser.s "classes" <?> ClassListPage.classFiltersFromUrl)
+        , UrlParser.map RouteClass
+            (UrlParser.s "class" </> UrlParser.int)
         ]
 
 
@@ -72,8 +78,8 @@ getNestedNavigation model =
         LoggedOut _ ->
             []
 
-        Home _ -> 
-            [ ("Home", "/")]
+        Home _ ->
+            [ ( "Home", "/" ) ]
 
         TutorListPage _ ->
             [ ( "Tutors", "/tutors" ) ]
@@ -83,6 +89,9 @@ getNestedNavigation model =
 
         TutorPage submodel ->
             [ ( "Tutors", "/tutors" ), ( TutorPage.getPageTitle submodel, TutorPage.getPageLink submodel ) ]
+
+        ClassPage submodel ->
+            [ ( "Classes", "/classes" ), ( ClassPage.getPageTitle submodel, ClassPage.getPageLink submodel ) ]
 
 
 getNavigationKey : Model -> Navigation.Key
@@ -101,6 +110,9 @@ getNavigationKey model =
             submodel.key
 
         ClassListPage submodel ->
+            submodel.key
+
+        ClassPage submodel ->
             submodel.key
 
 
@@ -129,6 +141,11 @@ handleUrlChange url model =
             ClassListPage.init key filters
                 |> Tuple.mapFirst ClassListPage
                 |> Tuple.mapSecond (Cmd.map GotClassListMsg)
+
+        RouteClass id ->
+            ClassPage.init id key
+                |> Tuple.mapFirst ClassPage
+                |> Tuple.mapSecond (Cmd.map GotClassMsg)
 
         NotFound ->
             ( Home.init key, Cmd.none )
@@ -160,52 +177,62 @@ update msg model =
         NavigateTo urlString ->
             ( model, Navigation.pushUrl (getNavigationKey model) urlString )
 
-        GotHomeMsg homeMsg ->
+        GotHomeMsg subMsg ->
             case model of
-                Home homeModel ->
-                    case Home.update homeMsg homeModel of
+                Home submodel ->
+                    case Home.update subMsg submodel of
                         ( newModel, newMsg ) ->
                             ( Home newModel, Cmd.map GotHomeMsg newMsg )
 
                 _ ->
                     ignore
 
-        GotLoginMsg loginMsg ->
+        GotLoginMsg subMsg ->
             case model of
-                LoggedOut loginModel ->
-                    case Login.update loginMsg loginModel of
+                LoggedOut submodel ->
+                    case Login.update subMsg submodel of
                         ( newModel, newMsg ) ->
                             ( LoggedOut newModel, Cmd.map GotLoginMsg newMsg )
 
                 _ ->
                     ignore
 
-        GotTutorListMsg tutorListMsg ->
+        GotTutorListMsg subMsg ->
             case model of
-                TutorListPage tutorListModel ->
-                    case TutorListPage.update tutorListMsg tutorListModel of
+                TutorListPage submodel ->
+                    case TutorListPage.update subMsg submodel of
                         ( newModel, newMsg ) ->
                             ( TutorListPage newModel, Cmd.map GotTutorListMsg newMsg )
 
                 _ ->
                     ignore
 
-        GotTutorMsg tutorMsg ->
+        GotTutorMsg subMsg ->
             case model of
-                TutorPage tutorModel ->
-                    case TutorPage.update tutorMsg tutorModel of
+                TutorPage submodel ->
+                    case TutorPage.update subMsg submodel of
                         ( newModel, newMsg ) ->
                             ( TutorPage newModel, Cmd.map GotTutorMsg newMsg )
 
                 _ ->
                     ignore
 
-        GotClassListMsg classListMsg ->
+        GotClassListMsg subMsg ->
             case model of
-                ClassListPage classListModel ->
-                    case ClassListPage.update classListMsg classListModel of
+                ClassListPage submodel ->
+                    case ClassListPage.update subMsg submodel of
                         ( newModel, newMsg ) ->
                             ( ClassListPage newModel, Cmd.map GotClassListMsg newMsg )
+
+                _ ->
+                    ignore
+
+        GotClassMsg subMsg ->
+            case model of
+                ClassPage submodel ->
+                    case ClassPage.update subMsg submodel of
+                        ( newModel, newMsg ) ->
+                            ( ClassPage newModel, Cmd.map GotClassMsg newMsg )
 
                 _ ->
                     ignore
@@ -265,10 +292,11 @@ viewWrapped model body =
             , Element.height Element.fill
             ]
             [ viewTopNavigation model
-            , Element.el 
-                [ Element.width Element.fill 
-                , Element.height Element.fill 
-                , Element.padding 50 ]
+            , Element.el
+                [ Element.width Element.fill
+                , Element.height Element.fill
+                , Element.padding 50
+                ]
                 body
             ]
         ]
@@ -282,23 +310,24 @@ view model =
             []
           <|
             case model of
-                LoggedOut loginModel ->
-                    Element.map GotLoginMsg (Login.view loginModel)
+                LoggedOut submodel ->
+                    Element.map GotLoginMsg (Login.view submodel)
 
-                Home homeModel ->
-                    viewWrapped model <| Element.map GotHomeMsg (Home.view homeModel)
+                Home submodel ->
+                    viewWrapped model <| Element.map GotHomeMsg (Home.view submodel)
 
-                TutorListPage tutorListModel ->
-                    viewWrapped model <| Element.map GotTutorListMsg (TutorListPage.view tutorListModel)
+                TutorListPage submodel ->
+                    viewWrapped model <| Element.map GotTutorListMsg (TutorListPage.view submodel)
 
-                TutorPage tutorModel ->
-                    viewWrapped model <| Element.map GotTutorMsg (TutorPage.view tutorModel)
+                TutorPage submodel ->
+                    viewWrapped model <| Element.map GotTutorMsg (TutorPage.view submodel)
 
-                ClassListPage classListModel ->
-                    viewWrapped model <| Element.map GotClassListMsg (ClassListPage.view classListModel)
+                ClassListPage submodel ->
+                    viewWrapped model <| Element.map GotClassListMsg (ClassListPage.view submodel)
 
-        -- ClassPage ->
-        --     Element.none
+                ClassPage submodel ->
+                    viewWrapped model <| Element.map GotClassMsg (ClassPage.view submodel)
+
         -- AttendancePage ->
         --     Element.none
         -- AdminPage ->
