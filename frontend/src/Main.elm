@@ -2,7 +2,7 @@ module Main exposing (main)
 
 import Browser exposing (UrlRequest)
 import Browser.Navigation as Navigation
-import Element exposing (Element)
+import Element exposing (Color, Element)
 import Element.Background as Background
 import Element.Input as Input
 import Page.ClassList as ClassListPage
@@ -10,6 +10,7 @@ import Page.Home as Home
 import Page.Login as Login
 import Page.Tutor as TutorPage
 import Page.TutorList as TutorListPage
+import Tutor exposing (Tutor)
 import Url exposing (Url)
 import Url.Parser as UrlParser exposing ((</>), (<?>))
 
@@ -63,6 +64,25 @@ routeParser =
         , UrlParser.map RouteClasses
             (UrlParser.s "classes" <?> ClassListPage.classFiltersFromUrl)
         ]
+
+
+getNestedNavigation : Model -> List ( String, String )
+getNestedNavigation model =
+    case model of
+        LoggedOut _ ->
+            []
+
+        Home _ -> 
+            [ ("Home", "/")]
+
+        TutorListPage _ ->
+            [ ( "Tutors", "/tutors" ) ]
+
+        ClassListPage _ ->
+            [ ( "Classes", "/classes" ) ]
+
+        TutorPage submodel ->
+            [ ( "Tutors", "/tutors" ), ( TutorPage.getPageTitle submodel, TutorPage.getPageLink submodel ) ]
 
 
 getNavigationKey : Model -> Navigation.Key
@@ -215,6 +235,24 @@ viewDrawer _ =
         ]
 
 
+viewTopNavigationElement : ( String, String ) -> Element Msg
+viewTopNavigationElement ( label, route ) =
+    Input.button [] { onPress = Just (NavigateTo route), label = Element.text label }
+
+
+viewTopNavigation : Model -> Element Msg
+viewTopNavigation model =
+    let
+        routes =
+            getNestedNavigation model
+    in
+    Element.row
+        [ Element.width Element.fill
+        , Background.color (Element.rgb255 100 100 100)
+        ]
+        (List.map viewTopNavigationElement routes |> List.intersperse (Element.text ">"))
+
+
 viewWrapped : Model -> Element Msg -> Element Msg
 viewWrapped model body =
     Element.row
@@ -222,12 +260,17 @@ viewWrapped model body =
         , Element.height Element.fill
         ]
         [ viewDrawer model
-        , Element.el
+        , Element.column
             [ Element.width Element.fill
             , Element.height Element.fill
-            , Element.padding 50
             ]
-            body
+            [ viewTopNavigation model
+            , Element.el 
+                [ Element.width Element.fill 
+                , Element.height Element.fill 
+                , Element.padding 50 ]
+                body
+            ]
         ]
 
 

@@ -1,4 +1,4 @@
-module Page.Tutor exposing (Model, Msg, init, update, view)
+module Page.Tutor exposing (Model, Msg, getPageLink, getPageTitle, init, update, view)
 
 import Browser.Navigation
 import Element exposing (Element)
@@ -16,6 +16,16 @@ type alias Model =
 
 type Msg
     = GotTutorData (Result Http.Error Tutor)
+
+
+getPageTitle : Model -> String
+getPageTitle model =
+    RemoteData.toMaybe model.data |> Maybe.map .name |> Maybe.withDefault "Tutor"
+
+
+getPageLink : Model -> String
+getPageLink model =
+    "/tutor/" ++ model.id
 
 
 init : Browser.Navigation.Key -> String -> ( Model, Cmd Msg )
@@ -63,10 +73,11 @@ view model =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of 
+    case msg of
         GotTutorData result ->
-            case result of 
+            case result of
                 Ok data ->
                     ( { model | data = RemoteData.Success data }, Cmd.none )
-                Err error -> 
+
+                Err error ->
                     ( { model | data = RemoteData.Failure error }, Cmd.none )
