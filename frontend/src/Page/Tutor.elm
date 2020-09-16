@@ -23,9 +23,9 @@ getPageTitle model =
     RemoteData.toMaybe model.data |> Maybe.map .name |> Maybe.withDefault "Tutor"
 
 
-getPageLink : Model -> String
-getPageLink model =
-    "/tutor/" ++ model.id
+getPageLink : String -> String
+getPageLink id =
+    "/tutor/" ++ id
 
 
 init : Browser.Navigation.Key -> String -> ( Model, Cmd Msg )

@@ -7,10 +7,11 @@ module Tutor exposing
     , toGender
     , toTutorAdminLevel
     , toTutorStatus
+    , tutorAdminLevelDecoder
+    , tutorAdminLevelEncoder
     , tutorDecoder
     , tutorEncoder
-    , tutorStatusEncoder 
-    , tutorAdminLevelEncoder
+    , tutorStatusEncoder
     )
 
 import Date

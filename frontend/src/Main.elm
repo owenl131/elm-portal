@@ -6,6 +6,8 @@ import Element exposing (Element)
 import Element.Background as Background
 import Element.Input as Input
 import Page.Class as ClassPage
+import Page.Class.AddTutor as ClassAddTutorPage
+import Page.Class.Attendance as ClassAttendancePage
 import Page.ClassList as ClassListPage
 import Page.Home as Home
 import Page.Login as Login
@@ -32,6 +34,8 @@ type Msg
     | GotTutorMsg TutorPage.Msg
     | GotClassListMsg ClassListPage.Msg
     | GotClassMsg ClassPage.Msg
+    | GotClassAddTutorMsg ClassAddTutorPage.Msg
+    | GotClassAttendanceMsg ClassAttendancePage.Msg
 
 
 type Model
@@ -41,11 +45,11 @@ type Model
     | TutorPage TutorPage.Model
     | ClassListPage ClassListPage.Model
     | ClassPage ClassPage.Model
+    | ClassAddTutorPage ClassAddTutorPage.Model
+    | ClassAttendancePage ClassAttendancePage.Model
 
 
 
--- | ClassPage
--- | AttendancePage
 -- | AdminPage
 
 
@@ -55,6 +59,8 @@ type Route
     | RouteTutor String
     | RouteClasses ClassListPage.ClassFilters
     | RouteClass Int
+    | RouteClassAddTutor Int
+    | RouteClassAttendance Int Int
     | NotFound
 
 
@@ -69,6 +75,10 @@ routeParser =
             (UrlParser.s "classes" <?> ClassListPage.classFiltersFromUrl)
         , UrlParser.map RouteClass
             (UrlParser.s "class" </> UrlParser.int)
+        , UrlParser.map RouteClassAddTutor
+            (UrlParser.s "class" </> UrlParser.int </> UrlParser.s "addtutor")
+        , UrlParser.map RouteClassAttendance
+            (UrlParser.s "class" </> UrlParser.int </> UrlParser.s "session" </> UrlParser.int)
         ]
 
 
@@ -88,10 +98,16 @@ getNestedNavigation model =
             [ ( "Classes", "/classes" ) ]
 
         TutorPage submodel ->
-            [ ( "Tutors", "/tutors" ), ( TutorPage.getPageTitle submodel, TutorPage.getPageLink submodel ) ]
+            [ ( "Tutors", "/tutors" ), ( TutorPage.getPageTitle submodel, TutorPage.getPageLink submodel.id ) ]
 
         ClassPage submodel ->
             [ ( "Classes", "/classes" ), ( ClassPage.getPageTitle submodel, ClassPage.getPageLink submodel ) ]
+
+        ClassAddTutorPage submodel ->
+            [ ( "Classes", "/classes" ) ]
+
+        ClassAttendancePage submodel ->
+            [ ( "Classes", "/classes" ) ]
 
 
 getNavigationKey : Model -> Navigation.Key
@@ -113,6 +129,12 @@ getNavigationKey model =
             submodel.key
 
         ClassPage submodel ->
+            submodel.key
+
+        ClassAddTutorPage submodel ->
+            submodel.key
+
+        ClassAttendancePage submodel ->
             submodel.key
 
 
@@ -146,6 +168,16 @@ handleUrlChange url model =
             ClassPage.init id key
                 |> Tuple.mapFirst ClassPage
                 |> Tuple.mapSecond (Cmd.map GotClassMsg)
+
+        RouteClassAddTutor id ->
+            ClassAddTutorPage.init key id
+                |> Tuple.mapFirst ClassAddTutorPage
+                |> Tuple.mapSecond (Cmd.map GotClassAddTutorMsg)
+
+        RouteClassAttendance classId sessionId ->
+            ClassAttendancePage.init key classId sessionId
+                |> Tuple.mapFirst ClassAttendancePage
+                |> Tuple.mapSecond (Cmd.map GotClassAttendanceMsg)
 
         NotFound ->
             ( Home.init key, Cmd.none )
@@ -233,6 +265,28 @@ update msg model =
                     case ClassPage.update subMsg submodel of
                         ( newModel, newMsg ) ->
                             ( ClassPage newModel, Cmd.map GotClassMsg newMsg )
+
+                _ ->
+                    ignore
+
+        GotClassAddTutorMsg subMsg ->
+            case model of
+                ClassAddTutorPage submodel ->
+                    case ClassAddTutorPage.update subMsg submodel of
+                        ( newModel, newMsg ) ->
+                            ( ClassAddTutorPage newModel, Cmd.map GotClassAddTutorMsg newMsg )
+
+                _ ->
+                    ignore
+
+        GotClassAttendanceMsg subMsg ->
+            case model of
+                ClassAttendancePage submodel ->
+                    let
+                        ( newModel, newMsg ) =
+                            ClassAttendancePage.update subMsg submodel
+                    in
+                    ( ClassAttendancePage newModel, Cmd.map GotClassAttendanceMsg newMsg )
 
                 _ ->
                     ignore
@@ -328,10 +382,11 @@ view model =
                 ClassPage submodel ->
                     viewWrapped model <| Element.map GotClassMsg (ClassPage.view submodel)
 
-        -- AttendancePage ->
-        --     Element.none
-        -- AdminPage ->
-        --     Element.none
+                ClassAddTutorPage submodel ->
+                    viewWrapped model <| Element.map GotClassAddTutorMsg (ClassAddTutorPage.view submodel)
+
+                ClassAttendancePage submodel ->
+                    viewWrapped model <| Element.map GotClassAttendanceMsg (ClassAttendancePage.view submodel)
         ]
     }
 

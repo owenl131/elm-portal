@@ -49,15 +49,17 @@ getPageLink model =
         ++ String.fromInt model.sessionId
 
 
-init : Navigation.Key -> Int -> Int -> Model
+init : Navigation.Key -> Int -> Int -> ( Model, Cmd Msg )
 init key classId sessionId =
-    { key = key
-    , classId = classId
-    , sessionId = sessionId
-    , sessionData = RemoteData.Loading
-    , present = RemoteData.Loading
-    , tutors = RemoteData.Loading
-    }
+    ( { key = key
+      , classId = classId
+      , sessionId = sessionId
+      , sessionData = RemoteData.Loading
+      , present = RemoteData.Loading
+      , tutors = RemoteData.Loading
+      }
+    , Cmd.none
+    )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )

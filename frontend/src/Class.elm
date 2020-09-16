@@ -1,8 +1,30 @@
-module Class exposing (Class, ClassSession, ClassTutor, classDecoder)
+module Class exposing
+    ( Class
+    , ClassSession
+    , ClassTutor
+    , classDecoder
+    , classSessionDecoder
+    , classTutorDecoder
+    )
 
 import Date
 import Json.Decode as Decode
 import Json.Decode.Pipeline as Pipeline
+import Tutor
+
+
+dateDecoder : Decode.Decoder Date.Date
+dateDecoder =
+    Decode.string
+        |> Decode.andThen
+            (\val ->
+                case Date.fromIsoString val of
+                    Ok date ->
+                        Decode.succeed date
+
+                    Err error ->
+                        Decode.fail error
+            )
 
 
 weekdayDecoder : Decode.Decoder Date.Weekday
@@ -31,12 +53,14 @@ type alias Class =
     }
 
 
-
--- type alias ClassExtended =
---     { class : Class
---     , sessions : List ClassSession
---     , tutors : List ClassTutor
---     }
+classSessionDecoder : Decode.Decoder ClassSession
+classSessionDecoder =
+    Decode.succeed ClassSession
+        |> Pipeline.required "id" Decode.int
+        |> Pipeline.required "date" dateDecoder
+        |> Pipeline.required "remarks" Decode.string
+        |> Pipeline.required "duration" Decode.float
+        |> Pipeline.required "present" (Decode.list Decode.string)
 
 
 type alias ClassSession =
@@ -48,8 +72,20 @@ type alias ClassSession =
     }
 
 
+classTutorDecoder : Decode.Decoder ClassTutor
+classTutorDecoder =
+    Decode.succeed ClassTutor
+        |> Pipeline.required "id" Decode.string
+        |> Pipeline.required "name" Decode.string
+        |> Pipeline.required "admin" Tutor.tutorAdminLevelDecoder
+        |> Pipeline.required "joinDate" dateDecoder
+        |> Pipeline.optional "leaveDate" (Decode.maybe dateDecoder) Nothing
+
+
 type alias ClassTutor =
-    { tutorId : String
+    { id : String
+    , name : String
+    , admin : Tutor.AdminLevel
     , joinDate : Date.Date
     , leaveDate : Maybe Date.Date
     }
