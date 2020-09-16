@@ -169,8 +169,7 @@ init key filters =
       }
     , Cmd.batch
         [ Http.get
-            -- pass filters to api
-            { url = "http://localhost:5000/tutors"
+            { url = "http://localhost:5000/tutors" ++ Builder.toQuery (tutorFiltersToQueryList filters)
             , expect = Http.expectJson GotTutorList <| Decode.list tutorDecoder
             }
         , Cmd.batch

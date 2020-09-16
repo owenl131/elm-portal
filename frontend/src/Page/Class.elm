@@ -1,9 +1,10 @@
-module Page.Class exposing (..)
+module Page.Class exposing (Model, Msg, getPageLink, getPageTitle, init, update, view)
 
 import Browser.Navigation as Navigation
 import Class exposing (Class)
 import DatePicker exposing (Model)
 import Element exposing (Element)
+import Http
 import RemoteData exposing (WebData)
 
 
@@ -15,7 +16,7 @@ type alias Model =
 
 
 type Msg
-    = DoNothing
+    = GotClassData (Result Http.Error Class)
 
 
 getPageTitle : Model -> String
@@ -28,20 +29,32 @@ getPageLink model =
     "/class/" ++ String.fromInt model.id
 
 
+fetchClassData : Model -> Cmd Msg
+fetchClassData model =
+    Http.get
+        { url = "http://localhost:5000/class/" ++ String.fromInt model.id
+        , expect = Http.expectJson GotClassData Class.classDecoder
+        }
+
+
 init : Int -> Navigation.Key -> ( Model, Cmd Msg )
 init id key =
-    ( { key = key, id = id, data = RemoteData.Loading }, Cmd.none )
+    let
+        model =
+            { key = key, id = id, data = RemoteData.Loading }
+    in
+    ( model, fetchClassData model )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        DoNothing ->
-            ( model, Cmd.none )
+        GotClassData result ->
+            ( { model | data = RemoteData.fromResult result }, Cmd.none )
 
 
 view : Model -> Element Msg
-view model =
+view _ =
     -- Should show details, menu to make new and sessions
     -- click session to redirect to take/view attendance page
     -- Button to open add tutor menu

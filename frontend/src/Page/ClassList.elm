@@ -66,7 +66,7 @@ type Msg
     | ChangePageNext
     | ChangePage Int
     | GotClassList (Result Http.Error (List Class))
-    | ToDetails Int 
+    | ToDetails Int
 
 
 init : Navigation.Key -> ClassFilters -> ( Model, Cmd Msg )
@@ -77,7 +77,7 @@ init key filters =
       , data = RemoteData.Loading
       }
     , Http.get
-        { url = "http://localhost:5000/classes"
+        { url = "http://localhost:5000/classes" ++ Builder.toQuery (classFiltersToQueryList filters)
         , expect = Http.expectJson GotClassList <| Decode.list classDecoder
         }
     )
@@ -107,8 +107,9 @@ update msg model =
                 Err error ->
                     ( { model | data = RemoteData.Failure error }, Cmd.none )
 
-        ToDetails id -> 
-            ( model, Navigation.pushUrl model.key ("/class/" ++ String.fromInt id))
+        ToDetails id ->
+            ( model, Navigation.pushUrl model.key ("/class/" ++ String.fromInt id) )
+
 
 viewPagination : Pagination -> Element Msg
 viewPagination _ =

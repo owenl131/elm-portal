@@ -2,7 +2,7 @@ module Main exposing (main)
 
 import Browser exposing (UrlRequest)
 import Browser.Navigation as Navigation
-import Element exposing (Color, Element)
+import Element exposing (Element)
 import Element.Background as Background
 import Element.Input as Input
 import Page.Class as ClassPage
@@ -11,15 +11,15 @@ import Page.Home as Home
 import Page.Login as Login
 import Page.Tutor as TutorPage
 import Page.TutorList as TutorListPage
-import Tutor exposing (Tutor)
 import Url exposing (Url)
 import Url.Parser as UrlParser exposing ((</>), (<?>))
 
 
-type alias Credentials =
-    { email : String
-    , session : String
-    }
+
+-- type alias Credentials =
+--     { email : String
+--     , session : String
+--     }
 
 
 type Msg

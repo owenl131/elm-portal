@@ -1,4 +1,5 @@
-module Page.Admin exposing (..)
+module Page.Admin exposing (Model)
 
-type alias Model = 
+
+type alias Model =
     {}

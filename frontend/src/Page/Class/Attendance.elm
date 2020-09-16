@@ -1,4 +1,12 @@
-module Page.Class.Attendance exposing (..)
+module Page.Class.Attendance exposing
+    ( Model
+    , Msg
+    , getPageLink
+    , getPageTitle
+    , init
+    , update
+    , view
+    )
 
 import Browser.Navigation as Navigation
 import Class
