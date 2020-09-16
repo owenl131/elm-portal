@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import random
 import string
@@ -49,12 +49,12 @@ classTutors = [{
 }
     for t in tutors[:5]
 ]
+present = [t['id'] for t in classTutors[:3]]
 session = {
     'id': 0,
     'date': '2020-05-10',
     'remarks': 'Class',
-    'duration': 3,
-    'present': [t['id'] for t in tutors[:5]]
+    'duration': 3
 }
 
 
@@ -88,17 +88,46 @@ def getSessions(cid):
     return jsonify([session])
 
 
-@app.route('/class/<cid>/tutors')
+@app.route('/class/<cid>/session/<sid>')
+def getSessionDetails(cid, sid):
+    return jsonify(session)
+
+
+@app.route('/class/<cid>/session/<sid>/tutors')
+def getSessionTutors(cid, sid):
+    return jsonify(classTutors)
+
+
+@app.route('/class/<cid>/session/<sid>/attendance')
+def getSessionAttendance(cid, sid):
+    return jsonify(present)
+
+
+@ app.route('/class/<cid>/tutors')
 def getClassTutors(cid):
     return jsonify(classTutors)
 
 
-@app.route('/tutor/<id>')
+@ app.route('/tutor/<id>')
 def getTutor(id):
     for tutor in tutors:
         if tutor['id'] == id:
             return jsonify(tutor)
     return "Record not found", 400
+
+
+@ app.route('/class/<cid>/session/<sid>/present', methods=["POST"])
+def markPresent(cid, sid):
+    tid = request.data.decode('utf-8')
+    present.append(tid)
+    return "Ok", 200
+
+
+@ app.route('/class/<cid>/session/<sid>/absent', methods=["POST"])
+def markAbsent(cid, sid):
+    tid = request.data.decode('utf-8')
+    present.remove(tid)
+    return "Ok", 200
 
 
 if __name__ == '__main__':

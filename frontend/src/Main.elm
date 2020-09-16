@@ -107,7 +107,7 @@ getNestedNavigation model =
             [ ( "Classes", "/classes" ) ]
 
         ClassAttendancePage submodel ->
-            [ ( "Classes", "/classes" ) ]
+            ClassAttendancePage.getNestedNavigation submodel
 
 
 getNavigationKey : Model -> Navigation.Key

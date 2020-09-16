@@ -60,7 +60,6 @@ classSessionDecoder =
         |> Pipeline.required "date" dateDecoder
         |> Pipeline.required "remarks" Decode.string
         |> Pipeline.required "duration" Decode.float
-        |> Pipeline.required "present" (Decode.list Decode.string)
 
 
 type alias ClassSession =
@@ -68,7 +67,6 @@ type alias ClassSession =
     , date : Date.Date
     , remarks : String
     , duration : Float
-    , present : List String
     }
 
 
