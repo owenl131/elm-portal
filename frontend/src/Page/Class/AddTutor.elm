@@ -19,7 +19,6 @@ import Json.Encode as Encode
 import RemoteData exposing (WebData)
 import Task
 import Tutor exposing (Tutor)
-import Url.Builder as Builder
 
 
 type alias Model =

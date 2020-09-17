@@ -17,6 +17,7 @@ import Element.Input as Input
 import Http
 import Json.Decode as Decode
 import RemoteData exposing (WebData)
+import String
 
 
 type alias Model =
@@ -108,7 +109,7 @@ getNestedNavigation model =
 
 
 getPageTitle : Model -> String
-getPageTitle model =
+getPageTitle _ =
     "Take Attendance"
 
 
@@ -203,39 +204,46 @@ viewSessionInfo session =
 
 viewSummary : List ClassTutor -> List String -> Element Msg
 viewSummary tutors present =
-    Element.text "xxx Tutors Present"
+    Element.column []
+        [ Element.text ((List.length present |> String.fromInt) ++ " Tutors Present")
+        , Element.text (((List.length tutors - List.length present) |> String.fromInt) ++ " Tutors Absent")
+        , Element.text ((List.length tutors |> String.fromInt) ++ " Tutors Total")
+        ]
 
 
 viewAttendance : List ClassTutor -> List String -> Element Msg
 viewAttendance tutors present =
-    Element.table
-        []
-        { data = tutors
-        , columns =
-            [ { header = Element.text "Name"
-              , width = Element.fill
-              , view = .name >> Element.text
-              }
-            , { header = Element.none
-              , width = Element.fill
-              , view =
-                    \t ->
-                        if List.member t.id present then
-                            Element.text "Present"
+    Element.column []
+        [ viewSummary tutors present
+        , Element.table
+            []
+            { data = tutors
+            , columns =
+                [ { header = Element.text "Name"
+                  , width = Element.fill
+                  , view = .name >> Element.text
+                  }
+                , { header = Element.none
+                  , width = Element.fill
+                  , view =
+                        \t ->
+                            if List.member t.id present then
+                                Element.text "Present"
 
-                        else
-                            Element.text "Absent"
-              }
-            , { header = Element.text "Mark Present"
-              , width = Element.fill
-              , view = \t -> Input.button [] { label = Element.text "+", onPress = Just (MarkPresent t.id) }
-              }
-            , { header = Element.text "Mark Absent"
-              , width = Element.fill
-              , view = \t -> Input.button [] { label = Element.text "-", onPress = Just (MarkAbsent t.id) }
-              }
-            ]
-        }
+                            else
+                                Element.text "Absent"
+                  }
+                , { header = Element.text "Mark Present"
+                  , width = Element.fill
+                  , view = \t -> Input.button [] { label = Element.text "+", onPress = Just (MarkPresent t.id) }
+                  }
+                , { header = Element.text "Mark Absent"
+                  , width = Element.fill
+                  , view = \t -> Input.button [] { label = Element.text "-", onPress = Just (MarkAbsent t.id) }
+                  }
+                ]
+            }
+        ]
 
 
 view : Model -> Element Msg
