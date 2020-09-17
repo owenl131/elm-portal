@@ -104,7 +104,7 @@ getNestedNavigation model =
             [ ( "Classes", "/classes" ), ( ClassPage.getPageTitle submodel, ClassPage.getPageLink submodel ) ]
 
         ClassAddTutorPage submodel ->
-            [ ( "Classes", "/classes" ) ]
+            ClassAddTutorPage.getNestedNavigation submodel
 
         ClassAttendancePage submodel ->
             ClassAttendancePage.getNestedNavigation submodel

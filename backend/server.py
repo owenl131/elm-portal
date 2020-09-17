@@ -68,6 +68,26 @@ def hello_world():
     )
 
 
+def getTutorById(id):
+    for tutor in tutors:
+        if tutor['id'] == id:
+            return tutor
+    return None
+
+
+def inClass(id):
+    for tutor in classTutors:
+        if tutor['id'] == id:
+            return True
+    return False
+
+
+@app.route('/suggestions')
+def getSuggestions():
+    nameFilter = request.args.get('filter')
+    return jsonify(list(filter(lambda x: (nameFilter is None or nameFilter in x['name']) and not inClass(x['id']), tutors))[:10])
+
+
 @app.route('/tutors')
 def getTutors():
     return jsonify(tutors[:10])
@@ -81,6 +101,24 @@ def getClasses():
 @app.route('/class/<cid>')
 def getClass(cid):
     return jsonify(classes[int(cid)])
+
+
+@app.route('/class/<cid>/addtutor/', methods=["POST"])
+def addTutorToClass(cid):
+    data = request.json
+    joinDate = data['joinDate']
+    tid = data['tutorId']
+    t = getTutorById(tid)
+    print(tid, joinDate, t)
+    if joinDate is None or t is None:
+        return 'Failed', 500
+    classTutors.append({
+        'id': t['id'],
+        'name': t['name'],
+        'admin': t['admin'],
+        'joinDate': joinDate
+    })
+    return 'Ok', 200
 
 
 @app.route('/class/<cid>/sessions')

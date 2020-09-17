@@ -141,7 +141,7 @@ type Msg
     | ChangePageNext
     | ChangePage Int
     | ChangePicker WhichDatePicker DatePicker.ChangeEvent
-    | SetToday WhichDatePicker Date.Date
+    | SetToday Date.Date
     | ToDetails String
     | GotTutorList (Result Http.Error (List Tutor))
     | EnteredNameFilter String
@@ -173,10 +173,7 @@ init key filters =
             , expect = Http.expectJson GotTutorList <| Decode.list tutorDecoder
             }
         , Cmd.batch
-            [ Task.perform (SetToday JoinUpper) Date.today
-            , Task.perform (SetToday JoinLower) Date.today
-            , Task.perform (SetToday DobLower) Date.today
-            , Task.perform (SetToday DobUpper) Date.today
+            [ Task.perform SetToday Date.today
             ]
         ]
     )
@@ -317,9 +314,14 @@ update msg model =
             , Cmd.none
             )
 
-        SetToday whichDatePicker today ->
+        SetToday today ->
             ( { model
-                | filtersForm = updatePicker whichDatePicker (DatePicker.setToday today) filtersForm
+                | filtersForm =
+                    filtersForm
+                        |> updatePicker JoinUpper (DatePicker.setToday today)
+                        |> updatePicker JoinLower (DatePicker.setToday today)
+                        |> updatePicker DobUpper (DatePicker.setToday today)
+                        |> updatePicker DobLower (DatePicker.setToday today)
               }
             , Cmd.none
             )
@@ -328,7 +330,8 @@ update msg model =
             case changeEvent of
                 DatePicker.DateChanged date ->
                     ( { model
-                        | filters = updateDate whichDatePicker (Just date) filters
+                        | filters =
+                            updateDate whichDatePicker (Just date) filters
                       }
                     , Cmd.none
                     )
