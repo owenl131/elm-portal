@@ -15,6 +15,7 @@ import Page.Tutor as TutorPage
 import Page.TutorList as TutorListPage
 import Url exposing (Url)
 import Url.Parser as UrlParser exposing ((</>), (<?>))
+import Url.Parser.Query as Query
 
 
 
@@ -55,7 +56,7 @@ type Model
 
 type Route
     = RouteHome
-    | RouteTutors TutorListPage.TutorFilters
+    | RouteTutors TutorListPage.TutorFilters (Maybe Int)
     | RouteTutor String
     | RouteClasses ClassListPage.ClassFilters
     | RouteClass Int
@@ -69,7 +70,7 @@ routeParser =
     UrlParser.oneOf
         [ UrlParser.map RouteHome (UrlParser.s "home")
         , UrlParser.map RouteTutors
-            (UrlParser.s "tutors" <?> TutorListPage.tutorFiltersFromUrl)
+            (UrlParser.s "tutors" <?> TutorListPage.tutorFiltersFromUrl <?> Query.int "page")
         , UrlParser.map RouteTutor (UrlParser.s "tutor" </> UrlParser.string)
         , UrlParser.map RouteClasses
             (UrlParser.s "classes" <?> ClassListPage.classFiltersFromUrl)
@@ -149,8 +150,8 @@ handleUrlChange url model =
             ( Home.init key, Cmd.none )
                 |> Tuple.mapFirst Home
 
-        RouteTutors filters ->
-            TutorListPage.init key filters
+        RouteTutors filters maybePage ->
+            TutorListPage.init key filters (maybePage |> Maybe.withDefault 0)
                 |> Tuple.mapFirst TutorListPage
                 |> Tuple.mapSecond (Cmd.map GotTutorListMsg)
 

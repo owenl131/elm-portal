@@ -40,6 +40,7 @@ def makeTutor():
 
 
 tutors = [makeTutor() for _ in range(30)]
+tutors.sort(key=lambda a: a['name'])
 classes = [makeClass(i) for i in range(3)]
 classTutors = [{
     'id': t['id'],
@@ -58,7 +59,7 @@ session = {
 }
 
 
-@app.route('/')
+@ app.route('/')
 def hello_world():
     return jsonify(
         {
@@ -90,7 +91,20 @@ def getSuggestions():
 
 @app.route('/tutors')
 def getTutors():
-    return jsonify(tutors[:10])
+    page = int(request.args.get('page'))
+    perPage = 10
+    entries = len(tutors)
+    pages = (entries // perPage) + (0 if entries % perPage == 0 else 1)
+    if page is None:
+        page = 0
+    offset = int(perPage * page)
+    return jsonify({
+        'page': page,
+        'perPage': perPage,
+        'lastPage': pages,
+        'total': entries,
+        'data': tutors[offset:offset + perPage]
+    })
 
 
 @app.route('/classes')

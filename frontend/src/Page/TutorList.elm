@@ -1,7 +1,6 @@
 module Page.TutorList exposing
     ( Model
     , Msg
-    , Pagination
     , TutorFilters
     , init
     , tutorFiltersFromUrl
@@ -9,7 +8,7 @@ module Page.TutorList exposing
     , view
     )
 
-import Browser.Navigation as Navigation
+import Browser.Navigation as Navigation exposing (pushUrl)
 import Date
 import DatePicker
 import Element exposing (Element)
@@ -17,6 +16,7 @@ import Element.Background as Background
 import Element.Input as Input
 import Http
 import Json.Decode as Decode
+import Json.Decode.Pipeline as Pipeline
 import List.Extra
 import Maybe.Extra
 import RemoteData exposing (WebData)
@@ -33,19 +33,23 @@ import Url.Builder as Builder
 import Url.Parser.Query as Query
 
 
-type alias Pagination =
+type alias Paged a =
     { page : Int
     , perPage : Int
     , lastPage : Int
+    , total : Int
+    , data : a
     }
 
 
-defaultPagination : Pagination
-defaultPagination =
-    { page = 0
-    , perPage = 20
-    , lastPage = 0
-    }
+pagedDecoder : Decode.Decoder a -> Decode.Decoder (Paged a)
+pagedDecoder subDecoder =
+    Decode.succeed Paged
+        |> Pipeline.required "page" Decode.int
+        |> Pipeline.required "perPage" Decode.int
+        |> Pipeline.required "lastPage" Decode.int
+        |> Pipeline.required "total" Decode.int
+        |> Pipeline.required "data" subDecoder
 
 
 type alias TutorFiltersForm =
@@ -122,10 +126,10 @@ tutorFiltersToQueryList filters =
 
 type alias Model =
     { key : Navigation.Key
-    , pagination : Pagination
     , filters : TutorFilters
     , filtersForm : TutorFiltersForm
-    , data : WebData (List Tutor)
+    , page : Int
+    , data : WebData (Paged (List Tutor))
     }
 
 
@@ -143,7 +147,7 @@ type Msg
     | ChangePicker WhichDatePicker DatePicker.ChangeEvent
     | SetToday Date.Date
     | ToDetails String
-    | GotTutorList (Result Http.Error (List Tutor))
+    | GotTutorList (Result Http.Error (Paged (List Tutor)))
     | EnteredNameFilter String
     | EnteredSchoolFilter String
     | EnteredClassFilter String
@@ -159,22 +163,25 @@ type Msg
     | UpdateUrl
 
 
-init : Navigation.Key -> TutorFilters -> ( Model, Cmd Msg )
-init key filters =
+fetchTutorList : TutorFilters -> Int -> Cmd Msg
+fetchTutorList filters page =
+    Http.get
+        { url = "http://localhost:5000/tutors" ++ Builder.toQuery (Builder.int "page" page :: tutorFiltersToQueryList filters)
+        , expect = Http.expectJson GotTutorList <| pagedDecoder (Decode.list tutorDecoder)
+        }
+
+
+init : Navigation.Key -> TutorFilters -> Int -> ( Model, Cmd Msg )
+init key filters page =
     ( { key = key
-      , pagination = defaultPagination
       , filters = filters
       , filtersForm = emptyForm
+      , page = page
       , data = RemoteData.Loading
       }
     , Cmd.batch
-        [ Http.get
-            { url = "http://localhost:5000/tutors" ++ Builder.toQuery (tutorFiltersToQueryList filters)
-            , expect = Http.expectJson GotTutorList <| Decode.list tutorDecoder
-            }
-        , Cmd.batch
-            [ Task.perform SetToday Date.today
-            ]
+        [ Task.perform SetToday Date.today
+        , fetchTutorList filters page
         ]
     )
 
@@ -223,13 +230,32 @@ update msg model =
     case msg of
         -- Change page and load new data
         ChangePagePrevious ->
-            ( model, Cmd.none )
+            let
+                newModel =
+                    { model
+                        | page =
+                            if model.page == 0 then
+                                model.page
+
+                            else
+                                model.page - 1
+                    }
+            in
+            ( newModel, pushUrl newModel )
 
         ChangePageNext ->
-            ( model, Cmd.none )
+            let
+                newModel =
+                    { model | page = model.page + 1 }
+            in
+            ( newModel, pushUrl newModel )
 
-        ChangePage _ ->
-            ( model, Cmd.none )
+        ChangePage page ->
+            let
+                newModel =
+                    { model | page = page }
+            in
+            ( newModel, pushUrl newModel )
 
         GotTutorList result ->
             case result of
@@ -355,7 +381,14 @@ update msg model =
                     )
 
         UpdateUrl ->
-            ( model, Navigation.pushUrl model.key ("/tutors" ++ Builder.toQuery (tutorFiltersToQueryList model.filters)) )
+            ( model, pushUrl model )
+
+
+pushUrl : Model -> Cmd Msg
+pushUrl model =
+    Navigation.pushUrl
+        model.key
+        ("/tutors" ++ Builder.toQuery (Builder.int "page" model.page :: tutorFiltersToQueryList model.filters))
 
 
 viewToggleFilter : List ( a, String ) -> (a -> Msg) -> List a -> Element Msg
@@ -514,17 +547,19 @@ viewFilters form filters =
         ]
 
 
-viewPagination : Pagination -> Element Msg
-viewPagination _ =
+viewPagination : Paged a -> Element Msg
+viewPagination pagedData =
     Element.row
         [ Element.width Element.fill ]
-        [ Input.button [] { onPress = Just ChangePagePrevious, label = Element.text "<" }
-        , Input.button [] { onPress = Just (ChangePage 1), label = Element.text "1" }
-        , Input.button [] { onPress = Just ChangePageNext, label = Element.text ">" }
-        ]
+        (Input.button [] { onPress = Just ChangePagePrevious, label = Element.text "<" }
+            :: List.map
+                (\p -> Input.button [] { onPress = Just (ChangePage (p - 1)), label = Element.text (String.fromInt p) })
+                (List.range 1 pagedData.lastPage)
+            ++ [ Input.button [] { onPress = Just ChangePageNext, label = Element.text ">" } ]
+        )
 
 
-viewData : WebData (List Tutor) -> Element Msg
+viewData : WebData (Paged (List Tutor)) -> Element Msg
 viewData data =
     case data of
         RemoteData.NotAsked ->
@@ -536,7 +571,11 @@ viewData data =
         RemoteData.Failure err ->
             Element.text (Debug.toString err)
 
-        RemoteData.Success tutorList ->
+        RemoteData.Success pagedData ->
+            let
+                tutorList =
+                    pagedData.data
+            in
             Element.table
                 []
                 { columns =
@@ -567,6 +606,16 @@ viewData data =
                 }
 
 
+blankIfAbsent : (a -> Element Msg) -> WebData a -> Element Msg
+blankIfAbsent viewIt webData =
+    case webData of
+        RemoteData.Success data ->
+            viewIt data
+
+        _ ->
+            Element.none
+
+
 view : Model -> Element Msg
 view model =
     Element.column
@@ -574,7 +623,7 @@ view model =
         , Element.height Element.fill
         ]
         [ viewFilters model.filtersForm model.filters
-        , viewPagination model.pagination
+        , blankIfAbsent viewPagination model.data
         , viewData model.data
-        , viewPagination model.pagination
+        , blankIfAbsent viewPagination model.data
         ]
