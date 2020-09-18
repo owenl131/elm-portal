@@ -325,7 +325,18 @@ viewDrawer _ =
         , Background.color Colors.theme.p500
         , Font.color Colors.black
         ]
-        [ Element.el [ Element.height (Element.px 40) ] Element.none
+        [ Element.el
+            [ Element.width Element.fill
+            , Element.height (Element.px 100)
+            , Element.padding 10
+            ]
+            (Element.el
+                [ Element.width Element.fill
+                , Element.height Element.fill
+                , Background.uncropped "src/Logo.png"
+                ]
+                Element.none
+            )
         , viewDrawerElement "Home" "/home"
         , viewDrawerElement "Tutors" "/tutors"
         , viewDrawerElement "Classes" "/classes"
@@ -351,10 +362,10 @@ viewTopNavigation model =
     in
     Element.row
         [ Element.width Element.fill
-        , Element.height (Element.px 43)
         , Background.color Colors.theme.p500
         , Element.spacing 20
-        , Element.padding 10
+        , Element.paddingEach { top = 20, left = 50, right = 50, bottom = 10 }
+        , Font.size 18
         ]
         (List.map viewTopNavigationElement routes |> List.intersperse (Element.text ">"))
 

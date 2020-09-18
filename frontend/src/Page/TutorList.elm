@@ -62,18 +62,26 @@ type alias TutorFiltersForm =
     , dobUpperPicker : DatePicker.Model
     , joinLowerPicker : DatePicker.Model
     , joinUpperPicker : DatePicker.Model
+    , dobLowerText : String
+    , dobUpperText : String
+    , joinLowerText : String
+    , joinUpperText : String
     , classFilter : String
     }
 
 
-emptyForm : TutorFiltersForm
-emptyForm =
+initFromFilters : TutorFilters -> TutorFiltersForm
+initFromFilters filters =
     { nameFilter = ""
     , schoolFilter = ""
     , dobLowerPicker = DatePicker.init
     , dobUpperPicker = DatePicker.init
     , joinLowerPicker = DatePicker.init
     , joinUpperPicker = DatePicker.init
+    , dobLowerText = filters.dobLower |> Maybe.map Date.toIsoString |> Maybe.withDefault "No bound"
+    , dobUpperText = filters.dobUpper |> Maybe.map Date.toIsoString |> Maybe.withDefault "No bound"
+    , joinLowerText = filters.joinDateLower |> Maybe.map Date.toIsoString |> Maybe.withDefault "No bound"
+    , joinUpperText = filters.joinDateUpper |> Maybe.map Date.toIsoString |> Maybe.withDefault "No bound"
     , classFilter = ""
     }
 
@@ -163,7 +171,6 @@ type Msg
     | ToggleStatus Tutor.TutorStatus
     | ToggleGender Tutor.Gender
     | ToggleAdminLvl Tutor.AdminLevel
-    | UpdateUrl
 
 
 fetchTutorList : TutorFilters -> Int -> Cmd Msg
@@ -178,7 +185,7 @@ init : Navigation.Key -> TutorFilters -> Int -> ( Model, Cmd Msg )
 init key filters page =
     ( { key = key
       , filters = filters
-      , filtersForm = emptyForm
+      , filtersForm = initFromFilters filters
       , page = page
       , data = RemoteData.Loading
       }
@@ -187,6 +194,42 @@ init key filters page =
         , fetchTutorList filters page
         ]
     )
+
+
+toggleStatuses : Tutor.TutorStatus -> TutorFilters -> TutorFilters
+toggleStatuses status filters =
+    { filters
+        | statuses =
+            if List.member status filters.statuses then
+                List.filter ((/=) status) filters.statuses
+
+            else
+                status :: filters.statuses
+    }
+
+
+toggleAdminLvls : Tutor.AdminLevel -> TutorFilters -> TutorFilters
+toggleAdminLvls adminLvl filters =
+    { filters
+        | admins =
+            if List.member adminLvl filters.admins then
+                List.filter ((/=) adminLvl) filters.admins
+
+            else
+                adminLvl :: filters.admins
+    }
+
+
+toggleGender : Tutor.Gender -> TutorFilters -> TutorFilters
+toggleGender gender filters =
+    { filters
+        | genders =
+            if List.member gender filters.genders then
+                List.filter ((/=) gender) filters.genders
+
+            else
+                gender :: filters.genders
+    }
 
 
 updateDate : WhichDatePicker -> Maybe Date.Date -> TutorFilters -> TutorFilters
@@ -203,6 +246,22 @@ updateDate which date filters =
 
         DobUpper ->
             { filters | dobUpper = date }
+
+
+updateText : WhichDatePicker -> String -> TutorFiltersForm -> TutorFiltersForm
+updateText which text form =
+    case which of
+        JoinLower ->
+            { form | joinLowerText = text }
+
+        JoinUpper ->
+            { form | joinUpperText = text }
+
+        DobLower ->
+            { form | dobLowerText = text }
+
+        DobUpper ->
+            { form | dobUpperText = text }
 
 
 updatePicker : WhichDatePicker -> (DatePicker.Model -> DatePicker.Model) -> TutorFiltersForm -> TutorFiltersForm
@@ -231,7 +290,6 @@ update msg model =
             model.filtersForm
     in
     case msg of
-        -- Change page and load new data
         ChangePagePrevious ->
             let
                 newModel =
@@ -281,67 +339,67 @@ update msg model =
             ( { model | filtersForm = { filtersForm | classFilter = class } }, Cmd.none )
 
         AddNameFilter ->
-            ( { model | filters = { filters | names = filtersForm.nameFilter :: filters.names |> List.sort |> List.Extra.unique }, filtersForm = { filtersForm | nameFilter = "" } }, Cmd.none )
+            let
+                newModel =
+                    { model | filters = { filters | names = filtersForm.nameFilter :: filters.names |> List.sort |> List.Extra.unique }, filtersForm = { filtersForm | nameFilter = "" } }
+            in
+            ( newModel, pushUrl newModel )
 
         AddSchoolFilter ->
-            ( { model | filters = { filters | schools = filtersForm.schoolFilter :: filters.schools |> List.sort |> List.Extra.unique }, filtersForm = { filtersForm | schoolFilter = "" } }, Cmd.none )
+            let
+                newModel =
+                    { model | filters = { filters | schools = filtersForm.schoolFilter :: filters.schools |> List.sort |> List.Extra.unique }, filtersForm = { filtersForm | schoolFilter = "" } }
+            in
+            ( newModel, pushUrl newModel )
 
         AddClassFilter ->
-            ( { model | filters = { filters | classes = filtersForm.classFilter :: filters.classes |> List.sort |> List.Extra.unique }, filtersForm = { filtersForm | classFilter = "" } }, Cmd.none )
+            let
+                newModel =
+                    { model | filters = { filters | classes = filtersForm.classFilter :: filters.classes |> List.sort |> List.Extra.unique }, filtersForm = { filtersForm | classFilter = "" } }
+            in
+            ( newModel, pushUrl newModel )
 
         RemoveNameFilter name ->
-            ( { model | filters = { filters | names = List.filter ((/=) name) filters.names } }, Cmd.none )
+            let
+                newModel =
+                    { model | filters = { filters | names = List.filter ((/=) name) filters.names } }
+            in
+            ( newModel, pushUrl newModel )
 
         RemoveSchoolFilter school ->
-            ( { model | filters = { filters | schools = List.filter ((/=) school) filters.schools } }, Cmd.none )
+            let
+                newModel =
+                    { model | filters = { filters | schools = List.filter ((/=) school) filters.schools } }
+            in
+            ( newModel, pushUrl newModel )
 
         RemoveClassFilter class ->
-            ( { model | filters = { filters | classes = List.filter ((/=) class) filters.classes } }, Cmd.none )
+            let
+                newModel =
+                    { model | filters = { filters | classes = List.filter ((/=) class) filters.classes } }
+            in
+            ( newModel, pushUrl newModel )
 
         ToggleStatus status ->
-            ( { model
-                | filters =
-                    { filters
-                        | statuses =
-                            if List.member status filters.statuses then
-                                List.filter ((/=) status) filters.statuses
-
-                            else
-                                status :: filters.statuses
-                    }
-              }
-            , Cmd.none
-            )
+            let
+                newModel =
+                    { model | filters = filters |> toggleStatuses status }
+            in
+            ( newModel, pushUrl newModel )
 
         ToggleAdminLvl adminLvl ->
-            ( { model
-                | filters =
-                    { filters
-                        | admins =
-                            if List.member adminLvl filters.admins then
-                                List.filter ((/=) adminLvl) filters.admins
-
-                            else
-                                adminLvl :: filters.admins
-                    }
-              }
-            , Cmd.none
-            )
+            let
+                newModel =
+                    { model | filters = filters |> toggleAdminLvls adminLvl }
+            in
+            ( newModel, pushUrl newModel )
 
         ToggleGender gender ->
-            ( { model
-                | filters =
-                    { filters
-                        | genders =
-                            if List.member gender filters.genders then
-                                List.filter ((/=) gender) filters.genders
-
-                            else
-                                gender :: filters.genders
-                    }
-              }
-            , Cmd.none
-            )
+            let
+                newModel =
+                    { model | filters = filters |> toggleGender gender }
+            in
+            ( newModel, pushUrl newModel )
 
         SetToday today ->
             ( { model
@@ -358,33 +416,40 @@ update msg model =
         ChangePicker whichDatePicker changeEvent ->
             case changeEvent of
                 DatePicker.DateChanged date ->
-                    ( { model
-                        | filters =
-                            updateDate whichDatePicker (Just date) filters
-                      }
-                    , Cmd.none
-                    )
+                    let
+                        newModel =
+                            { model
+                                | filters = filters |> updateDate whichDatePicker (Just date)
+                                , filtersForm = filtersForm |> updateText whichDatePicker (Date.toIsoString date)
+                            }
+                    in
+                    ( newModel, pushUrl newModel )
 
                 DatePicker.TextChanged text ->
-                    ( { model
-                        | filters =
-                            updateDate whichDatePicker
-                                (Date.fromIsoString text
-                                    |> Result.toMaybe
-                                    |> Maybe.Extra.orElse filters.joinDateLower
+                    case Date.fromIsoString text |> Result.toMaybe of
+                        Nothing ->
+                            ( { model | filtersForm = filtersForm |> updateText whichDatePicker text }, Cmd.none )
+
+                        Just date ->
+                            if Date.toIsoString date == text then
+                                let
+                                    newModel =
+                                        { model
+                                            | filters = filters |> updateDate whichDatePicker (Just date)
+                                            , filtersForm = filtersForm |> updateText whichDatePicker text
+                                        }
+                                in
+                                ( newModel
+                                , pushUrl newModel
                                 )
-                                filters
-                      }
-                    , Cmd.none
-                    )
+
+                            else
+                                ( { model | filtersForm = filtersForm |> updateText whichDatePicker text }, Cmd.none )
 
                 DatePicker.PickerChanged subMsg ->
                     ( { model | filtersForm = updatePicker whichDatePicker (DatePicker.update subMsg) filtersForm }
                     , Cmd.none
                     )
-
-        UpdateUrl ->
-            ( model, pushUrl model )
 
 
 pushUrl : Model -> Cmd Msg
@@ -432,13 +497,14 @@ viewToggleFilter all toggle selected =
                 Colors.black
     in
     Element.row
-        [ Element.spacing 10 ]
+        [ Element.spacing 5 ]
         (List.map
             (\( x, label ) ->
                 Input.button
                     [ Background.color (backgroundColor filterUnused (List.member x selected))
                     , Font.color (fontColor filterUnused (List.member x selected))
                     , Element.paddingXY 5 2
+                    , Border.rounded 3
                     , Border.width 1
                     ]
                     { label = Element.text label, onPress = Just (toggle x) }
@@ -450,7 +516,11 @@ viewToggleFilter all toggle selected =
 viewFilterSingle : (String -> Msg) -> String -> Element Msg
 viewFilterSingle action label =
     Element.row
-        [ Background.color <| Element.rgb255 100 100 255 ]
+        [ Border.width 1
+        , Border.rounded 3
+        , Element.spacing 5
+        , Element.paddingXY 5 2
+        ]
         [ Element.text label
         , Input.button [] { label = Element.text "x", onPress = Just (action label) }
         ]
@@ -472,146 +542,145 @@ viewFilters form filters =
         textLabelStyles =
             [ Element.width <| Element.px 100 ]
     in
-    Element.column
-        [ Element.width Element.fill
-        , Background.color Colors.theme.p50
-        , Element.padding 20
-        , Element.spacing 4
-        ]
-        [ Element.row
-            [ Element.spacing 4 ]
-            ([ Input.text
-                textFieldStyles
-                { label = Input.labelLeft textLabelStyles (Element.text "Filter Name")
-                , onChange = EnteredNameFilter
-                , placeholder = Nothing
-                , text = form.nameFilter
-                }
-             , Input.button [] { label = Element.text "+", onPress = Just AddNameFilter }
-             ]
-                ++ List.map (viewFilterSingle RemoveNameFilter) filters.names
-            )
-        , Element.row
-            [ Element.spacing 4 ]
-            ([ Input.text
-                textFieldStyles
-                { label = Input.labelLeft textLabelStyles (Element.text "Filter School")
-                , onChange = EnteredSchoolFilter
-                , placeholder = Nothing
-                , text = form.schoolFilter
-                }
-             , Input.button [] { label = Element.text "+", onPress = Just AddSchoolFilter }
-             ]
-                ++ List.map (viewFilterSingle RemoveSchoolFilter) filters.schools
-            )
-        , Element.row
-            [ Element.spacing 4 ]
-            ([ Input.text
-                textFieldStyles
-                { label = Input.labelLeft textLabelStyles (Element.text "Filter Classes")
-                , onChange = EnteredClassFilter
-                , placeholder = Nothing
-                , text = form.classFilter
-                }
-             , Input.button [] { label = Element.text "+", onPress = Just AddClassFilter }
-             ]
-                ++ List.map (viewFilterSingle RemoveClassFilter) filters.classes
-            )
-        , Element.row
-            [ Element.spacing 4 ]
-            [ DatePicker.input
-                dateFieldStyles
-                { onChange = ChangePicker JoinLower
-                , selected = filters.joinDateLower
-                , label = Input.labelHidden "Joined after"
-                , placeholder = Nothing
-                , settings = DatePicker.defaultSettings
-                , text = Maybe.withDefault "No bound" (Maybe.map Date.toIsoString filters.joinDateLower)
-                , model = form.joinLowerPicker
-                }
+    Element.row [ Element.width Element.fill, Background.color Colors.theme.p50 ]
+        [ Element.column
+            [ Element.padding 20
+            , Element.spacing 8
+            , Element.alignTop
+            ]
+            [ Element.row
+                [ Element.spacing 4 ]
+                [ DatePicker.input
+                    dateFieldStyles
+                    { onChange = ChangePicker JoinLower
+                    , selected = filters.joinDateLower
+                    , label = Input.labelHidden "Joined after"
+                    , placeholder = Nothing
+                    , settings = DatePicker.defaultSettings
+                    , text = form.joinLowerText
+                    , model = form.joinLowerPicker
+                    }
+                , Element.row
+                    [ Element.width <| Element.px 100
+                    , Element.paddingXY 5 0
+                    ]
+                    [ Element.el
+                        [ Element.alignLeft ]
+                        (Element.text "<")
+                    , Element.el
+                        [ Element.centerX ]
+                        (Element.text "Join Date")
+                    , Element.el
+                        [ Element.alignRight ]
+                        (Element.text "<")
+                    ]
+                , DatePicker.input
+                    dateFieldStyles
+                    { onChange = ChangePicker JoinUpper
+                    , selected = filters.joinDateUpper
+                    , label = Input.labelHidden "Joined before"
+                    , placeholder = Nothing
+                    , settings = DatePicker.defaultSettings
+                    , text = form.joinUpperText
+                    , model = form.joinUpperPicker
+                    }
+                ]
             , Element.row
-                [ Element.width <| Element.px 100
-                , Element.paddingXY 5 0
+                [ Element.spacing 4 ]
+                [ DatePicker.input
+                    dateFieldStyles
+                    { onChange = ChangePicker DobLower
+                    , selected = filters.dobLower
+                    , label = Input.labelHidden "DOB after"
+                    , placeholder = Nothing
+                    , settings = DatePicker.defaultSettings
+                    , text = form.dobLowerText
+                    , model = form.dobLowerPicker
+                    }
+                , Element.row
+                    [ Element.width <| Element.px 100
+                    , Element.paddingXY 5 0
+                    ]
+                    [ Element.el
+                        [ Element.alignLeft ]
+                        (Element.text "<")
+                    , Element.el
+                        [ Element.centerX ]
+                        (Element.text "DOB")
+                    , Element.el
+                        [ Element.alignRight ]
+                        (Element.text "<")
+                    ]
+                , DatePicker.input
+                    dateFieldStyles
+                    { onChange = ChangePicker DobUpper
+                    , selected = filters.dobUpper
+                    , label = Input.labelHidden "DOB before"
+                    , placeholder = Nothing
+                    , settings = DatePicker.defaultSettings
+                    , text = form.dobUpperText
+                    , model = form.dobUpperPicker
+                    }
                 ]
-                [ Element.el
-                    [ Element.alignLeft ]
-                    (Element.text "<")
-                , Element.el
-                    [ Element.centerX ]
-                    (Element.text "Join Date")
-                , Element.el
-                    [ Element.alignRight ]
-                    (Element.text "<")
+            , Element.row [ Element.spacing 4 ]
+                [ Element.paragraph textLabelStyles [ Element.text "Filter Status" ]
+                , viewToggleFilter [ ( Tutor.Active, "Active" ), ( Tutor.Inactive, "Inactive" ), ( Tutor.New, "New" ) ] ToggleStatus filters.statuses
                 ]
-            , DatePicker.input
-                dateFieldStyles
-                { onChange = ChangePicker JoinUpper
-                , selected = filters.joinDateUpper
-                , label = Input.labelHidden "Joined before"
-                , placeholder = Nothing
-                , settings = DatePicker.defaultSettings
-                , text = Maybe.withDefault "No bound" (Maybe.map Date.toIsoString filters.joinDateUpper)
-                , model = form.joinUpperPicker
-                }
+            , Element.row [ Element.spacing 4 ]
+                [ Element.paragraph textLabelStyles [ Element.text "Filter Gender" ]
+                , viewToggleFilter [ ( Tutor.Male, "M" ), ( Tutor.Female, "F" ) ] ToggleGender filters.genders
+                ]
+            , Element.row [ Element.spacing 4 ]
+                [ Element.paragraph textLabelStyles [ Element.text "Filter Role" ]
+                , viewToggleFilter [ ( Tutor.LvlAdmin, "Admin" ), ( Tutor.LvlTutor, "Tutor" ) ] ToggleAdminLvl filters.admins
+                ]
+            , Element.el [ Element.width <| Element.px 10 ] Element.none
             ]
-        , Element.row
-            [ Element.spacing 4 ]
-            [ DatePicker.input
-                dateFieldStyles
-                { onChange = ChangePicker DobLower
-                , selected = filters.dobLower
-                , label = Input.labelHidden "DOB after"
-                , placeholder = Nothing
-                , settings = DatePicker.defaultSettings
-                , text = Maybe.withDefault "No bound" (Maybe.map Date.toIsoString filters.dobLower)
-                , model = form.dobLowerPicker
-                }
+        , Element.column
+            [ Element.padding 20
+            , Element.spacing 8
+            , Element.alignTop
+            ]
+            [ Element.row
+                [ Element.spacing 4 ]
+                ([ Input.text
+                    textFieldStyles
+                    { label = Input.labelLeft textLabelStyles (Element.text "Filter Name")
+                    , onChange = EnteredNameFilter
+                    , placeholder = Nothing
+                    , text = form.nameFilter
+                    }
+                 , Input.button [] { label = Element.text "+", onPress = Just AddNameFilter }
+                 ]
+                    ++ List.map (viewFilterSingle RemoveNameFilter) filters.names
+                )
             , Element.row
-                [ Element.width <| Element.px 100
-                , Element.paddingXY 5 0
-                ]
-                [ Element.el
-                    [ Element.alignLeft ]
-                    (Element.text "<")
-                , Element.el
-                    [ Element.centerX ]
-                    (Element.text "DOB")
-                , Element.el
-                    [ Element.alignRight ]
-                    (Element.text "<")
-                ]
-            , DatePicker.input
-                dateFieldStyles
-                { onChange = ChangePicker DobUpper
-                , selected = filters.dobUpper
-                , label = Input.labelHidden "DOB before"
-                , placeholder = Nothing
-                , settings = DatePicker.defaultSettings
-                , text = Maybe.withDefault "No bound" (Maybe.map Date.toIsoString filters.dobUpper)
-                , model = form.dobUpperPicker
-                }
+                [ Element.spacing 4 ]
+                ([ Input.text
+                    textFieldStyles
+                    { label = Input.labelLeft textLabelStyles (Element.text "Filter School")
+                    , onChange = EnteredSchoolFilter
+                    , placeholder = Nothing
+                    , text = form.schoolFilter
+                    }
+                 , Input.button [] { label = Element.text "+", onPress = Just AddSchoolFilter }
+                 ]
+                    ++ List.map (viewFilterSingle RemoveSchoolFilter) filters.schools
+                )
+            , Element.row
+                [ Element.spacing 4 ]
+                ([ Input.text
+                    textFieldStyles
+                    { label = Input.labelLeft textLabelStyles (Element.text "Filter Classes")
+                    , onChange = EnteredClassFilter
+                    , placeholder = Nothing
+                    , text = form.classFilter
+                    }
+                 , Input.button [] { label = Element.text "+", onPress = Just AddClassFilter }
+                 ]
+                    ++ List.map (viewFilterSingle RemoveClassFilter) filters.classes
+                )
             ]
-        , Element.row [ Element.spacing 4 ]
-            [ Element.paragraph textLabelStyles [ Element.text "Filter Status" ]
-            , viewToggleFilter [ ( Tutor.Active, "Active" ), ( Tutor.Inactive, "Inactive" ), ( Tutor.New, "New" ) ] ToggleStatus filters.statuses
-            ]
-        , Element.row [ Element.spacing 4 ]
-            [ Element.paragraph textLabelStyles [ Element.text "Filter Gender" ]
-            , viewToggleFilter [ ( Tutor.Male, "M" ), ( Tutor.Female, "F" ) ] ToggleGender filters.genders
-            ]
-        , Element.row [ Element.spacing 4 ]
-            [ Element.paragraph textLabelStyles [ Element.text "Filter Role" ]
-            , viewToggleFilter [ ( Tutor.LvlAdmin, "Admin" ), ( Tutor.LvlTutor, "Tutor" ) ] ToggleAdminLvl filters.admins
-            ]
-        , Element.el [ Element.width <| Element.px 10 ] Element.none
-        , Input.button
-            [ Element.paddingXY 10 4
-            , Background.color Colors.theme.a400
-            , Border.width 1
-            , Border.rounded 3
-            , Element.mouseOver [ Border.shadow { offset = ( 1, 3 ), blur = 3, color = Colors.black, size = 0.2 } ]
-            ]
-            { label = Element.text "Update", onPress = Just UpdateUrl }
         ]
 
 
@@ -623,7 +692,11 @@ viewPagination pagedData =
         , Element.spacing 20
         , Element.padding 10
         ]
-        (Input.button [ Element.centerX ] { onPress = Just ChangePagePrevious, label = Element.text "<" }
+        (Element.el [ Element.alignLeft ]
+            (Element.text (String.fromInt pagedData.total ++ " entries found"))
+            :: Input.button
+                [ Element.centerX ]
+                { onPress = Just ChangePagePrevious, label = Element.text "<" }
             :: List.map
                 (\p ->
                     Input.button []
@@ -640,7 +713,10 @@ viewPagination pagedData =
                         }
                 )
                 (List.range 1 pagedData.lastPage)
-            ++ [ Input.button [ Element.centerX ] { onPress = Just ChangePageNext, label = Element.text ">" } ]
+            ++ [ Input.button [ Element.centerX ] { onPress = Just ChangePageNext, label = Element.text ">" }
+               , Element.el [ Element.alignLeft, Font.color Colors.clear ]
+                    (Element.text (String.fromInt pagedData.total ++ " entries found"))
+               ]
         )
 
 

@@ -54,7 +54,7 @@ black =
 
 grey : Color
 grey =
-    Element.rgb255 100 100 100
+    Element.rgb255 150 150 150
 
 
 theme : ColorScheme
