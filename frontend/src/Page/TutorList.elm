@@ -10,6 +10,7 @@ module Page.TutorList exposing
 
 import Browser.Navigation as Navigation exposing (pushUrl)
 import Colors
+import Component.Paged as Paged
 import Date
 import DatePicker
 import Element exposing (Element)
@@ -34,25 +35,6 @@ import Tutor
         )
 import Url.Builder as Builder
 import Url.Parser.Query as Query
-
-
-type alias Paged a =
-    { page : Int
-    , perPage : Int
-    , lastPage : Int
-    , total : Int
-    , data : a
-    }
-
-
-pagedDecoder : Decode.Decoder a -> Decode.Decoder (Paged a)
-pagedDecoder subDecoder =
-    Decode.succeed Paged
-        |> Pipeline.required "page" Decode.int
-        |> Pipeline.required "perPage" Decode.int
-        |> Pipeline.required "lastPage" Decode.int
-        |> Pipeline.required "total" Decode.int
-        |> Pipeline.required "data" subDecoder
 
 
 type alias TutorFiltersForm =
@@ -140,7 +122,7 @@ type alias Model =
     , filters : TutorFilters
     , filtersForm : TutorFiltersForm
     , page : Int
-    , data : WebData (Paged (List Tutor))
+    , data : WebData (Paged.Paged (List Tutor))
     }
 
 
@@ -152,13 +134,11 @@ type WhichDatePicker
 
 
 type Msg
-    = ChangePagePrevious
-    | ChangePageNext
-    | ChangePage Int
+    = PaginationChanged Paged.Msg
     | ChangePicker WhichDatePicker DatePicker.ChangeEvent
     | SetToday Date.Date
     | ToDetails String
-    | GotTutorList (Result Http.Error (Paged (List Tutor)))
+    | GotTutorList (Result Http.Error (Paged.Paged (List Tutor)))
     | EnteredNameFilter String
     | EnteredSchoolFilter String
     | EnteredClassFilter String
@@ -177,7 +157,7 @@ fetchTutorList : TutorFilters -> Int -> Cmd Msg
 fetchTutorList filters page =
     Http.get
         { url = "http://localhost:5000/tutors" ++ Builder.toQuery (Builder.int "page" page :: tutorFiltersToQueryList filters)
-        , expect = Http.expectJson GotTutorList <| pagedDecoder (Decode.list tutorDecoder)
+        , expect = Http.expectJson GotTutorList <| Paged.pagedDecoder (Decode.list tutorDecoder)
         }
 
 
@@ -290,33 +270,35 @@ update msg model =
             model.filtersForm
     in
     case msg of
-        ChangePagePrevious ->
-            let
-                newModel =
-                    { model
-                        | page =
-                            if model.page == 0 then
-                                model.page
+        PaginationChanged change ->
+            case change of
+                Paged.ChangePagePrevious ->
+                    let
+                        newModel =
+                            { model
+                                | page =
+                                    if model.page == 0 then
+                                        model.page
 
-                            else
-                                model.page - 1
-                    }
-            in
-            ( newModel, pushUrl newModel )
+                                    else
+                                        model.page - 1
+                            }
+                    in
+                    ( newModel, pushUrl newModel )
 
-        ChangePageNext ->
-            let
-                newModel =
-                    { model | page = model.page + 1 }
-            in
-            ( newModel, pushUrl newModel )
+                Paged.ChangePageNext ->
+                    let
+                        newModel =
+                            { model | page = model.page + 1 }
+                    in
+                    ( newModel, pushUrl newModel )
 
-        ChangePage page ->
-            let
-                newModel =
-                    { model | page = page }
-            in
-            ( newModel, pushUrl newModel )
+                Paged.ChangePage page ->
+                    let
+                        newModel =
+                            { model | page = page }
+                    in
+                    ( newModel, pushUrl newModel )
 
         GotTutorList result ->
             case result of
@@ -684,43 +666,7 @@ viewFilters form filters =
         ]
 
 
-viewPagination : Paged a -> Element Msg
-viewPagination pagedData =
-    Element.row
-        [ Element.width Element.fill
-        , Background.color Colors.theme.p50
-        , Element.spacing 20
-        , Element.padding 10
-        ]
-        (Element.el [ Element.alignLeft ]
-            (Element.text (String.fromInt pagedData.total ++ " entries found"))
-            :: Input.button
-                [ Element.centerX ]
-                { onPress = Just ChangePagePrevious, label = Element.text "<" }
-            :: List.map
-                (\p ->
-                    Input.button []
-                        { onPress = Just (ChangePage (p - 1))
-                        , label =
-                            Element.text (String.fromInt p)
-                                |> Element.el
-                                    (if pagedData.page == p - 1 then
-                                        [ Font.bold ]
-
-                                     else
-                                        []
-                                    )
-                        }
-                )
-                (List.range 1 pagedData.lastPage)
-            ++ [ Input.button [ Element.centerX ] { onPress = Just ChangePageNext, label = Element.text ">" }
-               , Element.el [ Element.alignLeft, Font.color Colors.clear ]
-                    (Element.text (String.fromInt pagedData.total ++ " entries found"))
-               ]
-        )
-
-
-viewData : WebData (Paged (List Tutor)) -> Element Msg
+viewData : WebData (Paged.Paged (List Tutor)) -> Element Msg
 viewData data =
     case data of
         RemoteData.NotAsked ->
@@ -767,7 +713,7 @@ viewData data =
                 }
 
 
-blankIfAbsent : (a -> Element Msg) -> WebData a -> Element Msg
+blankIfAbsent : (a -> Element msg) -> WebData a -> Element msg
 blankIfAbsent viewIt webData =
     case webData of
         RemoteData.Success data ->
@@ -785,7 +731,9 @@ view model =
         , Element.spacing 10
         ]
         [ viewFilters model.filtersForm model.filters
-        , blankIfAbsent viewPagination model.data
+        , blankIfAbsent Paged.viewPagination model.data
+            |> Element.map PaginationChanged
         , viewData model.data
-        , blankIfAbsent viewPagination model.data
+        , blankIfAbsent Paged.viewPagination model.data
+            |> Element.map PaginationChanged
         ]

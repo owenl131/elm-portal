@@ -37,9 +37,12 @@ view _ =
         (List.map Element.text
             [ "Home - Use this for short term dev goals"
             , "Update tutor fields"
+            , "Update class fields"
+            , "Create class session"
+            , "Implement class filters"
             , "Implement auth"
-            , "Get and parse pagination set up from server"
-            , "Implement class in front and backend"
-            , "Implement attendance in front and backend"
+            , "Implement sort by which field"
+            , "|"
+            , "This page would show user's classes and classes happening today"
             ]
         )

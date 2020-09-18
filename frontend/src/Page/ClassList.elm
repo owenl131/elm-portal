@@ -2,36 +2,32 @@ module Page.ClassList exposing (ClassFilters, Model, Msg, classFiltersFromUrl, i
 
 import Browser.Navigation as Navigation
 import Class exposing (Class, classDecoder)
+import Colors
+import Component.Paged as Paged
 import Date
 import Element exposing (Element)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
 import Element.Input as Input
 import Http
 import Json.Decode as Decode
 import Maybe.Extra
 import RemoteData exposing (WebData)
+import Time
 import Url.Builder as Builder
 import Url.Parser.Query as Query
 
 
-type alias Pagination =
-    { page : Int
-    , perPage : Int
-    , lastPage : Int
-    }
-
-
-defaultPagination : Pagination
-defaultPagination =
-    { page = 0
-    , perPage = 20
-    , lastPage = 0
+type alias ClassFiltersForm =
+    { nameFilter : String
     }
 
 
 type alias ClassFilters =
     { names : List String
-    , yearLower : Maybe Int
-    , yearUpper : Maybe Int
+    , yearLower : Int
+    , yearUpper : Int
     , days : List Date.Weekday
     }
 
@@ -40,88 +36,307 @@ classFiltersFromUrl : Query.Parser ClassFilters
 classFiltersFromUrl =
     Query.map4 ClassFilters
         (Query.custom "name" (\x -> x))
-        (Query.int "yearLower")
-        (Query.int "yearUpper")
+        (Query.map (Maybe.withDefault 2020) (Query.int "yearLower"))
+        (Query.map (Maybe.withDefault 2020) (Query.int "yearUpper"))
         (Query.custom "days" (List.filterMap (String.toInt >> Maybe.map Date.numberToWeekday)))
 
 
 classFiltersToQueryList : ClassFilters -> List Builder.QueryParameter
 classFiltersToQueryList filters =
-    List.map (Builder.int "yearLower") (Maybe.Extra.toList filters.yearLower)
-        ++ List.map (Builder.int "yearUpper") (Maybe.Extra.toList filters.yearUpper)
+    List.map (Builder.int "yearLower") [ filters.yearLower ]
+        ++ List.map (Builder.int "yearUpper") [ filters.yearUpper ]
         ++ List.map (Builder.string "name") filters.names
         ++ List.map (Date.weekdayToNumber >> Builder.int "days") filters.days
 
 
 type alias Model =
     { key : Navigation.Key
-    , pagination : Pagination
+    , page : Int
     , filters : ClassFilters
-    , data : WebData (List Class)
+    , filtersForm : ClassFiltersForm
+    , data : WebData (Paged.Paged (List Class))
     }
 
 
 type Msg
-    = ChangePagePrevious
-    | ChangePageNext
-    | ChangePage Int
-    | GotClassList (Result Http.Error (List Class))
+    = PaginationChanged Paged.Msg
+    | GotClassList (Result Http.Error (Paged.Paged (List Class)))
     | ToDetails Int
+    | EnteredNameFilter String
+    | AddNameFilter
+    | RemoveNameFilter String
+    | EnteredYearLowerFilter Int
+    | EnteredYearUpperFilter Int
+    | ToggleDay Date.Weekday
 
 
-init : Navigation.Key -> ClassFilters -> ( Model, Cmd Msg )
-init key filters =
+init : Navigation.Key -> ClassFilters -> Int -> ( Model, Cmd Msg )
+init key filters page =
     ( { key = key
-      , pagination = defaultPagination
+      , page = page
       , filters = filters
+      , filtersForm =
+            { nameFilter = "" }
       , data = RemoteData.Loading
       }
     , Http.get
         { url = "http://localhost:5000/classes" ++ Builder.toQuery (classFiltersToQueryList filters)
-        , expect = Http.expectJson GotClassList <| Decode.list classDecoder
+        , expect = Http.expectJson GotClassList <| Paged.pagedDecoder (Decode.list classDecoder)
         }
     )
+
+
+pushUrl : Model -> Cmd Msg
+pushUrl model =
+    Navigation.pushUrl
+        model.key
+        ("/classes" ++ Builder.toQuery (Builder.int "page" model.page :: classFiltersToQueryList model.filters))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
+        filters =
+            model.filters
+
+        filtersForm =
+            model.filtersForm
+
         ignore =
             ( model, Cmd.none )
     in
     case msg of
-        ChangePageNext ->
-            ignore
+        PaginationChanged change ->
+            case change of
+                Paged.ChangePageNext ->
+                    let
+                        newModel =
+                            { model | page = model.page + 1 }
+                    in
+                    ( newModel, pushUrl newModel )
 
-        ChangePagePrevious ->
-            ignore
+                Paged.ChangePagePrevious ->
+                    let
+                        newModel =
+                            { model | page = model.page - 1 }
+                    in
+                    ( newModel, pushUrl newModel )
 
-        ChangePage _ ->
-            ignore
+                Paged.ChangePage page ->
+                    let
+                        newModel =
+                            { model | page = page }
+                    in
+                    ( newModel, pushUrl newModel )
 
         GotClassList result ->
-            case result of
-                Ok data ->
-                    ( { model | data = RemoteData.Success data }, Cmd.none )
-
-                Err error ->
-                    ( { model | data = RemoteData.Failure error }, Cmd.none )
+            ( { model | data = RemoteData.fromResult result }, Cmd.none )
 
         ToDetails id ->
             ( model, Navigation.pushUrl model.key ("/class/" ++ String.fromInt id) )
 
+        EnteredNameFilter name ->
+            ( { model | filtersForm = { filtersForm | nameFilter = name } }, Cmd.none )
 
-viewPagination : Pagination -> Element Msg
-viewPagination _ =
+        AddNameFilter ->
+            let
+                newModel =
+                    { model | filters = { filters | names = filtersForm.nameFilter :: filters.names } }
+            in
+            ( newModel, pushUrl newModel )
+
+        RemoveNameFilter name ->
+            let
+                newModel =
+                    { model | filters = { filters | names = List.filter ((/=) name) filters.names } }
+            in
+            ( newModel, pushUrl newModel )
+
+        EnteredYearLowerFilter year ->
+            let
+                newModel =
+                    { model | filters = { filters | yearLower = year, yearUpper = Basics.max filters.yearUpper year } }
+            in
+            ( newModel, pushUrl newModel )
+
+        EnteredYearUpperFilter year ->
+            let
+                newModel =
+                    { model | filters = { filters | yearUpper = year, yearLower = Basics.min filters.yearLower year } }
+            in
+            ( newModel, pushUrl newModel )
+
+        ToggleDay day ->
+            let
+                newModel =
+                    if List.member day filters.days then
+                        { model | filters = { filters | days = List.filter ((/=) day) filters.days } }
+
+                    else
+                        { model | filters = { filters | days = day :: filters.days } }
+            in
+            ( newModel, pushUrl newModel )
+
+
+viewFilterSingle : (String -> Msg) -> String -> Element Msg
+viewFilterSingle action label =
     Element.row
-        [ Element.width Element.fill ]
-        [ Input.button [] { onPress = Just ChangePagePrevious, label = Element.text "<" }
-        , Input.button [] { onPress = Just (ChangePage 1), label = Element.text "1" }
-        , Input.button [] { onPress = Just ChangePageNext, label = Element.text ">" }
+        [ Border.width 1
+        , Border.rounded 3
+        , Element.spacing 5
+        , Element.paddingXY 5 2
+        ]
+        [ Element.text label
+        , Input.button [] { label = Element.text "x", onPress = Just (action label) }
         ]
 
 
-viewData : WebData (List Class) -> Element Msg
+viewToggleFilter : List ( a, String ) -> (a -> Msg) -> List a -> Element Msg
+viewToggleFilter all toggle selected =
+    let
+        filterUnused =
+            List.isEmpty selected
+
+        disabledGrey =
+            Colors.grey
+
+        activeGreen =
+            Element.rgb 0 255 0
+
+        inactiveWhite =
+            Element.rgb 255 255 255
+
+        backgroundColor : Bool -> Bool -> Element.Color
+        backgroundColor disabled active =
+            if disabled then
+                Colors.clear
+
+            else if active then
+                activeGreen
+
+            else
+                inactiveWhite
+
+        fontColor : Bool -> Bool -> Element.Color
+        fontColor disabled active =
+            if disabled then
+                disabledGrey
+
+            else if active then
+                Colors.black
+
+            else
+                Colors.black
+    in
+    Element.row
+        [ Element.spacing 5 ]
+        (List.map
+            (\( x, label ) ->
+                Input.button
+                    [ Background.color (backgroundColor filterUnused (List.member x selected))
+                    , Font.color (fontColor filterUnused (List.member x selected))
+                    , Element.paddingXY 5 2
+                    , Border.rounded 3
+                    , Border.width 1
+                    ]
+                    { label = Element.text label, onPress = Just (toggle x) }
+            )
+            all
+        )
+
+
+viewClassFilters : ClassFiltersForm -> ClassFilters -> Element Msg
+viewClassFilters form filters =
+    let
+        textFieldStyles =
+            [ Element.padding 4
+            , Element.width <| Element.px 200
+            ]
+
+        textLabelStyles =
+            [ Element.width <| Element.px 100 ]
+    in
+    Element.column
+        [ Element.width Element.fill
+        , Element.padding 10
+        , Element.spacing 10
+        , Background.color Colors.theme.p50
+        ]
+        [ Element.row
+            [ Element.spacing 4 ]
+            ([ Input.text
+                textFieldStyles
+                { label = Input.labelLeft textLabelStyles (Element.text "Filter Name")
+                , onChange = EnteredNameFilter
+                , placeholder = Nothing
+                , text = form.nameFilter
+                }
+             , Input.button [] { label = Element.text "+", onPress = Just AddNameFilter }
+             ]
+                ++ List.map (viewFilterSingle RemoveNameFilter) filters.names
+            )
+        , Element.row [ Element.spacing 4 ]
+            [ Element.paragraph textLabelStyles [ Element.text "Filter Status" ]
+            , viewToggleFilter
+                [ ( Time.Mon, "Mon" )
+                , ( Time.Tue, "Tue" )
+                , ( Time.Wed, "Wed" )
+                , ( Time.Thu, "Thu" )
+                , ( Time.Fri, "Fri" )
+                , ( Time.Sat, "Sat" )
+                , ( Time.Sun, "Sun" )
+                ]
+                ToggleDay
+                filters.days
+            ]
+        , Input.slider
+            [ Element.height (Element.px 10)
+            , Element.width (Element.fill |> Element.maximum 300)
+            , Element.behindContent
+                (Element.el
+                    [ Element.width Element.fill
+                    , Element.height (Element.px 2)
+                    , Element.centerY
+                    , Background.color Colors.grey
+                    , Border.rounded 2
+                    ]
+                    Element.none
+                )
+            ]
+            { label = Input.labelLeft [ Element.width (Element.px 170) ] (Element.text ("Year Lower Bound: " ++ String.fromInt filters.yearLower))
+            , max = 2030
+            , min = 2010
+            , step = Just 1
+            , onChange = Basics.round >> EnteredYearLowerFilter
+            , thumb = Input.defaultThumb
+            , value = Basics.toFloat filters.yearLower
+            }
+        , Input.slider
+            [ Element.height (Element.px 10)
+            , Element.width (Element.fill |> Element.maximum 300)
+            , Element.behindContent
+                (Element.el
+                    [ Element.width Element.fill
+                    , Element.height (Element.px 2)
+                    , Element.centerY
+                    , Background.color Colors.grey
+                    , Border.rounded 2
+                    ]
+                    Element.none
+                )
+            ]
+            { label = Input.labelLeft [ Element.width (Element.px 170) ] (Element.text ("Year Upper Bound: " ++ String.fromInt filters.yearUpper))
+            , max = 2030
+            , min = 2010
+            , step = Just 1
+            , onChange = Basics.round >> EnteredYearUpperFilter
+            , thumb = Input.defaultThumb
+            , value = Basics.toFloat filters.yearUpper
+            }
+        ]
+
+
+viewData : WebData (Paged.Paged (List Class)) -> Element Msg
 viewData data =
     case data of
         RemoteData.NotAsked ->
@@ -133,7 +348,11 @@ viewData data =
         RemoteData.Failure error ->
             Element.text (Debug.toString error)
 
-        RemoteData.Success classList ->
+        RemoteData.Success pagedData ->
+            let
+                classList =
+                    pagedData.data
+            in
             Element.table
                 []
                 { columns =
@@ -156,11 +375,24 @@ viewData data =
                 }
 
 
+blankIfAbsent : (a -> Element msg) -> WebData a -> Element msg
+blankIfAbsent viewIt webData =
+    case webData of
+        RemoteData.Success data ->
+            viewIt data
+
+        _ ->
+            Element.none
+
+
 view : Model -> Element Msg
 view model =
     Element.column
-        []
-        [ viewPagination model.pagination
+        [ Element.width Element.fill
+        , Element.spacing 10
+        ]
+        [ viewClassFilters model.filtersForm model.filters
+        , blankIfAbsent Paged.viewPagination model.data |> Element.map PaginationChanged
         , viewData model.data
-        , viewPagination model.pagination
+        , blankIfAbsent Paged.viewPagination model.data |> Element.map PaginationChanged
         ]

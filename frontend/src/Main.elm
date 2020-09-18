@@ -61,7 +61,7 @@ type Route
     = RouteHome
     | RouteTutors TutorListPage.TutorFilters (Maybe Int)
     | RouteTutor String
-    | RouteClasses ClassListPage.ClassFilters
+    | RouteClasses ClassListPage.ClassFilters (Maybe Int)
     | RouteClass Int
     | RouteClassAddTutor Int
     | RouteClassAttendance Int Int
@@ -76,7 +76,7 @@ routeParser =
             (UrlParser.s "tutors" <?> TutorListPage.tutorFiltersFromUrl <?> Query.int "page")
         , UrlParser.map RouteTutor (UrlParser.s "tutor" </> UrlParser.string)
         , UrlParser.map RouteClasses
-            (UrlParser.s "classes" <?> ClassListPage.classFiltersFromUrl)
+            (UrlParser.s "classes" <?> ClassListPage.classFiltersFromUrl <?> Query.int "page")
         , UrlParser.map RouteClass
             (UrlParser.s "class" </> UrlParser.int)
         , UrlParser.map RouteClassAddTutor
@@ -163,8 +163,8 @@ handleUrlChange url model =
                 |> Tuple.mapFirst TutorPage
                 |> Tuple.mapSecond (Cmd.map GotTutorMsg)
 
-        RouteClasses filters ->
-            ClassListPage.init key filters
+        RouteClasses filters maybePage ->
+            ClassListPage.init key filters (maybePage |> Maybe.withDefault 0)
                 |> Tuple.mapFirst ClassListPage
                 |> Tuple.mapSecond (Cmd.map GotClassListMsg)
 
