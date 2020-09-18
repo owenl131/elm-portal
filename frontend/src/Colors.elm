@@ -1,4 +1,4 @@
-module Colors exposing (..)
+module Colors exposing (black, clear, grey, theme, white)
 
 import Element exposing (Color)
 import Hex

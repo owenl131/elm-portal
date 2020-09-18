@@ -199,8 +199,8 @@ update msg model =
         ignore =
             ( model, Cmd.none )
 
-        _ =
-            Debug.log "MSG" (Debug.toString msg)
+        -- _ =
+        --     Debug.log "MSG" (Debug.toString msg)
     in
     case msg of
         -- Handle app-level updates

@@ -12,16 +12,10 @@ import Element.Font as Font
 import Element.Input as Input
 import Http
 import Json.Decode as Decode
-import Maybe.Extra
 import RemoteData exposing (WebData)
 import Time
 import Url.Builder as Builder
 import Url.Parser.Query as Query
-
-
-type alias ClassFiltersForm =
-    { nameFilter : String
-    }
 
 
 type alias ClassFilters =
@@ -53,7 +47,7 @@ type alias Model =
     { key : Navigation.Key
     , page : Int
     , filters : ClassFilters
-    , filtersForm : ClassFiltersForm
+    , nameFilterForm : String
     , data : WebData (Paged.Paged (List Class))
     }
 
@@ -75,8 +69,7 @@ init key filters page =
     ( { key = key
       , page = page
       , filters = filters
-      , filtersForm =
-            { nameFilter = "" }
+      , nameFilterForm = ""
       , data = RemoteData.Loading
       }
     , Http.get
@@ -98,12 +91,6 @@ update msg model =
     let
         filters =
             model.filters
-
-        filtersForm =
-            model.filtersForm
-
-        ignore =
-            ( model, Cmd.none )
     in
     case msg of
         PaginationChanged change ->
@@ -136,12 +123,12 @@ update msg model =
             ( model, Navigation.pushUrl model.key ("/class/" ++ String.fromInt id) )
 
         EnteredNameFilter name ->
-            ( { model | filtersForm = { filtersForm | nameFilter = name } }, Cmd.none )
+            ( { model | nameFilterForm = name }, Cmd.none )
 
         AddNameFilter ->
             let
                 newModel =
-                    { model | filters = { filters | names = filtersForm.nameFilter :: filters.names } }
+                    { model | filters = { filters | names = model.nameFilterForm :: filters.names } }
             in
             ( newModel, pushUrl newModel )
 
@@ -245,8 +232,8 @@ viewToggleFilter all toggle selected =
         )
 
 
-viewClassFilters : ClassFiltersForm -> ClassFilters -> Element Msg
-viewClassFilters form filters =
+viewClassFilters : String -> ClassFilters -> Element Msg
+viewClassFilters nameFilter filters =
     let
         textFieldStyles =
             [ Element.padding 4
@@ -269,7 +256,7 @@ viewClassFilters form filters =
                 { label = Input.labelLeft textLabelStyles (Element.text "Filter Name")
                 , onChange = EnteredNameFilter
                 , placeholder = Nothing
-                , text = form.nameFilter
+                , text = nameFilter
                 }
              , Input.button [] { label = Element.text "+", onPress = Just AddNameFilter }
              ]
@@ -408,7 +395,7 @@ view model =
         [ Element.width Element.fill
         , Element.spacing 10
         ]
-        [ viewClassFilters model.filtersForm model.filters
+        [ viewClassFilters model.nameFilterForm model.filters
         , blankIfAbsent Paged.viewPagination model.data |> Element.map PaginationChanged
         , viewData model.data
         , blankIfAbsent Paged.viewPagination model.data |> Element.map PaginationChanged

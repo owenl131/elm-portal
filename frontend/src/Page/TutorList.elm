@@ -20,7 +20,6 @@ import Element.Font as Font
 import Element.Input as Input
 import Http
 import Json.Decode as Decode
-import Json.Decode.Pipeline as Pipeline
 import List.Extra
 import Maybe.Extra
 import RemoteData exposing (WebData)
@@ -268,6 +267,9 @@ update msg model =
 
         filtersForm =
             model.filtersForm
+
+        ignore =
+            ( model, Cmd.none )
     in
     case msg of
         PaginationChanged change ->
@@ -321,25 +323,37 @@ update msg model =
             ( { model | filtersForm = { filtersForm | classFilter = class } }, Cmd.none )
 
         AddNameFilter ->
-            let
-                newModel =
-                    { model | filters = { filters | names = filtersForm.nameFilter :: filters.names |> List.sort |> List.Extra.unique }, filtersForm = { filtersForm | nameFilter = "" } }
-            in
-            ( newModel, pushUrl newModel )
+            if filtersForm.nameFilter == "" then
+                ignore
+
+            else
+                let
+                    newModel =
+                        { model | filters = { filters | names = filtersForm.nameFilter :: filters.names |> List.sort |> List.Extra.unique }, filtersForm = { filtersForm | nameFilter = "" } }
+                in
+                ( newModel, pushUrl newModel )
 
         AddSchoolFilter ->
-            let
-                newModel =
-                    { model | filters = { filters | schools = filtersForm.schoolFilter :: filters.schools |> List.sort |> List.Extra.unique }, filtersForm = { filtersForm | schoolFilter = "" } }
-            in
-            ( newModel, pushUrl newModel )
+            if filtersForm.schoolFilter == "" then
+                ignore
+
+            else
+                let
+                    newModel =
+                        { model | filters = { filters | schools = filtersForm.schoolFilter :: filters.schools |> List.sort |> List.Extra.unique }, filtersForm = { filtersForm | schoolFilter = "" } }
+                in
+                ( newModel, pushUrl newModel )
 
         AddClassFilter ->
-            let
-                newModel =
-                    { model | filters = { filters | classes = filtersForm.classFilter :: filters.classes |> List.sort |> List.Extra.unique }, filtersForm = { filtersForm | classFilter = "" } }
-            in
-            ( newModel, pushUrl newModel )
+            if filtersForm.classFilter == "" then
+                ignore
+
+            else
+                let
+                    newModel =
+                        { model | filters = { filters | classes = filtersForm.classFilter :: filters.classes |> List.sort |> List.Extra.unique }, filtersForm = { filtersForm | classFilter = "" } }
+                in
+                ( newModel, pushUrl newModel )
 
         RemoveNameFilter name ->
             let
