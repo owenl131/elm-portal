@@ -2,7 +2,7 @@
 
 ## Plan
 
-v 0.0 - Implement basic functionality like searching, viewing, update for users, attaching users to classes, and taking attendance for classes.
+~~v 0.0 - Implement basic functionality like searching, viewing, update for users, attaching users to classes, and taking attendance for classes.~~
 
 v 0.1 - Implement basic styling.
 
