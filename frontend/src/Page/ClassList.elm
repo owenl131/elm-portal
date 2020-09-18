@@ -354,7 +354,7 @@ viewData data =
                     pagedData.data
             in
             Element.table
-                []
+                [ Element.padding 20, Element.spacing 10 ]
                 { columns =
                     [ { header = Element.text "Name" |> Element.el [ Font.bold ]
                       , width = Element.fill

@@ -11,8 +11,12 @@ module Page.Class.Attendance exposing
 
 import Browser.Navigation as Navigation
 import Class exposing (ClassSession, ClassTutor)
+import Colors
 import Date
 import Element exposing (Element)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
 import Element.Input as Input
 import Http
 import Json.Decode as Decode
@@ -199,12 +203,24 @@ update msg model =
 
 viewSessionInfo : ClassSession -> Element Msg
 viewSessionInfo session =
-    Element.text (Date.toIsoString session.date)
+    Element.column
+        [ Element.width Element.fill
+        , Background.color Colors.theme.p50
+        , Element.padding 20
+        ]
+        [ Element.text
+            (Date.toIsoString session.date)
+        ]
 
 
 viewSummary : List ClassTutor -> List String -> Element Msg
 viewSummary tutors present =
-    Element.column []
+    Element.column
+        [ Element.spacing 5
+        , Element.width Element.fill
+        , Element.padding 20
+        , Background.color Colors.theme.p50
+        ]
         [ Element.text ((List.length present |> String.fromInt) ++ " Tutors Present")
         , Element.text (((List.length tutors - List.length present) |> String.fromInt) ++ " Tutors Absent")
         , Element.text ((List.length tutors |> String.fromInt) ++ " Tutors Total")
@@ -213,18 +229,26 @@ viewSummary tutors present =
 
 viewAttendance : List ClassTutor -> List String -> Element Msg
 viewAttendance tutors present =
-    Element.column []
+    Element.column
+        [ Element.spacing 10
+        , Element.width Element.fill
+        ]
         [ viewSummary tutors present
         , Element.table
-            []
+            [ Element.spacing 5
+            , Element.padding 20
+            , Element.width Element.fill
+            , Border.color Colors.theme.p50
+            , Border.width 2
+            ]
             { data = tutors
             , columns =
-                [ { header = Element.text "Name"
-                  , width = Element.fill
+                [ { header = Element.text "Name" |> Element.el [ Font.bold ]
+                  , width = Element.fill |> Element.maximum 100
                   , view = .name >> Element.text
                   }
                 , { header = Element.none
-                  , width = Element.fill
+                  , width = Element.fill |> Element.maximum 80
                   , view =
                         \t ->
                             if List.member t.id present then
@@ -233,12 +257,12 @@ viewAttendance tutors present =
                             else
                                 Element.text "Absent"
                   }
-                , { header = Element.text "Mark Present"
-                  , width = Element.fill
+                , { header = Element.text "Mark Present" |> Element.el [ Font.bold ]
+                  , width = Element.fill |> Element.maximum 100
                   , view = \t -> Input.button [] { label = Element.text "+", onPress = Just (MarkPresent t.id) }
                   }
-                , { header = Element.text "Mark Absent"
-                  , width = Element.fill
+                , { header = Element.text "Mark Absent" |> Element.el [ Font.bold ]
+                  , width = Element.fill |> Element.maximum 100
                   , view = \t -> Input.button [] { label = Element.text "-", onPress = Just (MarkAbsent t.id) }
                   }
                 ]
@@ -248,7 +272,10 @@ viewAttendance tutors present =
 
 view : Model -> Element Msg
 view model =
-    Element.column []
+    Element.column
+        [ Element.spacing 10
+        , Element.width Element.fill
+        ]
         [ case model.sessionData of
             RemoteData.NotAsked ->
                 Element.text "Not asked"
