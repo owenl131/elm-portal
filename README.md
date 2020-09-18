@@ -8,7 +8,7 @@ v 0.1 - Implement basic styling, implement extended fields and updating fields, 
 
 v 0.2 - Implement reports and visualizations.
 
-v 0.3 - Implement proper backend (Symphony/Zend/CodeIgniter?)
+v 0.3 - Implement proper backend (~~Symphony/Zend/CodeIgniter?~~SlimFramework)
 
 v 0.4 - Implement same functionality for students, implement other admin functions.
 
