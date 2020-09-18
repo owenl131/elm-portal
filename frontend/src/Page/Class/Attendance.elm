@@ -43,8 +43,11 @@ type Msg
     | GotMarkedResult (Result Http.Error ())
     | MarkPresent String
     | MarkAbsent String
-    | AddExternalTutor String
-    | RemoveExternalTutor String
+
+
+
+-- | AddExternalTutor String
+-- | RemoveExternalTutor String
 
 
 fetchClassDetails : Model -> Cmd Msg
@@ -194,11 +197,12 @@ update msg model =
                 _ ->
                     ignore
 
-        AddExternalTutor tutorId ->
-            ignore
 
-        RemoveExternalTutor tutorId ->
-            ignore
+
+-- AddExternalTutor _ ->
+--     ignore
+-- RemoveExternalTutor _ ->
+--     ignore
 
 
 viewSessionInfo : ClassSession -> Element Msg
