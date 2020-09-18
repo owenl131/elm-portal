@@ -20,6 +20,7 @@ def makeClass(id):
         'name': 'Class ' + get_random_string(4),
         'days': [1, 2],
         'active': True,
+        'year': 2020,
         'duration': 2,
         'timeslot': '8.00 - 10.00pm'
     }
@@ -109,7 +110,17 @@ def getTutors():
 
 @app.route('/classes')
 def getClasses():
-    return jsonify(classes)
+    page = 0
+    perPage = 10
+    pages = 1
+    entries = len(classes)
+    return jsonify({
+        'page': page,
+        'perPage': perPage,
+        'lastPage': pages,
+        'total': entries,
+        'data': classes
+    })
 
 
 @app.route('/class/<cid>')
