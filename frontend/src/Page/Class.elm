@@ -10,7 +10,6 @@ import Http
 import Json.Decode as Decode
 import Page.Tutor
 import RemoteData exposing (WebData)
-import Tutor exposing (Tutor)
 
 
 type alias Model =

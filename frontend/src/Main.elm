@@ -2,8 +2,11 @@ module Main exposing (main)
 
 import Browser exposing (UrlRequest)
 import Browser.Navigation as Navigation
+import Colors
 import Element exposing (Element)
 import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
 import Element.Input as Input
 import Page.Class as ClassPage
 import Page.Class.AddTutor as ClassAddTutorPage
@@ -296,7 +299,19 @@ update msg model =
 viewDrawerElement : String -> String -> Element Msg
 viewDrawerElement label url =
     Input.button
-        []
+        [ Background.color Colors.theme.p100
+        , Element.width Element.fill
+        , Element.paddingXY 30 10
+        , Element.mouseOver
+            [ Border.color Colors.theme.p600
+            , Border.innerShadow
+                { blur = 2
+                , offset = ( 1, 1 )
+                , size = 1
+                , color = Colors.theme.p800
+                }
+            ]
+        ]
         { onPress = Just (NavigateTo url)
         , label = Element.text label
         }
@@ -306,11 +321,12 @@ viewDrawer : Model -> Element Msg
 viewDrawer _ =
     Element.column
         [ Element.height Element.fill
-        , Element.padding 40
-        , Element.spacing 10
-        , Background.color (Element.rgb255 100 100 100)
+        , Element.spacing 3
+        , Background.color Colors.theme.p500
+        , Font.color Colors.black
         ]
-        [ viewDrawerElement "Home" "/home"
+        [ Element.el [ Element.height (Element.px 40) ] Element.none
+        , viewDrawerElement "Home" "/home"
         , viewDrawerElement "Tutors" "/tutors"
         , viewDrawerElement "Classes" "/classes"
         , viewDrawerElement "Logout" "/"
@@ -319,7 +335,12 @@ viewDrawer _ =
 
 viewTopNavigationElement : ( String, String ) -> Element Msg
 viewTopNavigationElement ( label, route ) =
-    Input.button [] { onPress = Just (NavigateTo route), label = Element.text label }
+    Input.button
+        [ Element.mouseOver [ Border.color Colors.black ]
+        , Border.color Colors.clear
+        , Border.widthEach { bottom = 1, top = 0, right = 0, left = 0 }
+        ]
+        { onPress = Just (NavigateTo route), label = Element.text label }
 
 
 viewTopNavigation : Model -> Element Msg
@@ -330,7 +351,10 @@ viewTopNavigation model =
     in
     Element.row
         [ Element.width Element.fill
-        , Background.color (Element.rgb255 100 100 100)
+        , Element.height (Element.px 43)
+        , Background.color Colors.theme.p500
+        , Element.spacing 20
+        , Element.padding 10
         ]
         (List.map viewTopNavigationElement routes |> List.intersperse (Element.text ">"))
 
@@ -350,7 +374,7 @@ viewWrapped model body =
             , Element.el
                 [ Element.width Element.fill
                 , Element.height Element.fill
-                , Element.padding 50
+                , Element.padding 20
                 ]
                 body
             ]
@@ -362,7 +386,7 @@ view model =
     { title = "Upstars Portal"
     , body =
         [ Element.layout
-            []
+            [ Font.size 14 ]
           <|
             case model of
                 LoggedOut submodel ->

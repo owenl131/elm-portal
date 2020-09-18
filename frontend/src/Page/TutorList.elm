@@ -9,10 +9,13 @@ module Page.TutorList exposing
     )
 
 import Browser.Navigation as Navigation exposing (pushUrl)
+import Colors
 import Date
 import DatePicker
 import Element exposing (Element)
 import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
 import Element.Input as Input
 import Http
 import Json.Decode as Decode
@@ -398,7 +401,7 @@ viewToggleFilter all toggle selected =
             List.isEmpty selected
 
         disabledGrey =
-            Element.rgb255 200 200 200
+            Colors.grey
 
         activeGreen =
             Element.rgb 0 255 0
@@ -409,20 +412,35 @@ viewToggleFilter all toggle selected =
         backgroundColor : Bool -> Bool -> Element.Color
         backgroundColor disabled active =
             if disabled then
-                disabledGrey
+                Colors.clear
 
             else if active then
                 activeGreen
 
             else
                 inactiveWhite
+
+        fontColor : Bool -> Bool -> Element.Color
+        fontColor disabled active =
+            if disabled then
+                disabledGrey
+
+            else if active then
+                Colors.black
+
+            else
+                Colors.black
     in
     Element.row
-        []
+        [ Element.spacing 10 ]
         (List.map
             (\( x, label ) ->
                 Input.button
-                    [ Background.color (backgroundColor filterUnused (List.member x selected)) ]
+                    [ Background.color (backgroundColor filterUnused (List.member x selected))
+                    , Font.color (fontColor filterUnused (List.member x selected))
+                    , Element.paddingXY 5 2
+                    , Border.width 1
+                    ]
                     { label = Element.text label, onPress = Just (toggle x) }
             )
             all
@@ -440,122 +458,189 @@ viewFilterSingle action label =
 
 viewFilters : TutorFiltersForm -> TutorFilters -> Element Msg
 viewFilters form filters =
-    Element.row
-        [ Element.width Element.fill
-        ]
-        [ Element.column
-            [ Element.width Element.fill ]
-            [ Element.row
-                []
-                ([ Input.text
-                    []
-                    { label = Input.labelLeft [] (Element.text "Filter Name")
-                    , onChange = EnteredNameFilter
-                    , placeholder = Nothing
-                    , text = form.nameFilter
-                    }
-                 , Input.button [] { label = Element.text "+", onPress = Just AddNameFilter }
-                 ]
-                    ++ List.map (viewFilterSingle RemoveNameFilter) filters.names
-                )
-            , Element.row
-                []
-                ([ Input.text
-                    []
-                    { label = Input.labelLeft [] (Element.text "Filter School")
-                    , onChange = EnteredSchoolFilter
-                    , placeholder = Nothing
-                    , text = form.schoolFilter
-                    }
-                 , Input.button [] { label = Element.text "+", onPress = Just AddSchoolFilter }
-                 ]
-                    ++ List.map (viewFilterSingle RemoveSchoolFilter) filters.schools
-                )
-            , Element.row
-                []
-                ([ Input.text
-                    []
-                    { label = Input.labelLeft [] (Element.text "Filter Classes")
-                    , onChange = EnteredClassFilter
-                    , placeholder = Nothing
-                    , text = form.classFilter
-                    }
-                 , Input.button [] { label = Element.text "+", onPress = Just AddClassFilter }
-                 ]
-                    ++ List.map (viewFilterSingle RemoveClassFilter) filters.classes
-                )
-            , Element.row
-                []
-                [ DatePicker.input
-                    []
-                    { onChange = ChangePicker JoinLower
-                    , selected = filters.joinDateLower
-                    , label = Input.labelLeft [] (Element.text "Joined after")
-                    , placeholder = Nothing
-                    , settings = DatePicker.defaultSettings
-                    , text = Maybe.withDefault "No bound" (Maybe.map Date.toIsoString filters.joinDateLower)
-                    , model = form.joinLowerPicker
-                    }
-                , DatePicker.input
-                    []
-                    { onChange = ChangePicker JoinUpper
-                    , selected = filters.joinDateUpper
-                    , label = Input.labelLeft [] (Element.text "Joined before")
-                    , placeholder = Nothing
-                    , settings = DatePicker.defaultSettings
-                    , text = Maybe.withDefault "No bound" (Maybe.map Date.toIsoString filters.joinDateUpper)
-                    , model = form.joinUpperPicker
-                    }
-                ]
-            , Element.row
-                []
-                [ DatePicker.input
-                    []
-                    { onChange = ChangePicker DobLower
-                    , selected = filters.dobLower
-                    , label = Input.labelLeft [] (Element.text "DOB after")
-                    , placeholder = Nothing
-                    , settings = DatePicker.defaultSettings
-                    , text = Maybe.withDefault "No bound" (Maybe.map Date.toIsoString filters.dobLower)
-                    , model = form.dobLowerPicker
-                    }
-                , DatePicker.input
-                    []
-                    { onChange = ChangePicker DobUpper
-                    , selected = filters.dobUpper
-                    , label = Input.labelLeft [] (Element.text "DOB before")
-                    , placeholder = Nothing
-                    , settings = DatePicker.defaultSettings
-                    , text = Maybe.withDefault "No bound" (Maybe.map Date.toIsoString filters.dobUpper)
-                    , model = form.dobUpperPicker
-                    }
-                ]
-            , Element.row []
-                [ Element.text "Filter by Status: "
-                , viewToggleFilter [ ( Tutor.Active, "Active" ), ( Tutor.Inactive, "Inactive" ), ( Tutor.New, "New" ) ] ToggleStatus filters.statuses
-                ]
-            , Element.row []
-                [ Element.text "Filter by Gender: "
-                , viewToggleFilter [ ( Tutor.Male, "M" ), ( Tutor.Female, "F" ) ] ToggleGender filters.genders
-                ]
-            , Element.row []
-                [ Element.text "Filter by Role: "
-                , viewToggleFilter [ ( Tutor.LvlAdmin, "Admin" ), ( Tutor.LvlTutor, "Tutor" ) ] ToggleAdminLvl filters.admins
-                ]
-            , Input.button [] { label = Element.text "Update", onPress = Just UpdateUrl }
+    let
+        textFieldStyles =
+            [ Element.padding 4
+            , Element.width <| Element.px 200
             ]
+
+        dateFieldStyles =
+            [ Element.padding 4
+            , Element.width <| Element.px 120
+            ]
+
+        textLabelStyles =
+            [ Element.width <| Element.px 100 ]
+    in
+    Element.column
+        [ Element.width Element.fill
+        , Background.color Colors.theme.p50
+        , Element.padding 20
+        , Element.spacing 4
+        ]
+        [ Element.row
+            [ Element.spacing 4 ]
+            ([ Input.text
+                textFieldStyles
+                { label = Input.labelLeft textLabelStyles (Element.text "Filter Name")
+                , onChange = EnteredNameFilter
+                , placeholder = Nothing
+                , text = form.nameFilter
+                }
+             , Input.button [] { label = Element.text "+", onPress = Just AddNameFilter }
+             ]
+                ++ List.map (viewFilterSingle RemoveNameFilter) filters.names
+            )
+        , Element.row
+            [ Element.spacing 4 ]
+            ([ Input.text
+                textFieldStyles
+                { label = Input.labelLeft textLabelStyles (Element.text "Filter School")
+                , onChange = EnteredSchoolFilter
+                , placeholder = Nothing
+                , text = form.schoolFilter
+                }
+             , Input.button [] { label = Element.text "+", onPress = Just AddSchoolFilter }
+             ]
+                ++ List.map (viewFilterSingle RemoveSchoolFilter) filters.schools
+            )
+        , Element.row
+            [ Element.spacing 4 ]
+            ([ Input.text
+                textFieldStyles
+                { label = Input.labelLeft textLabelStyles (Element.text "Filter Classes")
+                , onChange = EnteredClassFilter
+                , placeholder = Nothing
+                , text = form.classFilter
+                }
+             , Input.button [] { label = Element.text "+", onPress = Just AddClassFilter }
+             ]
+                ++ List.map (viewFilterSingle RemoveClassFilter) filters.classes
+            )
+        , Element.row
+            [ Element.spacing 4 ]
+            [ DatePicker.input
+                dateFieldStyles
+                { onChange = ChangePicker JoinLower
+                , selected = filters.joinDateLower
+                , label = Input.labelHidden "Joined after"
+                , placeholder = Nothing
+                , settings = DatePicker.defaultSettings
+                , text = Maybe.withDefault "No bound" (Maybe.map Date.toIsoString filters.joinDateLower)
+                , model = form.joinLowerPicker
+                }
+            , Element.row
+                [ Element.width <| Element.px 100
+                , Element.paddingXY 5 0
+                ]
+                [ Element.el
+                    [ Element.alignLeft ]
+                    (Element.text "<")
+                , Element.el
+                    [ Element.centerX ]
+                    (Element.text "Join Date")
+                , Element.el
+                    [ Element.alignRight ]
+                    (Element.text "<")
+                ]
+            , DatePicker.input
+                dateFieldStyles
+                { onChange = ChangePicker JoinUpper
+                , selected = filters.joinDateUpper
+                , label = Input.labelHidden "Joined before"
+                , placeholder = Nothing
+                , settings = DatePicker.defaultSettings
+                , text = Maybe.withDefault "No bound" (Maybe.map Date.toIsoString filters.joinDateUpper)
+                , model = form.joinUpperPicker
+                }
+            ]
+        , Element.row
+            [ Element.spacing 4 ]
+            [ DatePicker.input
+                dateFieldStyles
+                { onChange = ChangePicker DobLower
+                , selected = filters.dobLower
+                , label = Input.labelHidden "DOB after"
+                , placeholder = Nothing
+                , settings = DatePicker.defaultSettings
+                , text = Maybe.withDefault "No bound" (Maybe.map Date.toIsoString filters.dobLower)
+                , model = form.dobLowerPicker
+                }
+            , Element.row
+                [ Element.width <| Element.px 100
+                , Element.paddingXY 5 0
+                ]
+                [ Element.el
+                    [ Element.alignLeft ]
+                    (Element.text "<")
+                , Element.el
+                    [ Element.centerX ]
+                    (Element.text "DOB")
+                , Element.el
+                    [ Element.alignRight ]
+                    (Element.text "<")
+                ]
+            , DatePicker.input
+                dateFieldStyles
+                { onChange = ChangePicker DobUpper
+                , selected = filters.dobUpper
+                , label = Input.labelHidden "DOB before"
+                , placeholder = Nothing
+                , settings = DatePicker.defaultSettings
+                , text = Maybe.withDefault "No bound" (Maybe.map Date.toIsoString filters.dobUpper)
+                , model = form.dobUpperPicker
+                }
+            ]
+        , Element.row [ Element.spacing 4 ]
+            [ Element.paragraph textLabelStyles [ Element.text "Filter Status" ]
+            , viewToggleFilter [ ( Tutor.Active, "Active" ), ( Tutor.Inactive, "Inactive" ), ( Tutor.New, "New" ) ] ToggleStatus filters.statuses
+            ]
+        , Element.row [ Element.spacing 4 ]
+            [ Element.paragraph textLabelStyles [ Element.text "Filter Gender" ]
+            , viewToggleFilter [ ( Tutor.Male, "M" ), ( Tutor.Female, "F" ) ] ToggleGender filters.genders
+            ]
+        , Element.row [ Element.spacing 4 ]
+            [ Element.paragraph textLabelStyles [ Element.text "Filter Role" ]
+            , viewToggleFilter [ ( Tutor.LvlAdmin, "Admin" ), ( Tutor.LvlTutor, "Tutor" ) ] ToggleAdminLvl filters.admins
+            ]
+        , Element.el [ Element.width <| Element.px 10 ] Element.none
+        , Input.button
+            [ Element.paddingXY 10 4
+            , Background.color Colors.theme.a400
+            , Border.width 1
+            , Border.rounded 3
+            , Element.mouseOver [ Border.shadow { offset = ( 1, 3 ), blur = 3, color = Colors.black, size = 0.2 } ]
+            ]
+            { label = Element.text "Update", onPress = Just UpdateUrl }
         ]
 
 
 viewPagination : Paged a -> Element Msg
 viewPagination pagedData =
     Element.row
-        [ Element.width Element.fill ]
-        (Input.button [] { onPress = Just ChangePagePrevious, label = Element.text "<" }
+        [ Element.width Element.fill
+        , Background.color Colors.theme.p50
+        , Element.spacing 20
+        , Element.padding 10
+        ]
+        (Input.button [ Element.centerX ] { onPress = Just ChangePagePrevious, label = Element.text "<" }
             :: List.map
-                (\p -> Input.button [] { onPress = Just (ChangePage (p - 1)), label = Element.text (String.fromInt p) })
+                (\p ->
+                    Input.button []
+                        { onPress = Just (ChangePage (p - 1))
+                        , label =
+                            Element.text (String.fromInt p)
+                                |> Element.el
+                                    (if pagedData.page == p - 1 then
+                                        [ Font.bold ]
+
+                                     else
+                                        []
+                                    )
+                        }
+                )
                 (List.range 1 pagedData.lastPage)
-            ++ [ Input.button [] { onPress = Just ChangePageNext, label = Element.text ">" } ]
+            ++ [ Input.button [ Element.centerX ] { onPress = Just ChangePageNext, label = Element.text ">" } ]
         )
 
 
@@ -579,19 +664,19 @@ viewData data =
             Element.table
                 []
                 { columns =
-                    [ { header = Element.text "Name"
+                    [ { header = Element.text "Name" |> Element.el [ Font.bold ]
                       , width = Element.fill
                       , view = .name >> Element.text
                       }
-                    , { header = Element.text "Email"
+                    , { header = Element.text "Email" |> Element.el [ Font.bold ]
                       , width = Element.fill
                       , view = .email >> Element.text
                       }
-                    , { header = Element.text "Commencement"
+                    , { header = Element.text "Commencement" |> Element.el [ Font.bold ]
                       , width = Element.fill
                       , view = .dateOfRegistration >> Date.toIsoString >> Element.text
                       }
-                    , { header = Element.text "Details"
+                    , { header = Element.text "Details" |> Element.el [ Font.bold ]
                       , width = Element.fill
                       , view =
                             \tutor ->
@@ -621,6 +706,7 @@ view model =
     Element.column
         [ Element.width Element.fill
         , Element.height Element.fill
+        , Element.spacing 10
         ]
         [ viewFilters model.filtersForm model.filters
         , blankIfAbsent viewPagination model.data
