@@ -518,7 +518,7 @@ viewFilters form filters =
 
         dateFieldStyles =
             [ Element.padding 4
-            , Element.width <| Element.px 120
+            , Element.width <| Element.px 100
             ]
 
         textLabelStyles =

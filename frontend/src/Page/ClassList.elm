@@ -356,11 +356,11 @@ viewData data =
             Element.table
                 []
                 { columns =
-                    [ { header = Element.text "Name"
+                    [ { header = Element.text "Name" |> Element.el [ Font.bold ]
                       , width = Element.fill
                       , view = .name >> Element.text
                       }
-                    , { header = Element.text "Details"
+                    , { header = Element.text "Details" |> Element.el [ Font.bold ]
                       , width = Element.fill
                       , view =
                             \class ->

@@ -2,9 +2,13 @@ module Page.Class exposing (Model, Msg, getPageLink, getPageTitle, init, update,
 
 import Browser.Navigation as Navigation
 import Class exposing (Class, ClassSession, ClassTutor)
+import Colors
 import Date
 import DatePicker exposing (Model)
 import Element exposing (Element)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
 import Element.Input as Input
 import Http
 import Json.Decode as Decode
@@ -110,14 +114,19 @@ viewRow : String -> Class -> (Class -> String) -> Element Msg
 viewRow label tutor accessor =
     Element.row
         []
-        [ Element.text label
+        [ Element.text label |> Element.el [ Font.bold, Element.width (Element.px 150) ]
         , Element.text (accessor tutor)
         ]
 
 
 viewDetails : Class -> Element Msg
 viewDetails class =
-    Element.column []
+    Element.column
+        [ Element.padding 20
+        , Element.spacing 10
+        , Element.width Element.fill
+        , Background.color Colors.theme.p50
+        ]
         [ viewRow "Name" class .name
         , viewRow "Timeslot" class .timeslot
         , viewRow "Duration" class (.duration >> String.fromFloat)
@@ -127,24 +136,39 @@ viewDetails class =
 viewSessions : List ClassSession -> Element Msg
 viewSessions sessions =
     Element.table
-        []
+        [ Element.padding 20
+        , Element.spacing 5
+        , Element.width Element.fill
+        , Background.color Colors.theme.p50
+        ]
         { data = sessions
         , columns =
-            [ { header = Element.text "Date"
-              , width = Element.fill
+            [ { header = Element.text "Date" |> Element.el [ Font.bold ]
+              , width = Element.fill |> Element.maximum 100
               , view = .date >> Date.toIsoString >> Element.text
               }
-            , { header = Element.text "Duration"
-              , width = Element.fill
+            , { header = Element.text "Duration" |> Element.el [ Font.bold ]
+              , width = Element.fill |> Element.maximum 100
               , view = .duration >> String.fromFloat >> Element.text
               }
-            , { header = Element.text "Remarks"
-              , width = Element.fill
+            , { header = Element.text "Remarks" |> Element.el [ Font.bold ]
+              , width = Element.fill |> Element.maximum 300
               , view = .remarks >> Element.text
               }
-            , { header = Element.text "Attendance"
-              , width = Element.fill
-              , view = \sess -> Input.button [] { onPress = Just (NavigateToTakeAttendance sess.id), label = Element.text "Take" }
+            , { header = Element.text "Attendance" |> Element.el [ Font.bold ]
+              , width = Element.fill |> Element.maximum 50
+              , view =
+                    \sess ->
+                        Input.button
+                            [ Background.color Colors.theme.a400
+                            , Border.width 1
+                            , Border.rounded 3
+                            , Element.paddingXY 10 2
+                            , Element.mouseOver [ Background.color Colors.theme.a200 ]
+                            ]
+                            { onPress = Just (NavigateToTakeAttendance sess.id)
+                            , label = Element.el [ Element.centerX ] (Element.text "Take")
+                            }
               }
             ]
         }
@@ -153,23 +177,46 @@ viewSessions sessions =
 viewTutors : List ClassTutor -> Element Msg
 viewTutors tutors =
     Element.column
-        []
-        [ Input.button [] { onPress = Just NavigateToAddTutors, label = Element.text "Add New Tutor" }
+        [ Element.padding 20
+        , Element.spacing 10
+        , Element.width Element.fill
+        , Background.color Colors.theme.p50
+        ]
+        [ Input.button
+            [ Background.color Colors.theme.a400
+            , Border.width 1
+            , Border.rounded 3
+            , Element.paddingXY 10 4
+            , Element.mouseOver [ Background.color Colors.theme.a200 ]
+            ]
+            { onPress = Just NavigateToAddTutors, label = Element.text "Add New Tutor" }
         , Element.table
-            []
+            [ Element.spacing 5
+            ]
             { data = tutors
             , columns =
-                [ { header = Element.text "Name"
-                  , width = Element.fill
+                [ { header = Element.text "Name" |> Element.el [ Font.bold ]
+                  , width = Element.fill |> Element.maximum 200
                   , view = .name >> Element.text
                   }
-                , { header = Element.text "Join Class Date"
-                  , width = Element.fill
+                , { header = Element.text "Join Class Date" |> Element.el [ Font.bold ]
+                  , width = Element.fill |> Element.maximum 140
                   , view = .joinDate >> Date.toIsoString >> Element.text
                   }
-                , { header = Element.text "Details"
-                  , width = Element.fill
-                  , view = \t -> Input.button [] { onPress = Just (NavigateToTutor t.id), label = Element.text "More" }
+                , { header = Element.text "Details" |> Element.el [ Font.bold ]
+                  , width = Element.fill |> Element.maximum 60
+                  , view =
+                        \t ->
+                            Input.button
+                                [ Background.color Colors.theme.a400
+                                , Border.width 1
+                                , Border.rounded 3
+                                , Element.paddingXY 10 2
+                                , Element.mouseOver [ Background.color Colors.theme.a200 ]
+                                ]
+                                { onPress = Just (NavigateToTutor t.id)
+                                , label = Element.text "More" |> Element.el [ Element.centerX ]
+                                }
                   }
                 ]
             }
@@ -182,7 +229,10 @@ view model =
     -- click session to redirect to take/view attendance page
     -- Display tutor list and button to open add tutor menu
     Element.column
-        [ Element.spacing 30 ]
+        [ Element.spacing 10
+        , Element.height Element.fill
+        , Element.width Element.fill
+        ]
         [ case model.data of
             RemoteData.Success class ->
                 viewDetails class

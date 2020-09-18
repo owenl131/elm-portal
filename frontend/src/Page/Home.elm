@@ -36,12 +36,14 @@ view _ =
         [ Element.spacing 5 ]
         (List.map Element.text
             [ "Home - Use this for short term dev goals"
+            , "Style class page"
             , "Update tutor fields"
             , "Update class fields"
             , "Create class session"
-            , "Implement class filters"
             , "Implement auth"
             , "Implement sort by which field"
+            , "Separate API out into its own file"
+            , "Possibly set up a mock API for demo without server"
             , "|"
             , "This page would show user's classes and classes happening today"
             ]
