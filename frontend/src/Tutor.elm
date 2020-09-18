@@ -3,6 +3,7 @@ module Tutor exposing
     , Gender(..)
     , Tutor
     , TutorStatus(..)
+    , adminLevelAsString
     , genderToString
     , toGender
     , toTutorAdminLevel
@@ -11,6 +12,7 @@ module Tutor exposing
     , tutorAdminLevelEncoder
     , tutorDecoder
     , tutorEncoder
+    , tutorStatusAsString
     , tutorStatusEncoder
     )
 
@@ -117,6 +119,19 @@ tutorStatusDecoder =
             )
 
 
+tutorStatusAsString : TutorStatus -> String
+tutorStatusAsString status =
+    case status of
+        Active ->
+            "Active"
+
+        Inactive ->
+            "Inactive"
+
+        New ->
+            "New"
+
+
 tutorAdminLevelEncoder : AdminLevel -> Int
 tutorAdminLevelEncoder admin =
     case admin of
@@ -125,6 +140,16 @@ tutorAdminLevelEncoder admin =
 
         LvlTutor ->
             1
+
+
+adminLevelAsString : AdminLevel -> String
+adminLevelAsString admin =
+    case admin of
+        LvlAdmin ->
+            "Admin"
+
+        LvlTutor ->
+            "Tutor"
 
 
 toTutorAdminLevel : Int -> Maybe AdminLevel

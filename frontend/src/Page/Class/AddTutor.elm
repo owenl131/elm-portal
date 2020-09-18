@@ -9,9 +9,13 @@ module Page.Class.AddTutor exposing
 
 import Browser.Navigation as Navigation
 import Class exposing (ClassTutor)
+import Colors
 import Date
 import DatePicker
 import Element exposing (Element)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
 import Element.Input as Input
 import Http
 import Json.Decode as Decode
@@ -193,17 +197,37 @@ update msg model =
 
 viewSuggestions : List Tutor -> Element Msg
 viewSuggestions tutors =
+    let
+        toHeader : String -> Element Msg
+        toHeader text =
+            text |> Element.text |> Element.el [ Font.bold, Element.paddingEach { top = 10, left = 0, right = 20, bottom = 5 } ]
+    in
     -- for each suggestion, display name, admin, and button to add
-    Element.table []
+    Element.table
+        [ Element.spacing 5
+        ]
         { data = tutors
         , columns =
-            [ { header = Element.text "Name"
-              , width = Element.fill
-              , view = .name >> Element.text
+            [ { header = "Name" |> toHeader
+              , width = Element.fill |> Element.maximum 150
+              , view = .name >> Element.text >> Element.el [ Element.centerY ]
               }
-            , { header = Element.text "Add"
-              , width = Element.fill
-              , view = \tutor -> Input.button [] { label = Element.text "+", onPress = Just (AddTutor tutor.id) }
+            , { header = "Role" |> toHeader
+              , width = Element.fill |> Element.maximum 80
+              , view = .admin >> Tutor.adminLevelAsString >> Element.text >> Element.el [ Element.centerY ]
+              }
+            , { header = "Add" |> toHeader
+              , width = Element.fill |> Element.maximum 50
+              , view =
+                    \tutor ->
+                        Input.button
+                            [ Background.color Colors.theme.a400
+                            , Border.width 1
+                            , Border.rounded 3
+                            , Element.paddingXY 10 2
+                            , Element.mouseOver [ Background.color Colors.theme.a200 ]
+                            ]
+                            { label = Element.text "+" |> Element.el [ Element.centerX ], onPress = Just (AddTutor tutor.id) }
               }
             ]
         }
@@ -212,16 +236,28 @@ viewSuggestions tutors =
 viewSelector : Model -> Element Msg
 viewSelector model =
     Element.column
-        [ Element.height Element.fill ]
-        [ Input.text []
-            { label = Input.labelLeft [] (Element.text "Filter by Name")
+        [ Element.height Element.fill
+        , Element.spacing 10
+        , Element.padding 20
+        , Background.color Colors.theme.p50
+        ]
+        [ Input.text [ Element.padding 4, Element.width (Element.px 200) ]
+            { label = Input.labelLeft [] (Element.text "Filter by Name" |> Element.el [ Element.width (Element.px 150) ])
             , onChange = EnteredNameFilter
             , placeholder = Nothing
             , text = model.nameFilter
             }
-        , Input.button [] { label = Element.text "Search", onPress = Just FetchSuggestions }
-        , DatePicker.input []
-            { label = Input.labelLeft [] (Element.text "Joined on")
+        , Input.button
+            [ Background.color Colors.theme.a400
+            , Border.width 1
+            , Border.rounded 3
+            , Element.paddingXY 10 2
+            , Element.mouseOver [ Background.color Colors.theme.a200 ]
+            ]
+            { label = Element.text "Search", onPress = Just FetchSuggestions }
+        , Element.el [ Element.height (Element.px 20) ] Element.none
+        , DatePicker.input [ Element.padding 4, Element.width (Element.px 120) ]
+            { label = Input.labelLeft [] (Element.text "Set Joined On" |> Element.el [ Element.width (Element.px 150) ])
             , model = model.joinDatePicker
             , onChange = PickerChanged
             , placeholder = Just (Input.placeholder [] (Element.text "Unselected"))
@@ -235,13 +271,26 @@ viewSelector model =
 
 viewList : List ClassTutor -> Element Msg
 viewList tutors =
+    let
+        toHeader : String -> Element Msg
+        toHeader text =
+            text |> Element.text |> Element.el [ Font.bold, Element.paddingEach { top = 0, left = 0, right = 20, bottom = 5 } ]
+    in
     Element.table
-        []
+        [ Element.padding 20
+        , Border.color Colors.theme.p50
+        , Border.width 3
+        , Element.spacing 5
+        ]
         { data = tutors
         , columns =
-            [ { header = Element.text "Name"
-              , width = Element.fill
+            [ { header = "Name" |> toHeader
+              , width = Element.fill |> Element.maximum 150 |> Element.minimum 100
               , view = .name >> Element.text
+              }
+            , { header = "Joined Class on" |> toHeader
+              , width = Element.fill |> Element.maximum 100
+              , view = .joinDate >> Date.toIsoString >> Element.text
               }
             ]
         }
@@ -266,11 +315,14 @@ handleRemote viewIt remoteData =
 view : Model -> Element Msg
 view model =
     Element.row
-        [ Element.width Element.fill, Element.height Element.fill ]
+        [ Element.width Element.fill
+        , Element.height Element.fill
+        , Element.spacing 10
+        ]
         [ Element.el
-            [ Element.height Element.fill, Element.width Element.fill ]
+            [ Element.height Element.fill ]
             (viewSelector model)
         , Element.el
-            [ Element.height Element.fill, Element.width Element.fill ]
+            [ Element.height Element.fill ]
             (handleRemote viewList model.tutors)
         ]

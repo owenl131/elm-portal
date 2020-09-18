@@ -135,6 +135,11 @@ viewDetails class =
 
 viewSessions : List ClassSession -> Element Msg
 viewSessions sessions =
+    let
+        toHeader : String -> Element Msg
+        toHeader text =
+            text |> Element.text |> Element.el [ Font.bold, Element.paddingEach { top = 0, bottom = 5, left = 0, right = 3 } ]
+    in
     Element.table
         [ Element.padding 20
         , Element.spacing 5
@@ -143,19 +148,19 @@ viewSessions sessions =
         ]
         { data = sessions
         , columns =
-            [ { header = Element.text "Date" |> Element.el [ Font.bold ]
+            [ { header = "Date" |> toHeader
               , width = Element.fill |> Element.maximum 100
               , view = .date >> Date.toIsoString >> Element.text
               }
-            , { header = Element.text "Duration" |> Element.el [ Font.bold ]
+            , { header = "Duration" |> toHeader
               , width = Element.fill |> Element.maximum 100
               , view = .duration >> String.fromFloat >> Element.text
               }
-            , { header = Element.text "Remarks" |> Element.el [ Font.bold ]
+            , { header = "Remarks" |> toHeader
               , width = Element.fill |> Element.maximum 300
               , view = .remarks >> Element.text
               }
-            , { header = Element.text "Attendance" |> Element.el [ Font.bold ]
+            , { header = "Attendance" |> toHeader
               , width = Element.fill |> Element.maximum 50
               , view =
                     \sess ->
@@ -190,20 +195,25 @@ viewTutors tutors =
             , Element.mouseOver [ Background.color Colors.theme.a200 ]
             ]
             { onPress = Just NavigateToAddTutors, label = Element.text "Add New Tutor" }
-        , Element.table
+        , let
+            toHeader : String -> Element Msg
+            toHeader text =
+                text |> Element.text |> Element.el [ Font.bold, Element.paddingEach { top = 0, bottom = 5, left = 0, right = 3 } ]
+          in
+          Element.table
             [ Element.spacing 5
             ]
             { data = tutors
             , columns =
-                [ { header = Element.text "Name" |> Element.el [ Font.bold ]
+                [ { header = "Name" |> toHeader
                   , width = Element.fill |> Element.maximum 200
                   , view = .name >> Element.text
                   }
-                , { header = Element.text "Join Class Date" |> Element.el [ Font.bold ]
+                , { header = "Join Class Date" |> toHeader
                   , width = Element.fill |> Element.maximum 140
                   , view = .joinDate >> Date.toIsoString >> Element.text
                   }
-                , { header = Element.text "Details" |> Element.el [ Font.bold ]
+                , { header = "Details" |> toHeader
                   , width = Element.fill |> Element.maximum 60
                   , view =
                         \t ->

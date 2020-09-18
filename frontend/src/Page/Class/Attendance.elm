@@ -229,6 +229,11 @@ viewSummary tutors present =
 
 viewAttendance : List ClassTutor -> List String -> Element Msg
 viewAttendance tutors present =
+    let
+        toHeader : String -> Element Msg
+        toHeader text =
+            text |> Element.text |> Element.el [ Font.bold, Element.paddingEach { top = 0, bottom = 5, left = 0, right = 3 } ]
+    in
     Element.column
         [ Element.spacing 10
         , Element.width Element.fill
@@ -243,7 +248,7 @@ viewAttendance tutors present =
             ]
             { data = tutors
             , columns =
-                [ { header = Element.text "Name" |> Element.el [ Font.bold ]
+                [ { header = "Name" |> toHeader
                   , width = Element.fill |> Element.maximum 100
                   , view = .name >> Element.text
                   }
@@ -257,11 +262,11 @@ viewAttendance tutors present =
                             else
                                 Element.text "Absent"
                   }
-                , { header = Element.text "Mark Present" |> Element.el [ Font.bold ]
+                , { header = "Mark Present" |> toHeader
                   , width = Element.fill |> Element.maximum 100
                   , view = \t -> Input.button [] { label = Element.text "+", onPress = Just (MarkPresent t.id) }
                   }
-                , { header = Element.text "Mark Absent" |> Element.el [ Font.bold ]
+                , { header = "Mark Absent" |> toHeader
                   , width = Element.fill |> Element.maximum 100
                   , view = \t -> Input.button [] { label = Element.text "-", onPress = Just (MarkAbsent t.id) }
                   }

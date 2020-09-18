@@ -352,21 +352,38 @@ viewData data =
             let
                 classList =
                     pagedData.data
+
+                toHeader : String -> Element Msg
+                toHeader text =
+                    text |> Element.text |> Element.el [ Font.bold, Element.paddingEach { top = 0, bottom = 5, left = 0, right = 3 } ]
             in
             Element.table
-                [ Element.padding 20, Element.spacing 10 ]
+                [ Element.padding 20, Element.spacing 5 ]
                 { columns =
-                    [ { header = Element.text "Name" |> Element.el [ Font.bold ]
-                      , width = Element.fill
-                      , view = .name >> Element.text
+                    [ { header = "Name" |> toHeader
+                      , width = Element.fill |> Element.maximum 200
+                      , view = .name >> Element.text >> Element.el [ Element.centerY ]
                       }
-                    , { header = Element.text "Details" |> Element.el [ Font.bold ]
-                      , width = Element.fill
+                    , { header = "Days" |> toHeader
+                      , width = Element.fill |> Element.maximum 150
+                      , view = .days >> List.map Debug.toString >> List.intersperse ", " >> String.concat >> Element.text >> Element.el [ Element.centerY ]
+                      }
+                    , { header = "Year" |> toHeader
+                      , width = Element.fill |> Element.maximum 80
+                      , view = .year >> String.fromInt >> Element.text >> Element.el [ Element.centerY ]
+                      }
+                    , { header = "Details" |> toHeader
+                      , width = Element.fill |> Element.maximum 60
                       , view =
                             \class ->
                                 Input.button
-                                    []
-                                    { label = Element.text "More"
+                                    [ Background.color Colors.theme.a400
+                                    , Border.width 1
+                                    , Border.rounded 3
+                                    , Element.paddingXY 10 2
+                                    , Element.mouseOver [ Background.color Colors.theme.a200 ]
+                                    ]
+                                    { label = Element.text "More" |> Element.el [ Element.centerX ]
                                     , onPress = Just (ToDetails class.id)
                                     }
                       }

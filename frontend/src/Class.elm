@@ -37,6 +37,7 @@ classDecoder =
     Decode.succeed Class
         |> Pipeline.required "id" Decode.int
         |> Pipeline.required "name" Decode.string
+        |> Pipeline.required "year" Decode.int
         |> Pipeline.required "days" (Decode.list weekdayDecoder)
         |> Pipeline.required "timeslot" Decode.string
         |> Pipeline.required "duration" Decode.float
@@ -46,6 +47,7 @@ classDecoder =
 type alias Class =
     { id : Int
     , name : String
+    , year : Int
     , days : List Date.Weekday
     , timeslot : String
     , duration : Float
