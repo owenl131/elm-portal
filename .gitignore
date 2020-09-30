@@ -1,3 +1,5 @@
 # Elm
-frontend/elm-stuff
-frontend/repl-temp-*
+/frontend/elm-stuff
+/frontend/repl-temp-*
+# Composer
+/vendor/
