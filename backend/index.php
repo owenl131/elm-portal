@@ -212,82 +212,92 @@ $app->get('/classestoday', function (Request $Request, Response $response, $args
 })->add($authMiddleware);
 
 
-$app->group('/class/{id:[0-9]+}', function (RouteCollectorProxy $group) use ($adminOnlyMiddleware, $leaderAboveMiddleware) {
+$app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use ($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddleware) {
 
     $group->get('', function (Request $request, Response $response, $args) {
         // get class details
-        return $response;
+        $classId = $args['id'];
+        $data = DBClass::getClass($classId);
+        if ($data == null) {
+            return $response->withStatus(400);
+        }
+        $data['id'] = (string) $data['_id'];
+        unset($data['_id']);
+        return $response->withJson($data, 200);
+    })->add($authMiddleware);
+    $group->options('', function (Request $request, Response $response, $args) {
+        return $response->withStatus(200);
     });
 
     $group->patch('', function (Request $request, Response $response, $args) {
         // update class details
         return $response;
-    })->add($adminOnlyMiddleware);
+    })->add($authMiddleware)->add($adminOnlyMiddleware);
 
     $group->post('/addtutor/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
         // add tutor to class
         return $response;
-    })->add($adminOnlyMiddleware);
+    })->add($authMiddleware)->add($adminOnlyMiddleware);
 
     $group->put('/updatetutor/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
         // used to edit join date or leave date
         return $response;
-    })->add($adminOnlyMiddleware);
+    })->add($authMiddleware)->add($adminOnlyMiddleware);
 
     $group->put('/removetutor/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
         // used to delete tutor from class, clears attendance records
         return $response;
-    })->add($adminOnlyMiddleware);
+    })->add($authMiddleware)->add($adminOnlyMiddleware);
 
 
-    $group->group('/session/{sid:[0-9]+}', function (RouteCollectorProxy $subgroup) use ($leaderAboveMiddleware) {
+    $group->group('/session/{sid:[0-9]+}', function (RouteCollectorProxy $subgroup) use ($authMiddleware, $leaderAboveMiddleware) {
 
         $subgroup->get('', function (Request $request, Response $response, $args) {
             // get session details
             return $response;
-        });
+        })->add($authMiddleware);
 
         $subgroup->patch('', function (Request $request, Response $response, $args) {
             // update session details
             return $response;
-        })->add($leaderAboveMiddleware);
+        })->add($authMiddleware)->add($leaderAboveMiddleware);
 
         $subgroup->get('/tutors', function (Request $request, Response $response, $args) {
             // get list of tutors in session
             return $response;
-        });
+        })->add($authMiddleware);
 
         $subgroup->get('/present', function (Request $request, Response $response, $args) {
             // get list of tutors present in session
             return $response;
-        });
+        })->add($authMiddleware);
 
         $subgroup->get('/absent', function (Request $request, Response $response, $args) {
             // get list of tutors absent in session
             return $response;
-        });
+        })->add($authMiddleware);
 
         $subgroup->put('/present/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
             // mark tutor as present
             return $response;
-        })->add($leaderAboveMiddleware);
+        })->add($authMiddleware)->add($leaderAboveMiddleware);
 
         $subgroup->put('/absent/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
             // mark tutor as absent
             return $response;
-        })->add($leaderAboveMiddleware);
+        })->add($authMiddleware)->add($leaderAboveMiddleware);
 
         $subgroup->put('/addexternal/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
             // add a tutor that is not under this class to this session
             return $response;
-        })->add($leaderAboveMiddleware);
+        })->add($authMiddleware)->add($leaderAboveMiddleware);
 
         $subgroup->put('/removeexternal/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
             // remove a tutor that is not under this class from this session
             return $response;
-        })->add($leaderAboveMiddleware);
+        })->add($authMiddleware)->add($leaderAboveMiddleware);
     });
-})->add($authMiddleware);
+});
 
 
 $errorMiddleware = $app->addErrorMiddleware(true, true, true);

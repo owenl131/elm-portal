@@ -1,8 +1,11 @@
 module Class exposing
     ( Class
+    , ClassId
     , ClassSession
     , ClassTutor
     , classDecoder
+    , classIdDecoder
+    , classIdToString
     , classSessionDecoder
     , classTutorDecoder
     )
@@ -35,7 +38,7 @@ weekdayDecoder =
 classDecoder : Decode.Decoder Class
 classDecoder =
     Decode.succeed Class
-        |> Pipeline.required "id" Decode.string
+        |> Pipeline.required "id" classIdDecoder
         |> Pipeline.required "name" Decode.string
         |> Pipeline.required "year" Decode.int
         |> Pipeline.required "days" (Decode.list weekdayDecoder)
@@ -44,8 +47,22 @@ classDecoder =
         |> Pipeline.required "active" Decode.bool
 
 
+type alias ClassId =
+    String
+
+
+classIdDecoder : Decode.Decoder ClassId
+classIdDecoder =
+    Decode.string
+
+
+classIdToString : ClassId -> String
+classIdToString classId =
+    classId
+
+
 type alias Class =
-    { id : String
+    { id : ClassId
     , name : String
     , year : Int
     , days : List Date.Weekday

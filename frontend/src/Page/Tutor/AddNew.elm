@@ -1,9 +1,9 @@
-module Page.Tutor.AddNew exposing (..)
+module Page.Tutor.AddNew exposing (Model, Msg)
 
 
-type Model
-    = String
+type alias Model =
+    String
 
 
-type Msg
-    = String
+type alias Msg =
+    String

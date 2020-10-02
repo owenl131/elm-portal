@@ -7,7 +7,7 @@ module Page.Class.AddTutor exposing
     , view
     )
 
-import Api exposing (Credentials)
+import Api
 import Browser.Navigation as Navigation
 import Class exposing (ClassTutor)
 import Colors
@@ -24,12 +24,13 @@ import Json.Encode as Encode
 import RemoteData exposing (WebData)
 import Task
 import Tutor exposing (Tutor)
+import Url.Builder as Builder
 
 
 type alias Model =
     { key : Navigation.Key
     , credentials : Api.Credentials
-    , id : Int
+    , id : Class.ClassId
     , tutors : WebData (List ClassTutor)
     , nameFilter : String
     , classData : WebData Class.Class
@@ -58,7 +59,7 @@ getPageTitle _ =
 
 getPageLink : Model -> String
 getPageLink model =
-    "/class/" ++ String.fromInt model.id ++ "/addtutor"
+    Builder.absolute [ "class", model.id, "addtutor" ] []
 
 
 getNestedNavigation : Model -> List ( String, String )
@@ -66,14 +67,14 @@ getNestedNavigation model =
     [ ( "Classes", "/classes" )
     , ( RemoteData.toMaybe model.classData
             |> Maybe.map .name
-            |> Maybe.withDefault ("Class ID: " ++ String.fromInt model.id)
-      , "/class/" ++ String.fromInt model.id
+            |> Maybe.withDefault ("Class ID: " ++ model.id)
+      , "/class/" ++ model.id
       )
     , ( getPageTitle model, getPageLink model )
     ]
 
 
-init : Api.Credentials -> Navigation.Key -> Int -> ( Model, Cmd Msg )
+init : Api.Credentials -> Navigation.Key -> Class.ClassId -> ( Model, Cmd Msg )
 init credentials key id =
     let
         model =
@@ -101,15 +102,15 @@ init credentials key id =
 fetchSuggestions : String -> Cmd Msg
 fetchSuggestions arg =
     Http.get
-        { url = "http://localhost:5000/suggestions?filter=" ++ arg
+        { url = Builder.crossOrigin Api.endpoint [ "suggestions" ] [ Builder.string "filter" arg ]
         , expect = Http.expectJson GotTutorSuggestionList (Decode.list Tutor.tutorDecoder)
         }
 
 
-fetchTutorList : Int -> Cmd Msg
+fetchTutorList : Class.ClassId -> Cmd Msg
 fetchTutorList classId =
     Http.get
-        { url = "http://localhost:5000/class/" ++ String.fromInt classId ++ "/tutors"
+        { url = Builder.crossOrigin Api.endpoint [ "class", classId, "tutors" ] []
         , expect = Http.expectJson GotTutorList (Decode.list Class.classTutorDecoder)
         }
 
@@ -117,18 +118,15 @@ fetchTutorList classId =
 fetchClassDetails : Model -> Cmd Msg
 fetchClassDetails model =
     Http.get
-        { url = "http://localhost:5000/class/" ++ String.fromInt model.id
+        { url = Builder.crossOrigin Api.endpoint [ "class", model.id ] []
         , expect = Http.expectJson GotClassData Class.classDecoder
         }
 
 
-postAddTutor : Int -> String -> Date.Date -> Cmd Msg
+postAddTutor : Class.ClassId -> String -> Date.Date -> Cmd Msg
 postAddTutor classId tutorId joinDate =
     Http.post
-        { url =
-            "http://localhost:5000/class/"
-                ++ String.fromInt classId
-                ++ "/addtutor/"
+        { url = Builder.crossOrigin Api.endpoint [ "class", classId, "addtutor" ] []
         , body =
             Http.jsonBody
                 (Encode.object

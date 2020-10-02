@@ -2,7 +2,7 @@ module Page.Class exposing (Model, Msg, getPageLink, getPageTitle, init, update,
 
 import Api
 import Browser.Navigation as Navigation
-import Class exposing (Class, ClassSession, ClassTutor)
+import Class exposing (Class, ClassId, ClassSession, ClassTutor)
 import Colors
 import Date
 import DatePicker exposing (Model)
@@ -20,7 +20,7 @@ import RemoteData exposing (WebData)
 type alias Model =
     { key : Navigation.Key
     , credentials : Api.Credentials
-    , id : Int
+    , id : ClassId
     , data : WebData Class
     , sessions : WebData (List ClassSession)
     , tutors : WebData (List ClassTutor)
@@ -38,39 +38,39 @@ type Msg
 
 getPageTitle : Model -> String
 getPageTitle model =
-    RemoteData.toMaybe model.data |> Maybe.map .name |> Maybe.withDefault ("Class ID: " ++ String.fromInt model.id)
+    RemoteData.toMaybe model.data |> Maybe.map .name |> Maybe.withDefault ("Class ID: " ++ model.id)
 
 
 getPageLink : Model -> String
 getPageLink model =
-    "/class/" ++ String.fromInt model.id
+    "/class/" ++ model.id
 
 
-fetchClassData : Int -> Cmd Msg
+fetchClassData : ClassId -> Cmd Msg
 fetchClassData id =
     Http.get
-        { url = "http://localhost:5000/class/" ++ String.fromInt id
+        { url = "http://localhost:5000/class/" ++ id
         , expect = Http.expectJson GotClassData Class.classDecoder
         }
 
 
-fetchTutorData : Int -> Cmd Msg
+fetchTutorData : ClassId -> Cmd Msg
 fetchTutorData id =
     Http.get
-        { url = "http://localhost:5000/class/" ++ String.fromInt id ++ "/tutors"
+        { url = "http://localhost:5000/class/" ++ id ++ "/tutors"
         , expect = Http.expectJson GotTutorsData (Decode.list Class.classTutorDecoder)
         }
 
 
-fetchSessionsData : Int -> Cmd Msg
+fetchSessionsData : ClassId -> Cmd Msg
 fetchSessionsData id =
     Http.get
-        { url = "http://localhost:5000/class/" ++ String.fromInt id ++ "/sessions"
+        { url = "http://localhost:5000/class/" ++ id ++ "/sessions"
         , expect = Http.expectJson GotSessionsData (Decode.list Class.classSessionDecoder)
         }
 
 
-init : Int -> Api.Credentials -> Navigation.Key -> ( Model, Cmd Msg )
+init : ClassId -> Api.Credentials -> Navigation.Key -> ( Model, Cmd Msg )
 init id credentials key =
     let
         model =

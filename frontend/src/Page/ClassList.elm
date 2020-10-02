@@ -80,7 +80,7 @@ init credentials key filters page =
         { method = "GET"
         , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
         , body = Http.emptyBody
-        , url = "http://localhost:8001/backend/classes" ++ Builder.toQuery (classFiltersToQueryList filters)
+        , url = Builder.crossOrigin Api.endpoint [ "classes" ] (classFiltersToQueryList filters)
         , expect = Http.expectJson GotClassList <| Paged.pagedDecoder (Decode.list classDecoder)
         , timeout = Nothing
         , tracker = Nothing
@@ -92,7 +92,7 @@ pushUrl : Model -> Cmd Msg
 pushUrl model =
     Navigation.pushUrl
         model.key
-        ("/classes" ++ Builder.toQuery (Builder.int "page" model.page :: classFiltersToQueryList model.filters))
+        (Builder.absolute [ "classes" ] (Builder.int "page" model.page :: classFiltersToQueryList model.filters))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -129,7 +129,7 @@ update msg model =
             ( { model | data = RemoteData.fromResult result }, Cmd.none )
 
         ToDetails id ->
-            ( model, Navigation.pushUrl model.key ("/class/" ++ id) )
+            ( model, Navigation.pushUrl model.key (Builder.absolute [ "class", id ] []) )
 
         EnteredNameFilter name ->
             ( { model | nameFilterForm = name }, Cmd.none )

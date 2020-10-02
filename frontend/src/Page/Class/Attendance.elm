@@ -23,12 +23,13 @@ import Http
 import Json.Decode as Decode
 import RemoteData exposing (WebData)
 import String
+import Url.Builder as Builder
 
 
 type alias Model =
     { key : Navigation.Key
     , credentials : Api.Credentials
-    , classId : Int
+    , classId : Class.ClassId
     , sessionId : Int
     , classData : WebData Class.Class
     , sessionData : WebData Class.ClassSession
@@ -55,7 +56,7 @@ type Msg
 fetchClassDetails : Model -> Cmd Msg
 fetchClassDetails model =
     Http.get
-        { url = "http://localhost:5000/class/" ++ String.fromInt model.classId
+        { url = Builder.crossOrigin Api.endpoint [ "class", model.classId ] []
         , expect = Http.expectJson GotClassData Class.classDecoder
         }
 
@@ -63,7 +64,7 @@ fetchClassDetails model =
 fetchSessionDetails : Model -> Cmd Msg
 fetchSessionDetails model =
     Http.get
-        { url = "http://localhost:5000/class/" ++ String.fromInt model.classId ++ "/session/" ++ String.fromInt model.sessionId
+        { url = Builder.crossOrigin Api.endpoint [ "class", model.classId, "session", String.fromInt model.sessionId ] []
         , expect = Http.expectJson GotSessionData Class.classSessionDecoder
         }
 
@@ -71,7 +72,7 @@ fetchSessionDetails model =
 fetchTutorsList : Model -> Cmd Msg
 fetchTutorsList model =
     Http.get
-        { url = "http://localhost:5000/class/" ++ String.fromInt model.classId ++ "/session/" ++ String.fromInt model.sessionId ++ "/tutors"
+        { url = Builder.crossOrigin Api.endpoint [ "class", model.classId, "session", String.fromInt model.sessionId, "tutors" ] []
         , expect = Http.expectJson GotTutorsList (Decode.list Class.classTutorDecoder)
         }
 
@@ -79,24 +80,24 @@ fetchTutorsList model =
 fetchPresentList : Model -> Cmd Msg
 fetchPresentList model =
     Http.get
-        { url = "http://localhost:5000/class/" ++ String.fromInt model.classId ++ "/session/" ++ String.fromInt model.sessionId ++ "/attendance"
+        { url = Builder.crossOrigin Api.endpoint [ "class", model.classId, "session", String.fromInt model.sessionId, "attendance" ] []
         , expect = Http.expectJson GotPresentList (Decode.list Decode.string)
         }
 
 
-postMarkPresent : Int -> Int -> String -> Cmd Msg
+postMarkPresent : Class.ClassId -> Int -> String -> Cmd Msg
 postMarkPresent classId sessionId tutorId =
     Http.post
-        { url = "http://localhost:5000/class/" ++ String.fromInt classId ++ "/session/" ++ String.fromInt sessionId ++ "/present"
+        { url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", String.fromInt sessionId, "present" ] []
         , body = Http.stringBody "text/plain" tutorId
         , expect = Http.expectWhatever GotMarkedResult
         }
 
 
-postMarkAbsent : Int -> Int -> String -> Cmd Msg
+postMarkAbsent : Class.ClassId -> Int -> String -> Cmd Msg
 postMarkAbsent classId sessionId tutorId =
     Http.post
-        { url = "http://localhost:5000/class/" ++ String.fromInt classId ++ "/session/" ++ String.fromInt sessionId ++ "/absent"
+        { url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", String.fromInt sessionId, "absent" ] []
         , body = Http.stringBody "text/plain" tutorId
         , expect = Http.expectWhatever GotMarkedResult
         }
@@ -104,15 +105,16 @@ postMarkAbsent classId sessionId tutorId =
 
 getNestedNavigation : Model -> List ( String, String )
 getNestedNavigation model =
-    [ ( "Classes", "/classes" )
-    , ( RemoteData.toMaybe model.classData |> Maybe.map .name |> Maybe.withDefault ("Class ID: " ++ String.fromInt model.classId), "/class/" ++ String.fromInt model.classId )
+    [ ( "Classes", Builder.absolute [ "classes" ] [] )
+    , ( RemoteData.toMaybe model.classData
+            |> Maybe.map .name
+            |> Maybe.withDefault ("Class ID: " ++ model.classId)
+      , Builder.absolute [ "class", model.classId ] []
+      )
     , ( RemoteData.toMaybe model.sessionData
             |> Maybe.map (.date >> Date.toIsoString)
             |> Maybe.withDefault ("Session ID: " ++ String.fromInt model.sessionId)
-      , "/class/"
-            ++ String.fromInt model.classId
-            ++ "/session/"
-            ++ String.fromInt model.sessionId
+      , Builder.absolute [ "class", model.classId, "session", String.fromInt model.sessionId ] []
       )
     ]
 
@@ -124,13 +126,10 @@ getPageTitle _ =
 
 getPageLink : Model -> String
 getPageLink model =
-    "/class/"
-        ++ String.fromInt model.classId
-        ++ "/session/"
-        ++ String.fromInt model.sessionId
+    Builder.absolute [ "class", model.classId, "session", String.fromInt model.sessionId ] []
 
 
-init : Api.Credentials -> Navigation.Key -> Int -> Int -> ( Model, Cmd Msg )
+init : Api.Credentials -> Navigation.Key -> Class.ClassId -> Int -> ( Model, Cmd Msg )
 init credentials key classId sessionId =
     let
         model =
@@ -305,10 +304,10 @@ view model =
                 viewAttendance tutorList presentList
 
             ( RemoteData.Failure err, _ ) ->
-                Element.text <| "Failed to get tutor data: " ++ Debug.toString err
+                Element.text ("Failed to get tutor data: " ++ Debug.toString err)
 
             ( _, RemoteData.Failure err ) ->
-                Element.text <| "Failed to get attendance data" ++ Debug.toString err
+                Element.text ("Failed to get attendance data" ++ Debug.toString err)
 
             _ ->
                 Element.text "Loading"

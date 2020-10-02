@@ -138,6 +138,7 @@ type WhichDatePicker
 type Msg
     = PaginationChanged Paged.Msg
     | ChangePicker WhichDatePicker DatePicker.ChangeEvent
+    | DateCleared WhichDatePicker
     | SetToday Date.Date
     | ToDetails String
     | GotTutorList (Result Http.Error (Paged.Paged (List Tutor)))
@@ -161,7 +162,7 @@ fetchTutorList credentials filters page =
         { method = "GET"
         , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
         , body = Http.emptyBody
-        , url = "http://localhost:8001/backend/tutors" ++ Builder.toQuery (Builder.int "page" page :: tutorFiltersToQueryList filters)
+        , url = Builder.crossOrigin Api.endpoint [ "tutors" ] (Builder.int "page" page :: tutorFiltersToQueryList filters)
         , expect = Http.expectJson GotTutorList <| Paged.pagedDecoder (Decode.list tutorDecoder)
         , timeout = Nothing
         , tracker = Nothing
@@ -418,6 +419,16 @@ update msg model =
             , Cmd.none
             )
 
+        DateCleared whichDatePicker ->
+            let
+                newModel =
+                    { model
+                        | filters = filters |> updateDate whichDatePicker Nothing
+                        , filtersForm = filtersForm |> updateText whichDatePicker "Not bound"
+                    }
+            in
+            ( newModel, pushUrl newModel )
+
         ChangePicker whichDatePicker changeEvent ->
             case changeEvent of
                 DatePicker.DateChanged date ->
@@ -565,6 +576,7 @@ viewFilters form filters =
                     , text = form.joinLowerText
                     , model = form.joinLowerPicker
                     }
+                , Input.button [] { onPress = Just (DateCleared JoinLower), label = Element.text "X" }
                 , Element.row
                     [ Element.width <| Element.px 100
                     , Element.paddingXY 5 0
@@ -589,6 +601,7 @@ viewFilters form filters =
                     , text = form.joinUpperText
                     , model = form.joinUpperPicker
                     }
+                , Input.button [] { onPress = Just (DateCleared JoinUpper), label = Element.text "X" }
                 ]
             , Element.row
                 [ Element.spacing 4 ]
@@ -602,6 +615,7 @@ viewFilters form filters =
                     , text = form.dobLowerText
                     , model = form.dobLowerPicker
                     }
+                , Input.button [] { onPress = Just (DateCleared DobLower), label = Element.text "X" }
                 , Element.row
                     [ Element.width <| Element.px 100
                     , Element.paddingXY 5 0
@@ -626,6 +640,7 @@ viewFilters form filters =
                     , text = form.dobUpperText
                     , model = form.dobUpperPicker
                     }
+                , Input.button [] { onPress = Just (DateCleared DobUpper), label = Element.text "X" }
                 ]
             , Element.row [ Element.spacing 4 ]
                 [ Element.paragraph textLabelStyles [ Element.text "Filter Status" ]
@@ -757,6 +772,30 @@ viewData data =
                 }
 
 
+viewActionBar : Element Msg
+viewActionBar =
+    let
+        buttonStyles =
+            [ Element.width (Element.px 120 |> Element.minimum 80)
+            , Background.color Colors.theme.p200
+            , Element.mouseOver [ Background.color Colors.theme.a200 ]
+            , Border.width 1
+            , Border.rounded 3
+            , Element.paddingXY 20 10
+            ]
+    in
+    Element.row
+        [ Element.padding 2
+        , Element.spacing 5
+        , Element.width Element.fill
+        ]
+        [ Input.button buttonStyles { onPress = Nothing, label = Element.text "Add New" |> Element.el [ Element.centerX, Element.centerY ] }
+        , Input.button buttonStyles { onPress = Nothing, label = Element.text "Export" |> Element.el [ Element.centerX, Element.centerY ] }
+        , Input.button buttonStyles { onPress = Nothing, label = Element.text "Import" |> Element.el [ Element.centerX, Element.centerY ] }
+        , Input.button buttonStyles { onPress = Nothing, label = Element.text "Demographics" |> Element.el [ Element.centerX, Element.centerY ] }
+        ]
+
+
 blankIfAbsent : (a -> Element msg) -> WebData a -> Element msg
 blankIfAbsent viewIt webData =
     case webData of
@@ -774,7 +813,8 @@ view model =
         , Element.height Element.fill
         , Element.spacing 10
         ]
-        [ viewFilters model.filtersForm model.filters
+        [ viewActionBar
+        , viewFilters model.filtersForm model.filters
         , blankIfAbsent Paged.viewPagination model.data
             |> Element.map PaginationChanged
         , viewData model.data

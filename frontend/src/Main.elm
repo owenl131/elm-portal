@@ -3,6 +3,7 @@ module Main exposing (main)
 import Api
 import Browser exposing (UrlRequest)
 import Browser.Navigation as Navigation
+import Class
 import Colors
 import Element exposing (Element)
 import Element.Background as Background
@@ -17,7 +18,6 @@ import Page.Home as Home
 import Page.Login as Login
 import Page.Tutor as TutorPage
 import Page.TutorList as TutorListPage
-import Time
 import Url exposing (Url)
 import Url.Parser as UrlParser exposing ((</>), (<?>))
 import Url.Parser.Query as Query
@@ -53,9 +53,9 @@ type Route
     | RouteTutors TutorListPage.TutorFilters (Maybe Int)
     | RouteTutor String
     | RouteClasses ClassListPage.ClassFilters (Maybe Int)
-    | RouteClass Int
-    | RouteClassAddTutor Int
-    | RouteClassAttendance Int Int
+    | RouteClass Class.ClassId
+    | RouteClassAddTutor Class.ClassId
+    | RouteClassAttendance Class.ClassId Int
     | RouteLogout
     | NotFound
 
@@ -70,11 +70,11 @@ routeParser =
         , UrlParser.map RouteClasses
             (UrlParser.s "classes" <?> ClassListPage.classFiltersFromUrl <?> Query.int "page")
         , UrlParser.map RouteClass
-            (UrlParser.s "class" </> UrlParser.int)
+            (UrlParser.s "class" </> UrlParser.string)
         , UrlParser.map RouteClassAddTutor
-            (UrlParser.s "class" </> UrlParser.int </> UrlParser.s "addtutor")
+            (UrlParser.s "class" </> UrlParser.string </> UrlParser.s "addtutor")
         , UrlParser.map RouteClassAttendance
-            (UrlParser.s "class" </> UrlParser.int </> UrlParser.s "session" </> UrlParser.int)
+            (UrlParser.s "class" </> UrlParser.string </> UrlParser.s "session" </> UrlParser.int)
         , UrlParser.map RouteLogout (UrlParser.s "logout")
         ]
 
@@ -355,7 +355,7 @@ viewDrawer : Model -> Element Msg
 viewDrawer _ =
     Element.column
         [ Element.height Element.fill
-        , Element.spacing 3
+        , Element.spacing 5
         , Background.color Colors.theme.p500
         , Font.color Colors.black
         ]
