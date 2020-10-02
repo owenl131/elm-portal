@@ -7,12 +7,16 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
+import Http
+import Json.Encode as Encode
+import RemoteData exposing (WebData)
 
 
 type alias Model =
     { key : Navigation.Key
     , email : String
     , password : String
+    , attempt : WebData ()
     }
 
 
@@ -20,6 +24,7 @@ type Msg
     = EnteredEmail String
     | EnteredPassword String
     | SubmittedForm
+    | GotAuthResult (Result Http.Error ())
 
 
 init : Navigation.Key -> Model
@@ -27,7 +32,23 @@ init key =
     { key = key
     , email = ""
     , password = ""
+    , attempt = RemoteData.NotAsked
     }
+
+
+authenticate : String -> String -> Cmd Msg
+authenticate email password =
+    Http.post
+        { url = "http://localhost:8001/backend/auth"
+        , body =
+            Http.jsonBody
+                (Encode.object
+                    [ ( "email", Encode.string email )
+                    , ( "password", Encode.string password )
+                    ]
+                )
+        , expect = Http.expectWhatever GotAuthResult
+        }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -41,7 +62,19 @@ update msg model =
 
         SubmittedForm ->
             -- make HTTP request
-            ( model, Navigation.pushUrl model.key "/home" )
+            ( model, authenticate model.email model.password )
+
+        GotAuthResult result ->
+            let
+                data =
+                    RemoteData.fromResult result
+            in
+            case data of
+                RemoteData.Success _ ->
+                    ( model, Navigation.pushUrl model.key "/home" )
+
+                _ ->
+                    ( { model | attempt = data }, Cmd.none )
 
 
 view : Model -> Element Msg
@@ -109,5 +142,18 @@ view model =
                         Just SubmittedForm
                 , label = Element.text "Login"
                 }
+            , Element.el [ Element.padding 10 ] Element.none
+            , case model.attempt of
+                RemoteData.NotAsked ->
+                    Element.none
+
+                RemoteData.Loading ->
+                    Element.text "Checking password..."
+
+                RemoteData.Failure err ->
+                    Element.text ("Invalid username or password!" ++ Debug.toString err)
+
+                RemoteData.Success _ ->
+                    Element.text "Logged in successfully!"
             ]
         )

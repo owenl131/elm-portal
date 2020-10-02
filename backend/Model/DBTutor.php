@@ -1,19 +1,19 @@
 <?php
 
-require '../../vendor/autoload.php';
-require '../config.php';
+require __DIR__ . '/../../vendor/autoload.php';
+require __DIR__ . '/../config.php';
 
 class DBTutor
 {
     static function authenticateBySessionId(string $sessionId)
     {
-        $db = new MongoDB\Client(connect_string);
-        $collection = $db->tutors;
+        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $collection = $db->selectCollection('tutors');
         $result = $collection->find(array(
             'sessionId' => $sessionId,
             'sessionExpiry' => array('$lte', new MongoDB\BSON\UTCDateTime(time() * 1000))
         ));
-        if ($result->count() == 1) {
+        if (count($result) == 1) {
             return true;
         } else {
             return false;
@@ -22,29 +22,29 @@ class DBTutor
 
     static function authenticateByCredentials(string $email, string $password)
     {
-        $db = new MongoDB\Client(connect_string);
-        $collection = $db->tutors;
-        $result = $collection->find(
-            array('email' => $email),
-            array('projection' => array('password' => 1))
-        );
-        if ($result->count() == 1) {
-            $element = $result->getNext();
-            $isValid = password_verify($password, $element['password']);
+        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $collection = $db->selectCollection('tutors');
+        if ($collection->countDocuments(array('email' => $email)) == 1) {
+            $result = $collection->findOne(
+                array('email' => $email),
+                array('projection' => array('_id' => 1, 'password' => 1))
+            );
+            $isValid = password_verify($password, $result['password']);
             if ($isValid) {
-                $collection->update(
-                    array('_id' => $element['_id']),
+                $collection->updateOne(
+                    array('_id' => $result['_id']),
                     array(
-                        'sessionId' => new \MongoDB\BSON\ObjectId(),
-                        'sessionExpiry' => new \MongoDB\BSON\UTCDateTime(time() + 3600)
+                        '$set' => array(
+                            'sessionId' => new \MongoDB\BSON\ObjectId(),
+                            'sessionExpiry' => new \MongoDB\BSON\UTCDateTime(time() + 3600)
+                        )
                     )
                 );
-                $result = $collection->find(
-                    array('_id' => $element['_id']),
+                $updated = $collection->findOne(
+                    array('_id' => $result['_id']),
                     array('projection' => array('sessionId' => 1))
                 );
-                $element = $result->getNext();
-                return $element['sessionId'];
+                return (string)$updated['sessionId'];
             }
         }
         return false;

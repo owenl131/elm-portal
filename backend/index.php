@@ -7,9 +7,18 @@ use Slim\Http\Response as Response;
 use Slim\Psr7\Factory\ResponseFactory;
 use Slim\Routing\RouteCollectorProxy;
 
+require 'Model/DBTutor.php';
 require __DIR__ . '/../vendor/autoload.php';
 
+
 $app = AppFactory::create();
+$app->add(function (Request $request, RequestHandler $handler) {
+    $response = $handler->handle($request);
+    return $response
+        ->withHeader('Access-Control-Allow-Origin', '*')
+        ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
+        ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+});
 $app->addRoutingMiddleware();
 
 
@@ -73,6 +82,9 @@ $app->post('/auth', function (Request $request, Response $response, $args) {
         return $response->withStatus(401);
     }
     $response->getBody()->write($result);
+    return $response->withStatus(200);
+});
+$app->options('/auth', function (Request $request, Response $response, $args) {
     return $response->withStatus(200);
 });
 
