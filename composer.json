@@ -1,6 +1,8 @@
 {
     "require": {
         "slim/slim": "4.*",
-        "slim/psr7": "^1.2"
+        "slim/psr7": "^1.2",
+        "mongodb/mongodb": "^1.7",
+        "slim/http": "^1.0"
     }
 }
