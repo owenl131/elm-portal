@@ -114,22 +114,22 @@ class DBTutor
         $result = array();
         if (isset($filters['name'])) {
             $result['name'] = array('$in' => array_map(function (string $filterString) {
-                return '/' . preg_quote($filterString) . '/i';
+                return new \MongoDB\BSON\Regex(preg_quote($filterString), 'i');
             }, $filters['name']));
         }
         if (isset($filters['school'])) {
             $result['school'] = array('$in' => array_map(function (string $filterString) {
-                return '/' . preg_quote($filterString) . '/i';
+                return new \MongoDB\BSON\Regex(preg_quote($filterString), 'i');
             }, $filters['school']));
         }
         if (isset($filters['gender'])) {
             $result['gender'] = array('$in' => $filters['gender']);
         }
         if (isset($filters['admin'])) {
-            $result['adminLevel'] = array('$in' => $filters['admin']);
+            $result['admin'] = array('$in' => array_map('intval', $filters['admin']));
         }
         if (isset($filters['status'])) {
-            $result['status'] = array('$in' => $filters['status']);
+            $result['status'] = array('$in' => array_map('intval', $filters['status']));
         }
         if (isset($filters['dobLower']) && isset($filters['dobUpper'])) {
             $result['dob'] = array(
@@ -146,16 +146,16 @@ class DBTutor
             );
         }
         if (isset($filters['joinLower']) && isset($filters['joinUpper'])) {
-            $result['joinDate'] = array(
+            $result['doc'] = array(
                 '$gte' => new MongoDB\BSON\UTCDateTime(strtotime($filters['joinLower'][0]) * 1000),
                 '$lte' => new MongoDB\BSON\UTCDateTime(strtotime($filters['joinUpper'][0]) * 1000)
             );
         } else if (isset($filters['joinLower'])) {
-            $result['joinDate'] = array(
+            $result['doc'] = array(
                 '$gte' => new MongoDB\BSON\UTCDateTime(strtotime($filters['joinLower'][0]) * 1000)
             );
         } else if (isset($filters['joinUpper'])) {
-            $result['joinDate'] = array(
+            $result['doc'] = array(
                 '$lte' => new MongoDB\BSON\UTCDateTime(strtotime($filters['joinUpper'][0]) * 1000)
             );
         }
