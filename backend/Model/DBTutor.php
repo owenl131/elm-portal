@@ -163,6 +163,18 @@ class DBTutor
         return $result;
     }
 
+    static function getTutor(string $id)
+    {
+        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $collection = $db->selectCollection('tutors');
+        return $collection->findOne(
+            array('_id' => new MongoDB\BSON\ObjectId($id)),
+            array('projection' => array(
+                'password' => 0
+            ))
+        );
+    }
+
     static function getTutorList(int $page, array $filters, int $perPage = 20)
     {
         $numToSkip = $page * $perPage;

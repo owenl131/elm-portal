@@ -17,8 +17,6 @@ import Json.Decode.Pipeline as Pipeline
 type alias Paged a =
     { page : Int
     , perPage : Int
-
-    -- , lastPage : Int
     , total : Int
     , data : a
     }
@@ -44,7 +42,6 @@ pagedDecoder subDecoder =
     Decode.succeed Paged
         |> Pipeline.required "page" Decode.int
         |> Pipeline.required "perPage" Decode.int
-        -- |> Pipeline.required "lastPage" Decode.int
         |> Pipeline.required "total" Decode.int
         |> Pipeline.required "data" subDecoder
 
