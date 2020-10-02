@@ -7,6 +7,7 @@ module Page.Class.AddTutor exposing
     , view
     )
 
+import Api exposing (Credentials)
 import Browser.Navigation as Navigation
 import Class exposing (ClassTutor)
 import Colors
@@ -27,6 +28,7 @@ import Tutor exposing (Tutor)
 
 type alias Model =
     { key : Navigation.Key
+    , credentials : Api.Credentials
     , id : Int
     , tutors : WebData (List ClassTutor)
     , nameFilter : String
@@ -71,11 +73,12 @@ getNestedNavigation model =
     ]
 
 
-init : Navigation.Key -> Int -> ( Model, Cmd Msg )
-init key id =
+init : Api.Credentials -> Navigation.Key -> Int -> ( Model, Cmd Msg )
+init credentials key id =
     let
         model =
             { key = key
+            , credentials = credentials
             , id = id
             , tutors = RemoteData.Loading
             , nameFilter = ""

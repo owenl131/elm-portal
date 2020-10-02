@@ -8,6 +8,8 @@ module Page.TutorList exposing
     , view
     )
 
+import Api
+import Base64
 import Browser.Navigation as Navigation exposing (pushUrl)
 import Colors
 import Component.Paged as Paged
@@ -118,6 +120,7 @@ tutorFiltersToQueryList filters =
 
 type alias Model =
     { key : Navigation.Key
+    , credentials : Api.Credentials
     , filters : TutorFilters
     , filtersForm : TutorFiltersForm
     , page : Int
@@ -152,17 +155,23 @@ type Msg
     | ToggleAdminLvl Tutor.AdminLevel
 
 
-fetchTutorList : TutorFilters -> Int -> Cmd Msg
-fetchTutorList filters page =
-    Http.get
-        { url = "http://localhost:5000/tutors" ++ Builder.toQuery (Builder.int "page" page :: tutorFiltersToQueryList filters)
+fetchTutorList : Api.Credentials -> TutorFilters -> Int -> Cmd Msg
+fetchTutorList credentials filters page =
+    Http.request
+        { method = "GET"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , url = "http://localhost:8001/backend/tutors" ++ Builder.toQuery (Builder.int "page" page :: tutorFiltersToQueryList filters)
         , expect = Http.expectJson GotTutorList <| Paged.pagedDecoder (Decode.list tutorDecoder)
+        , timeout = Nothing
+        , tracker = Nothing
         }
 
 
-init : Navigation.Key -> TutorFilters -> Int -> ( Model, Cmd Msg )
-init key filters page =
+init : Api.Credentials -> Navigation.Key -> TutorFilters -> Int -> ( Model, Cmd Msg )
+init credentials key filters page =
     ( { key = key
+      , credentials = credentials
       , filters = filters
       , filtersForm = initFromFilters filters
       , page = page
@@ -170,7 +179,7 @@ init key filters page =
       }
     , Cmd.batch
         [ Task.perform SetToday Date.today
-        , fetchTutorList filters page
+        , fetchTutorList credentials filters page
         ]
     )
 

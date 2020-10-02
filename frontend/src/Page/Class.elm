@@ -1,5 +1,6 @@
 module Page.Class exposing (Model, Msg, getPageLink, getPageTitle, init, update, view)
 
+import Api
 import Browser.Navigation as Navigation
 import Class exposing (Class, ClassSession, ClassTutor)
 import Colors
@@ -18,6 +19,7 @@ import RemoteData exposing (WebData)
 
 type alias Model =
     { key : Navigation.Key
+    , credentials : Api.Credentials
     , id : Int
     , data : WebData Class
     , sessions : WebData (List ClassSession)
@@ -68,11 +70,12 @@ fetchSessionsData id =
         }
 
 
-init : Int -> Navigation.Key -> ( Model, Cmd Msg )
-init id key =
+init : Int -> Api.Credentials -> Navigation.Key -> ( Model, Cmd Msg )
+init id credentials key =
     let
         model =
             { key = key
+            , credentials = credentials
             , id = id
             , data = RemoteData.Loading
             , sessions = RemoteData.Loading

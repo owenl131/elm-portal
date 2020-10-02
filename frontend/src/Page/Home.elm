@@ -1,5 +1,6 @@
 module Page.Home exposing (Model, Msg, init, update, view)
 
+import Api
 import Browser.Navigation as Navigation
 import Class exposing (Class)
 import Element exposing (Element)
@@ -8,6 +9,7 @@ import RemoteData exposing (WebData)
 
 type alias Model =
     { key : Navigation.Key
+    , credentials : Api.Credentials
     , classesToday : WebData (List Class)
     , myClasses : WebData (List Class)
     }
@@ -17,9 +19,10 @@ type alias Msg =
     ()
 
 
-init : Navigation.Key -> Model
-init key =
+init : Api.Credentials -> Navigation.Key -> Model
+init credentials key =
     { key = key
+    , credentials = credentials
     , classesToday = RemoteData.NotAsked
     , myClasses = RemoteData.NotAsked
     }

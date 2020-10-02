@@ -1,5 +1,6 @@
 module Main exposing (main)
 
+import Api
 import Browser exposing (UrlRequest)
 import Browser.Navigation as Navigation
 import Colors
@@ -16,16 +17,10 @@ import Page.Home as Home
 import Page.Login as Login
 import Page.Tutor as TutorPage
 import Page.TutorList as TutorListPage
+import Time
 import Url exposing (Url)
 import Url.Parser as UrlParser exposing ((</>), (<?>))
 import Url.Parser.Query as Query
-
-
-
--- type alias Credentials =
---     { email : String
---     , session : String
---     }
 
 
 type Msg
@@ -53,10 +48,6 @@ type Model
     | ClassAttendancePage ClassAttendancePage.Model
 
 
-
--- | AdminPage
-
-
 type Route
     = RouteHome
     | RouteTutors TutorListPage.TutorFilters (Maybe Int)
@@ -65,6 +56,7 @@ type Route
     | RouteClass Int
     | RouteClassAddTutor Int
     | RouteClassAttendance Int Int
+    | RouteLogout
     | NotFound
 
 
@@ -83,6 +75,7 @@ routeParser =
             (UrlParser.s "class" </> UrlParser.int </> UrlParser.s "addtutor")
         , UrlParser.map RouteClassAttendance
             (UrlParser.s "class" </> UrlParser.int </> UrlParser.s "session" </> UrlParser.int)
+        , UrlParser.map RouteLogout (UrlParser.s "logout")
         ]
 
 
@@ -112,6 +105,34 @@ getNestedNavigation model =
 
         ClassAttendancePage submodel ->
             ClassAttendancePage.getNestedNavigation submodel
+
+
+getCredentials : Model -> Maybe Api.Credentials
+getCredentials model =
+    case model of
+        LoggedOut submodel ->
+            submodel.credentials
+
+        Home submodel ->
+            Just submodel.credentials
+
+        TutorListPage submodel ->
+            Just submodel.credentials
+
+        TutorPage submodel ->
+            Just submodel.credentials
+
+        ClassPage submodel ->
+            Just submodel.credentials
+
+        ClassListPage submodel ->
+            Just submodel.credentials
+
+        ClassAddTutorPage submodel ->
+            Just submodel.credentials
+
+        ClassAttendancePage submodel ->
+            Just submodel.credentials
 
 
 getNavigationKey : Model -> Navigation.Key
@@ -147,45 +168,58 @@ handleUrlChange url model =
     let
         key =
             getNavigationKey model
+
+        maybeCredentials =
+            getCredentials model
     in
-    case Maybe.withDefault NotFound (UrlParser.parse routeParser url) of
-        RouteHome ->
-            ( Home.init key, Cmd.none )
-                |> Tuple.mapFirst Home
+    case maybeCredentials of
+        Nothing ->
+            ( LoggedOut (Login.init key), Cmd.none )
 
-        RouteTutors filters maybePage ->
-            TutorListPage.init key filters (maybePage |> Maybe.withDefault 0)
-                |> Tuple.mapFirst TutorListPage
-                |> Tuple.mapSecond (Cmd.map GotTutorListMsg)
+        Just credentials ->
+            case Maybe.withDefault NotFound (UrlParser.parse routeParser url) of
+                RouteHome ->
+                    ( Home.init credentials key, Cmd.none )
+                        |> Tuple.mapFirst Home
 
-        RouteTutor id ->
-            TutorPage.init key id
-                |> Tuple.mapFirst TutorPage
-                |> Tuple.mapSecond (Cmd.map GotTutorMsg)
+                RouteTutors filters maybePage ->
+                    TutorListPage.init credentials key filters (maybePage |> Maybe.withDefault 0)
+                        |> Tuple.mapFirst TutorListPage
+                        |> Tuple.mapSecond (Cmd.map GotTutorListMsg)
 
-        RouteClasses filters maybePage ->
-            ClassListPage.init key filters (maybePage |> Maybe.withDefault 0)
-                |> Tuple.mapFirst ClassListPage
-                |> Tuple.mapSecond (Cmd.map GotClassListMsg)
+                RouteTutor id ->
+                    TutorPage.init credentials key id
+                        |> Tuple.mapFirst TutorPage
+                        |> Tuple.mapSecond (Cmd.map GotTutorMsg)
 
-        RouteClass id ->
-            ClassPage.init id key
-                |> Tuple.mapFirst ClassPage
-                |> Tuple.mapSecond (Cmd.map GotClassMsg)
+                RouteClasses filters maybePage ->
+                    ClassListPage.init credentials key filters (maybePage |> Maybe.withDefault 0)
+                        |> Tuple.mapFirst ClassListPage
+                        |> Tuple.mapSecond (Cmd.map GotClassListMsg)
 
-        RouteClassAddTutor id ->
-            ClassAddTutorPage.init key id
-                |> Tuple.mapFirst ClassAddTutorPage
-                |> Tuple.mapSecond (Cmd.map GotClassAddTutorMsg)
+                RouteClass id ->
+                    ClassPage.init id credentials key
+                        |> Tuple.mapFirst ClassPage
+                        |> Tuple.mapSecond (Cmd.map GotClassMsg)
 
-        RouteClassAttendance classId sessionId ->
-            ClassAttendancePage.init key classId sessionId
-                |> Tuple.mapFirst ClassAttendancePage
-                |> Tuple.mapSecond (Cmd.map GotClassAttendanceMsg)
+                RouteClassAddTutor id ->
+                    ClassAddTutorPage.init credentials key id
+                        |> Tuple.mapFirst ClassAddTutorPage
+                        |> Tuple.mapSecond (Cmd.map GotClassAddTutorMsg)
 
-        NotFound ->
-            ( Home.init key, Cmd.none )
-                |> Tuple.mapFirst Home
+                RouteClassAttendance classId sessionId ->
+                    ClassAttendancePage.init credentials key classId sessionId
+                        |> Tuple.mapFirst ClassAttendancePage
+                        |> Tuple.mapSecond (Cmd.map GotClassAttendanceMsg)
+
+                RouteLogout ->
+                    ( Login.init key, Cmd.none )
+                        |> Tuple.mapFirst LoggedOut
+                        |> Tuple.mapSecond (Cmd.map GotLoginMsg)
+
+                NotFound ->
+                    ( Home.init credentials key, Cmd.none )
+                        |> Tuple.mapFirst Home
 
 
 init : () -> Url -> Navigation.Key -> ( Model, Cmd Msg )
@@ -340,7 +374,7 @@ viewDrawer _ =
         , viewDrawerElement "Home" "/home"
         , viewDrawerElement "Tutors" "/tutors"
         , viewDrawerElement "Classes" "/classes"
-        , viewDrawerElement "Logout" "/"
+        , viewDrawerElement "Logout" "/logout"
         ]
 
 

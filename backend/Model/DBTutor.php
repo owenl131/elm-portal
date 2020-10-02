@@ -9,11 +9,11 @@ class DBTutor
     {
         $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('tutors');
-        $result = $collection->find(array(
-            'sessionId' => $sessionId,
-            'sessionExpiry' => array('$lte', new MongoDB\BSON\UTCDateTime(time() * 1000))
+        $result = $collection->countDocuments(array(
+            'sessionId' => new \MongoDB\BSON\ObjectId($sessionId),
+            'sessionExpiry' => array('$exists' => 1, '$gte' => new \MongoDB\BSON\UTCDateTime())
         ));
-        if (count($result) == 1) {
+        if ($result == 1) {
             return true;
         } else {
             return false;
@@ -36,18 +36,46 @@ class DBTutor
                     array(
                         '$set' => array(
                             'sessionId' => new \MongoDB\BSON\ObjectId(),
-                            'sessionExpiry' => new \MongoDB\BSON\UTCDateTime(time() + 3600)
+                            'sessionExpiry' => new \MongoDB\BSON\UTCDateTime((time() + 3600) * 1000)
+                            // Session lasts for 1 hour
                         )
                     )
                 );
                 $updated = $collection->findOne(
                     array('_id' => $result['_id']),
-                    array('projection' => array('sessionId' => 1))
+                    array('projection' => array('sessionId' => 1, 'sessionExpiry' => 1))
                 );
-                return (string)$updated['sessionId'];
+                return array(
+                    'session' => (string) $updated['sessionId'],
+                    'sessionExpiry' => $updated['sessionExpiry']->toDateTime()->getTimestamp()
+                );
             }
         }
         return false;
+    }
+
+    function isAdmin(string $sessionId)
+    {
+        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $collection = $db->selectCollection('tutors');
+        $result = $collection->countDocuments(array(
+            'sessionId' => new \MongoDB\BSON\ObjectId($sessionId),
+            'sessionExpiry' => array('$lte', new MongoDB\BSON\UTCDateTime(time() * 1000)),
+            'admin' => 0
+        ));
+        return $result == 1;
+    }
+
+    function isLeaderAndAbove(string $sessionId)
+    {
+        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $collection = $db->selectCollection('tutors');
+        $result = $collection->countDocuments(array(
+            'sessionId' => new \MongoDB\BSON\ObjectId($sessionId),
+            'sessionExpiry' => array('$lte', new MongoDB\BSON\UTCDateTime(time() * 1000)),
+            'admin' => array('$lte' => 1)
+        ));
+        return $result == 1;
     }
 
     function addTutor(array $details)
@@ -138,21 +166,25 @@ class DBTutor
     static function getTutorList(int $page, array $filters, int $perPage = 20)
     {
         $numToSkip = $page * $perPage;
-        $db = new MongoDB\Client(connect_string);
+        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
         $filterBy = DBTutor::processTutorFilters($filters);
-        $collection = $db->tutors;
+        $collection = $db->selectCollection('tutors');
+        $numResults = $collection->countDocuments($filterBy);
         $result = $collection->find(
             $filterBy,
             array('projection' => array(
                 'password' => 0
-            ))
+            )),
+            array(
+                'skip' => $numToSkip,
+                'limit' => $perPage
+            )
         );
-        $numResults = $result->count();
-        $result->skip($numToSkip);
-        $result->limit($perPage);
         return array(
-            'data' => iterator_to_array($result),
-            'total' => $numResults
+            'data' => $result->toArray(),
+            'total' => $numResults,
+            'perPage' => $perPage,
+            'page' => $page
         );
     }
 }

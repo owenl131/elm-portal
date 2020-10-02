@@ -1,5 +1,6 @@
 module Page.ClassList exposing (ClassFilters, Model, Msg, classFiltersFromUrl, init, update, view)
 
+import Api
 import Browser.Navigation as Navigation
 import Class exposing (Class, classDecoder)
 import Colors
@@ -45,6 +46,7 @@ classFiltersToQueryList filters =
 
 type alias Model =
     { key : Navigation.Key
+    , credentials : Api.Credentials
     , page : Int
     , filters : ClassFilters
     , nameFilterForm : String
@@ -64,9 +66,10 @@ type Msg
     | ToggleDay Date.Weekday
 
 
-init : Navigation.Key -> ClassFilters -> Int -> ( Model, Cmd Msg )
-init key filters page =
+init : Api.Credentials -> Navigation.Key -> ClassFilters -> Int -> ( Model, Cmd Msg )
+init credentials key filters page =
     ( { key = key
+      , credentials = credentials
       , page = page
       , filters = filters
       , nameFilterForm = ""

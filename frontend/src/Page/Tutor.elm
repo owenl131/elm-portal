@@ -1,5 +1,6 @@
 module Page.Tutor exposing (Model, Msg, getPageLink, getPageTitle, init, update, view)
 
+import Api
 import Browser.Navigation
 import Element exposing (Element)
 import Http
@@ -9,6 +10,7 @@ import Tutor exposing (Tutor, tutorDecoder)
 
 type alias Model =
     { key : Browser.Navigation.Key
+    , credentials : Api.Credentials
     , id : String
     , data : WebData Tutor
     }
@@ -28,9 +30,9 @@ getPageLink id =
     "/tutor/" ++ id
 
 
-init : Browser.Navigation.Key -> String -> ( Model, Cmd Msg )
-init key id =
-    ( { key = key, id = id, data = RemoteData.Loading }
+init : Api.Credentials -> Browser.Navigation.Key -> String -> ( Model, Cmd Msg )
+init credentials key id =
+    ( { key = key, credentials = credentials, id = id, data = RemoteData.Loading }
     , Http.get
         { url = "http://localhost:5000/tutor/" ++ id
         , expect = Http.expectJson GotTutorData tutorDecoder

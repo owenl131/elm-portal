@@ -9,6 +9,7 @@ module Page.Class.Attendance exposing
     , view
     )
 
+import Api
 import Browser.Navigation as Navigation
 import Class exposing (ClassSession, ClassTutor)
 import Colors
@@ -26,6 +27,7 @@ import String
 
 type alias Model =
     { key : Navigation.Key
+    , credentials : Api.Credentials
     , classId : Int
     , sessionId : Int
     , classData : WebData Class.Class
@@ -128,11 +130,12 @@ getPageLink model =
         ++ String.fromInt model.sessionId
 
 
-init : Navigation.Key -> Int -> Int -> ( Model, Cmd Msg )
-init key classId sessionId =
+init : Api.Credentials -> Navigation.Key -> Int -> Int -> ( Model, Cmd Msg )
+init credentials key classId sessionId =
     let
         model =
             { key = key
+            , credentials = credentials
             , classId = classId
             , sessionId = sessionId
             , sessionData = RemoteData.Loading

@@ -39,7 +39,7 @@ function parseQueryString($queryString)
 $authMiddleware = function (Request $request, RequestHandler $handler) {
     // authenticates user
     $authLine = $request->getHeaderLine("Authorization");
-    if (preg_match("/Basic\s+(.*)$/i", $request->getHeaderLine("Authorization"), $matches)) {
+    if (preg_match("/Bearer\s+(.*)$/i", $request->getHeaderLine("Authorization"), $matches)) {
         $sessionId = base64_decode($matches[1]);
         $result = DBTutor::authenticateBySessionId($sessionId);
         if ($result) {
@@ -81,8 +81,14 @@ $app->post('/auth', function (Request $request, Response $response, $args) {
     if (!$result) {
         return $response->withStatus(401);
     }
-    $response->getBody()->write($result);
-    return $response->withStatus(200);
+    return $response->withJson(
+        array(
+            'email' => $email,
+            'session' => $result['session'],
+            'sessionExpiry' => $result['sessionExpiry']
+        ),
+        200
+    );
 });
 $app->options('/auth', function (Request $request, Response $response, $args) {
     return $response->withStatus(200);
@@ -98,10 +104,24 @@ $app->get('/tutors', function (Request $request, Response $response, $args) {
         $page = $queryParams['page'][0];
     }
     $data = DBTutor::getTutorList($page, $queryParams);
+    $data['data'] = array_map(function ($elem) {
+        $elem['id'] = (string) $elem['_id'];
+        unset($elem['_id']);
+        $elem['dateOfBirth'] = $elem['dob']->toDateTime()->format('Y-m-d');
+        unset($elem['dob']);
+        $elem['dateOfRegistration'] = $elem['doc']->toDateTime()->format('Y-m-d');
+        unset($elem['doc']);
+        unset($elem['sessionId']);
+        unset($elem['sessionExpiry']);
+        return $elem;
+    }, $data['data']);
     $response = $response->withJson($data, 200);
     return $response;
 })->add($authMiddleware);
 
+$app->options('/tutors', function (Request $request, Response $response, $args) {
+    return $response->withStatus(200);
+});
 
 $app->get('/tutorstats', function (Request $request, Response $response, $args) {
     // returns summary stats by age, school, commencement date, school type, languages spoken, available day

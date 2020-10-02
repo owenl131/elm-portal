@@ -1,5 +1,6 @@
 module Page.Login exposing (Model, Msg, init, update, view)
 
+import Api
 import Browser.Navigation as Navigation
 import Colors
 import Element exposing (Element)
@@ -8,15 +9,19 @@ import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
 import Http
+import Json.Decode as Decode
+import Json.Decode.Pipeline as Pipeline
 import Json.Encode as Encode
 import RemoteData exposing (WebData)
+import Time
 
 
 type alias Model =
     { key : Navigation.Key
     , email : String
     , password : String
-    , attempt : WebData ()
+    , attempt : WebData Api.Credentials
+    , credentials : Maybe Api.Credentials
     }
 
 
@@ -24,7 +29,7 @@ type Msg
     = EnteredEmail String
     | EnteredPassword String
     | SubmittedForm
-    | GotAuthResult (Result Http.Error ())
+    | GotAuthResult (Result Http.Error Api.Credentials)
 
 
 init : Navigation.Key -> Model
@@ -33,7 +38,16 @@ init key =
     , email = ""
     , password = ""
     , attempt = RemoteData.NotAsked
+    , credentials = Nothing
     }
+
+
+credentialsDecoder : Decode.Decoder Api.Credentials
+credentialsDecoder =
+    Decode.succeed Api.Credentials
+        |> Pipeline.required "email" Decode.string
+        |> Pipeline.required "session" Decode.string
+        |> Pipeline.required "sessionExpiry" (Decode.int |> Decode.map Time.millisToPosix)
 
 
 authenticate : String -> String -> Cmd Msg
@@ -47,7 +61,7 @@ authenticate email password =
                     , ( "password", Encode.string password )
                     ]
                 )
-        , expect = Http.expectWhatever GotAuthResult
+        , expect = Http.expectJson GotAuthResult credentialsDecoder
         }
 
 
@@ -71,10 +85,10 @@ update msg model =
             in
             case data of
                 RemoteData.Success _ ->
-                    ( model, Navigation.pushUrl model.key "/home" )
+                    ( { model | attempt = data, credentials = RemoteData.toMaybe data }, Navigation.pushUrl model.key "/home" )
 
                 _ ->
-                    ( { model | attempt = data }, Cmd.none )
+                    ( { model | attempt = data, credentials = RemoteData.toMaybe data }, Cmd.none )
 
 
 view : Model -> Element Msg
@@ -108,7 +122,22 @@ view model =
                 , label = Input.labelLeft [ Element.width (Element.px 100) ] (Element.text "Password")
                 , show = False
                 }
-            , Element.el [ Element.height (Element.px 20) ] Element.none
+            , Element.el [ Element.height (Element.px 10) ] Element.none
+            , Element.el [ Font.color (Element.rgb255 255 0 0), Font.italic ]
+                (case model.attempt of
+                    RemoteData.NotAsked ->
+                        Element.none
+
+                    RemoteData.Loading ->
+                        Element.text "Checking password..."
+
+                    RemoteData.Failure _ ->
+                        Element.text "Invalid username or password!"
+
+                    RemoteData.Success _ ->
+                        Element.text "Logged in successfully!"
+                )
+            , Element.el [ Element.height (Element.px 10) ] Element.none
             , let
                 disabled =
                     model.email == "" || model.password == ""
@@ -142,18 +171,5 @@ view model =
                         Just SubmittedForm
                 , label = Element.text "Login"
                 }
-            , Element.el [ Element.padding 10 ] Element.none
-            , case model.attempt of
-                RemoteData.NotAsked ->
-                    Element.none
-
-                RemoteData.Loading ->
-                    Element.text "Checking password..."
-
-                RemoteData.Failure err ->
-                    Element.text ("Invalid username or password!" ++ Debug.toString err)
-
-                RemoteData.Success _ ->
-                    Element.text "Logged in successfully!"
             ]
         )

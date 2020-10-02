@@ -17,7 +17,8 @@ import Json.Decode.Pipeline as Pipeline
 type alias Paged a =
     { page : Int
     , perPage : Int
-    , lastPage : Int
+
+    -- , lastPage : Int
     , total : Int
     , data : a
     }
@@ -29,12 +30,21 @@ type Msg
     | ChangePage Int
 
 
+computeLastPage : Paged a -> Int
+computeLastPage paged =
+    if remainderBy paged.total paged.perPage == 0 then
+        paged.total // paged.perPage
+
+    else
+        (paged.total // paged.perPage) + 1
+
+
 pagedDecoder : Decode.Decoder a -> Decode.Decoder (Paged a)
 pagedDecoder subDecoder =
     Decode.succeed Paged
         |> Pipeline.required "page" Decode.int
         |> Pipeline.required "perPage" Decode.int
-        |> Pipeline.required "lastPage" Decode.int
+        -- |> Pipeline.required "lastPage" Decode.int
         |> Pipeline.required "total" Decode.int
         |> Pipeline.required "data" subDecoder
 
@@ -77,8 +87,8 @@ viewPagination pagedData =
                                     )
                         }
                 )
-                (List.range 1 pagedData.lastPage)
-            ++ [ if pagedData.page == pagedData.lastPage - 1 then
+                (List.range 1 (computeLastPage pagedData + 1))
+            ++ [ if pagedData.page == computeLastPage pagedData then
                     Element.el [ Element.centerX, Font.color Colors.grey ] (Element.text ">")
 
                  else
