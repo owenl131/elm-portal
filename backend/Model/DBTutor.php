@@ -31,16 +31,18 @@ class DBTutor
             );
             $isValid = password_verify($password, $result['password']);
             if ($isValid) {
-                $collection->updateOne(
-                    array('_id' => $result['_id']),
-                    array(
-                        '$set' => array(
-                            'sessionId' => new \MongoDB\BSON\ObjectId(),
-                            'sessionExpiry' => new \MongoDB\BSON\UTCDateTime((time() + 3600) * 1000)
-                            // Session lasts for 1 hour
+                if ($collection->countDocuments(array('email' => $email, 'sessionExpiry' => array('$gte' => new \MongoDB\BSON\UTCDateTime()))) == 0) {
+                    $collection->updateOne(
+                        array('_id' => $result['_id']),
+                        array(
+                            '$set' => array(
+                                'sessionId' => new \MongoDB\BSON\ObjectId(),
+                                'sessionExpiry' => new \MongoDB\BSON\UTCDateTime((time() + 3600) * 1000)
+                                // Session lasts for 1 hour
+                            )
                         )
-                    )
-                );
+                    );
+                }
                 $updated = $collection->findOne(
                     array('_id' => $result['_id']),
                     array('projection' => array('sessionId' => 1, 'sessionExpiry' => 1))
@@ -175,20 +177,26 @@ class DBTutor
         );
     }
 
+    static function isValidTutor($id)
+    {
+        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $collection = $db->selectCollection('tutors');
+        return $collection->countDocuments(array('_id' => new \MongoDB\BSON\ObjectId($id))) == 1;
+    }
+
     static function getTutorList(int $page, array $filters, int $perPage = 20)
     {
-        $numToSkip = $page * $perPage;
         $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
         $filterBy = DBTutor::processTutorFilters($filters);
         $collection = $db->selectCollection('tutors');
         $numResults = $collection->countDocuments($filterBy);
         $result = $collection->find(
             $filterBy,
-            array('projection' => array(
-                'password' => 0
-            )),
             array(
-                'skip' => $numToSkip,
+                'projection' => array(
+                    'password' => 0
+                ),
+                'skip' => $page * $perPage,
                 'limit' => $perPage
             )
         );

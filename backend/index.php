@@ -8,6 +8,7 @@ use Slim\Psr7\Factory\ResponseFactory;
 use Slim\Routing\RouteCollectorProxy;
 
 require 'Model/DBTutor.php';
+require 'Model/DBClass.php';
 require __DIR__ . '/../vendor/autoload.php';
 
 
@@ -129,49 +130,80 @@ $app->get('/tutorstats', function (Request $request, Response $response, $args) 
 })->add($authMiddleware);
 
 
-$app->group('/my', function (RouteCollectorProxy $group) {
+$app->group('/my', function (RouteCollectorProxy $group) use ($authMiddleware) {
     // for actions for currently logged in user
 
     $group->get('/details', function (Request $request, Response $response, $args) {
         // get own profile
         return $response;
-    });
+    })->add($authMiddleware);
 
     $group->patch('/details', function (Request $request, Response $response, $args) {
         // update own profile
         return $response;
-    });
+    })->add($authMiddleware);
 
     $group->get('/classes', function (Request $request, Response $response, $args) {
         // get own classes (for home page)
         return $response;
-    });
-})->add($authMiddleware);
+    })->add($authMiddleware);
+});
 
 
-$app->group('/tutor/{id:[0-9a-z]+}', function (RouteCollectorProxy $group) use ($adminOnlyMiddleware) {
+$app->group('/tutor/{id:[0-9a-z]+}', function (RouteCollectorProxy $group) use ($authMiddleware, $adminOnlyMiddleware) {
 
     $group->get('', function (Request $request, Response $response, $args) {
         // get tutor details
-        return $response;
+        $tutorId = $args['id'];
+        $tutorData = DBTutor::getTutor($tutorId);
+        if ($tutorData == null) {
+            return $response->withStatus(400);
+        }
+        $tutorData['id'] = (string) $tutorData['_id'];
+        unset($tutorData['_id']);
+        $tutorData['dateOfBirth'] = $tutorData['dob']->toDateTime()->format('Y-m-d');
+        unset($tutorData['dob']);
+        $tutorData['dateOfRegistration'] = $tutorData['doc']->toDateTime()->format('Y-m-d');
+        unset($tutorData['doc']);
+        unset($tutorData['sessionId']);
+        unset($tutorData['sessionExpiry']);
+        return $response->withJson($tutorData, 200);
+    })->add($authMiddleware);
+    $group->options('', function (Request $request, Response $response, $args) {
+        return $response->withStatus(200);
     });
 
     $group->patch('', function (Request $request, Response $response, $args) {
         // update tutor details
         return $response;
-    })->add($adminOnlyMiddleware);
+    })->add($authMiddleware)->add($adminOnlyMiddleware);
 
     $group->get('/classes', function (Request $request, Response $response, $args) {
         // get tutor classes
         return $response;
-    });
-})->add($authMiddleware);
+    })->add($authMiddleware);
+});
 
 
 $app->get('/classes', function (Request $request, Response $response, $args) {
-    // get list of classes, subject to filters
-    return $response;
+    $queryString = $request->getUri()->getQuery();
+    $queryParams = parseQueryString($queryString);
+    $page = 0;
+    if (isset($queryParams['page'])) {
+        $page = $queryParams['page'][0];
+    }
+    $data = DBClass::getClassList($page, $queryParams);
+    $data['data'] = array_map(function ($elem) {
+        $elem['id'] = (string) $elem['_id'];
+        unset($elem['_id']);
+        return $elem;
+    }, $data['data']);
+    return $response->withJson($data, 200);
 })->add($authMiddleware);
+
+$app->options('/classes', function (Request $request, Response $response, $args) {
+    return $response->withStatus(200);
+});
 
 
 $app->get('/classestoday', function (Request $Request, Response $response, $args) {

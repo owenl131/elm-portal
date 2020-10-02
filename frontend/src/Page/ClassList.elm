@@ -1,6 +1,7 @@
 module Page.ClassList exposing (ClassFilters, Model, Msg, classFiltersFromUrl, init, update, view)
 
 import Api
+import Base64
 import Browser.Navigation as Navigation
 import Class exposing (Class, classDecoder)
 import Colors
@@ -57,7 +58,7 @@ type alias Model =
 type Msg
     = PaginationChanged Paged.Msg
     | GotClassList (Result Http.Error (Paged.Paged (List Class)))
-    | ToDetails Int
+    | ToDetails String
     | EnteredNameFilter String
     | AddNameFilter
     | RemoveNameFilter String
@@ -75,9 +76,14 @@ init credentials key filters page =
       , nameFilterForm = ""
       , data = RemoteData.Loading
       }
-    , Http.get
-        { url = "http://localhost:5000/classes" ++ Builder.toQuery (classFiltersToQueryList filters)
+    , Http.request
+        { method = "GET"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , url = "http://localhost:8001/backend/classes" ++ Builder.toQuery (classFiltersToQueryList filters)
         , expect = Http.expectJson GotClassList <| Paged.pagedDecoder (Decode.list classDecoder)
+        , timeout = Nothing
+        , tracker = Nothing
         }
     )
 
@@ -123,7 +129,7 @@ update msg model =
             ( { model | data = RemoteData.fromResult result }, Cmd.none )
 
         ToDetails id ->
-            ( model, Navigation.pushUrl model.key ("/class/" ++ String.fromInt id) )
+            ( model, Navigation.pushUrl model.key ("/class/" ++ id) )
 
         EnteredNameFilter name ->
             ( { model | nameFilterForm = name }, Cmd.none )

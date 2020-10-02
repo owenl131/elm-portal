@@ -1,6 +1,7 @@
 module Page.Tutor exposing (Model, Msg, getPageLink, getPageTitle, init, update, view)
 
 import Api
+import Base64
 import Browser.Navigation
 import Element exposing (Element)
 import Http
@@ -33,9 +34,14 @@ getPageLink id =
 init : Api.Credentials -> Browser.Navigation.Key -> String -> ( Model, Cmd Msg )
 init credentials key id =
     ( { key = key, credentials = credentials, id = id, data = RemoteData.Loading }
-    , Http.get
-        { url = "http://localhost:5000/tutor/" ++ id
+    , Http.request
+        { method = "GET"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , url = "http://localhost:8001/backend/tutor/" ++ id
         , expect = Http.expectJson GotTutorData tutorDecoder
+        , timeout = Nothing
+        , tracker = Nothing
         }
     )
 
