@@ -8,6 +8,7 @@ module Page.Class.AddTutor exposing
     )
 
 import Api
+import Base64
 import Browser.Navigation as Navigation
 import Class exposing (ClassTutor)
 import Colors
@@ -20,6 +21,7 @@ import Element.Font as Font
 import Element.Input as Input
 import Http
 import Json.Decode as Decode
+import Json.Decode.Pipeline as Pipeline
 import Json.Encode as Encode
 import RemoteData exposing (WebData)
 import Task
@@ -36,12 +38,12 @@ type alias Model =
     , classData : WebData Class.Class
     , joinDate : Maybe Date.Date
     , joinDatePicker : DatePicker.Model
-    , suggestions : WebData (List Tutor)
+    , suggestions : WebData (List TutorSuggestion)
     }
 
 
 type Msg
-    = GotTutorSuggestionList (Result Http.Error (List Tutor))
+    = GotTutorSuggestionList (Result Http.Error (List TutorSuggestion))
     | GotTutorList (Result Http.Error (List ClassTutor))
     | GotClassData (Result Http.Error Class.Class)
     | AddTutor String
@@ -50,6 +52,21 @@ type Msg
     | FetchSuggestions
     | PickerChanged DatePicker.ChangeEvent
     | SetToday Date.Date
+
+
+type alias TutorSuggestion =
+    { id : String
+    , name : String
+    , admin : Tutor.AdminLevel
+    }
+
+
+tutorSuggestionDecoder : Decode.Decoder TutorSuggestion
+tutorSuggestionDecoder =
+    Decode.succeed TutorSuggestion
+        |> Pipeline.required "id" Decode.string
+        |> Pipeline.required "name" Decode.string
+        |> Pipeline.required "admin" Tutor.tutorAdminLevelDecoder
 
 
 getPageTitle : Model -> String
@@ -91,42 +108,61 @@ init credentials key id =
     in
     ( model
     , Cmd.batch
-        [ fetchClassDetails model
-        , fetchSuggestions model.nameFilter
-        , fetchTutorList model.id
+        [ fetchClassDetails model.credentials model.id
+        , fetchSuggestions model.credentials model.id model.nameFilter
+        , fetchTutorList model.credentials model.id
         , Task.perform SetToday Date.today
         ]
     )
 
 
-fetchSuggestions : String -> Cmd Msg
-fetchSuggestions arg =
-    Http.get
-        { url = Builder.crossOrigin Api.endpoint [ "suggestions" ] [ Builder.string "filter" arg ]
-        , expect = Http.expectJson GotTutorSuggestionList (Decode.list Tutor.tutorDecoder)
+fetchSuggestions : Api.Credentials -> Class.ClassId -> String -> Cmd Msg
+fetchSuggestions credentials classId arg =
+    Http.request
+        { method = "GET"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId, "suggestions" ] [ Builder.string "filter" arg ]
+        , expect = Http.expectJson GotTutorSuggestionList (Decode.list tutorSuggestionDecoder)
         }
 
 
-fetchTutorList : Class.ClassId -> Cmd Msg
-fetchTutorList classId =
-    Http.get
-        { url = Builder.crossOrigin Api.endpoint [ "class", classId, "tutors" ] []
+fetchTutorList : Api.Credentials -> Class.ClassId -> Cmd Msg
+fetchTutorList credentials classId =
+    Http.request
+        { method = "GET"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId, "tutors" ] []
         , expect = Http.expectJson GotTutorList (Decode.list Class.classTutorDecoder)
         }
 
 
-fetchClassDetails : Model -> Cmd Msg
-fetchClassDetails model =
-    Http.get
-        { url = Builder.crossOrigin Api.endpoint [ "class", model.id ] []
+fetchClassDetails : Api.Credentials -> Class.ClassId -> Cmd Msg
+fetchClassDetails credentials classId =
+    Http.request
+        { method = "GET"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId ] []
         , expect = Http.expectJson GotClassData Class.classDecoder
         }
 
 
-postAddTutor : Class.ClassId -> String -> Date.Date -> Cmd Msg
-postAddTutor classId tutorId joinDate =
-    Http.post
-        { url = Builder.crossOrigin Api.endpoint [ "class", classId, "addtutor" ] []
+postAddTutor : Api.Credentials -> Class.ClassId -> String -> Date.Date -> Cmd Msg
+postAddTutor credentials classId tutorId joinDate =
+    Http.request
+        { method = "POST"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId, "addtutor" ] []
         , body =
             Http.jsonBody
                 (Encode.object
@@ -157,7 +193,7 @@ update msg model =
             ( { model | nameFilter = filter }, Cmd.none )
 
         FetchSuggestions ->
-            ( model, fetchSuggestions model.nameFilter )
+            ( model, fetchSuggestions model.credentials model.id model.nameFilter )
 
         GotTutorSuggestionList result ->
             ( { model | suggestions = RemoteData.fromResult result }, Cmd.none )
@@ -171,8 +207,8 @@ update msg model =
         GotAddTutorResult _ ->
             ( { model | nameFilter = "" }
             , Cmd.batch
-                [ fetchTutorList model.id
-                , fetchSuggestions ""
+                [ fetchTutorList model.credentials model.id
+                , fetchSuggestions model.credentials model.id ""
                 ]
             )
 
@@ -182,7 +218,7 @@ update msg model =
                     ignore
 
                 Just joinDate ->
-                    ( model, postAddTutor model.id tutorId joinDate )
+                    ( model, postAddTutor model.credentials model.id tutorId joinDate )
 
         PickerChanged changeEvent ->
             case changeEvent of
@@ -196,7 +232,7 @@ update msg model =
                     ( { model | joinDatePicker = DatePicker.update subMsg model.joinDatePicker }, Cmd.none )
 
 
-viewSuggestions : List Tutor -> Element Msg
+viewSuggestions : List TutorSuggestion -> Element Msg
 viewSuggestions tutors =
     let
         toHeader : String -> Element Msg

@@ -534,11 +534,15 @@ viewFilterSingle action label =
     Element.row
         [ Border.width 1
         , Border.rounded 3
-        , Element.spacing 5
-        , Element.paddingXY 5 2
+        , Element.spacing 8
         ]
-        [ Element.text label
-        , Input.button [] { label = Element.text "x", onPress = Just (action label) }
+        [ Element.text label |> Element.el [ Element.centerY, Element.paddingXY 5 3 ]
+        , Input.button
+            [ Element.height Element.fill
+            , Element.mouseOver [ Background.color Colors.theme.a100 ]
+            , Element.paddingXY 3 3
+            ]
+            { label = Element.text "x", onPress = Just (action label) }
         ]
 
 
@@ -557,6 +561,13 @@ viewFilters form filters =
 
         textLabelStyles =
             [ Element.width <| Element.px 100 ]
+
+        crossButtonStyle =
+            [ Border.roundEach { topLeft = 0, bottomLeft = 0, bottomRight = 3, topRight = 3 }
+            , Element.paddingXY 5 4
+            , Background.color Colors.theme.p50
+            , Element.mouseOver [ Background.color Colors.theme.a100 ]
+            ]
     in
     Element.row [ Element.width Element.fill, Background.color Colors.theme.p50 ]
         [ Element.column
@@ -565,9 +576,11 @@ viewFilters form filters =
             , Element.alignTop
             ]
             [ Element.row
-                [ Element.spacing 4 ]
+                [ Element.spacing 5 ]
                 [ DatePicker.input
-                    dateFieldStyles
+                    (Element.inFront (Input.button (crossButtonStyle ++ [ Element.centerY, Element.alignRight ]) { onPress = Just (DateCleared JoinLower), label = Element.text "x" })
+                        :: dateFieldStyles
+                    )
                     { onChange = ChangePicker JoinLower
                     , selected = filters.joinDateLower
                     , label = Input.labelHidden "Joined after"
@@ -576,7 +589,6 @@ viewFilters form filters =
                     , text = form.joinLowerText
                     , model = form.joinLowerPicker
                     }
-                , Input.button [] { onPress = Just (DateCleared JoinLower), label = Element.text "X" }
                 , Element.row
                     [ Element.width <| Element.px 100
                     , Element.paddingXY 5 0
@@ -592,7 +604,9 @@ viewFilters form filters =
                         (Element.text "<")
                     ]
                 , DatePicker.input
-                    dateFieldStyles
+                    (Element.inFront (Input.button (crossButtonStyle ++ [ Element.centerY, Element.alignRight ]) { onPress = Just (DateCleared JoinUpper), label = Element.text "x" })
+                        :: dateFieldStyles
+                    )
                     { onChange = ChangePicker JoinUpper
                     , selected = filters.joinDateUpper
                     , label = Input.labelHidden "Joined before"
@@ -601,12 +615,13 @@ viewFilters form filters =
                     , text = form.joinUpperText
                     , model = form.joinUpperPicker
                     }
-                , Input.button [] { onPress = Just (DateCleared JoinUpper), label = Element.text "X" }
                 ]
             , Element.row
-                [ Element.spacing 4 ]
+                [ Element.spacing 5 ]
                 [ DatePicker.input
-                    dateFieldStyles
+                    (Element.inFront (Input.button (crossButtonStyle ++ [ Element.centerY, Element.alignRight ]) { onPress = Just (DateCleared DobLower), label = Element.text "x" })
+                        :: dateFieldStyles
+                    )
                     { onChange = ChangePicker DobLower
                     , selected = filters.dobLower
                     , label = Input.labelHidden "DOB after"
@@ -615,7 +630,6 @@ viewFilters form filters =
                     , text = form.dobLowerText
                     , model = form.dobLowerPicker
                     }
-                , Input.button [] { onPress = Just (DateCleared DobLower), label = Element.text "X" }
                 , Element.row
                     [ Element.width <| Element.px 100
                     , Element.paddingXY 5 0
@@ -631,7 +645,9 @@ viewFilters form filters =
                         (Element.text "<")
                     ]
                 , DatePicker.input
-                    dateFieldStyles
+                    (Element.inFront (Input.button (crossButtonStyle ++ [ Element.centerY, Element.alignRight ]) { onPress = Just (DateCleared DobUpper), label = Element.text "x" })
+                        :: dateFieldStyles
+                    )
                     { onChange = ChangePicker DobUpper
                     , selected = filters.dobUpper
                     , label = Input.labelHidden "DOB before"
@@ -640,7 +656,6 @@ viewFilters form filters =
                     , text = form.dobUpperText
                     , model = form.dobUpperPicker
                     }
-                , Input.button [] { onPress = Just (DateCleared DobUpper), label = Element.text "X" }
                 ]
             , Element.row [ Element.spacing 4 ]
                 [ Element.paragraph textLabelStyles [ Element.text "Filter Status" ]
