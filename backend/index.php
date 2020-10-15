@@ -234,10 +234,58 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
         return $response;
     })->add($authMiddleware)->add($adminOnlyMiddleware);
 
-    $group->post('/addtutor/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
+    $group->get('/tutors', function (Request $request, Response $response, $args) {
+        $classId = $args['id'];
+        $data = DBClass::getTutors($classId);
+        return $response->withJson($data, 200);
+    })->add($authMiddleware);
+    $group->options('/tutors', function (Request $request, Response $response, $args) {
+        return $response->withStatus(200);
+    });
+
+    $group->get('/sessions', function (Request $request, Response $response, $args) {
+        $classId = $args['id'];
+        $data = DBClass::getSessions($classId);
+        foreach ($data as $session) {
+            $session['id'] = (string) $session['_id'];
+            unset($session['_id']);
+        }
+        return $response->withJson($data, 200);
+    })->add($authMiddleware);
+    $group->options('/sessions', function (Request $request, Response $response, $args) {
+        return $response->withStatus(200);
+    });
+
+    $group->post('/addtutor', function (Request $request, Response $response, $args) {
         // add tutor to class
-        return $response;
+        $classId = $args['id'];
+        $data = $request->getParsedBody();
+        $tutorId = $data['tutorId'];
+        $date = $data['joinDate'];
+        $result = DBClass::addTutor($classId, $tutorId, $date);
+        if ($result) {
+            return $response->withStatus(200);
+        } else {
+            return $response->withStatus(400);
+        }
     })->add($authMiddleware)->add($adminOnlyMiddleware);
+    $group->options('/addtutor', function (Request $request, Response $response, $args) {
+        return $response->withStatus(200);
+    });
+
+    $group->get('/suggestions', function (Request $request, Response $response, $args) {
+        $classId = $args['id'];
+        $filter = $request->getQueryParams()['filter'] ?? "";
+        $data = DBClass::tutorSuggestions($classId, $filter);
+        foreach ($data as $elem) {
+            $elem['id'] = (string) $elem['_id'];
+            unset($elem['_id']);
+        }
+        return $response->withJson($data, 200);
+    }); //->add($authMiddleware)->add($adminOnlyMiddleware);
+    $group->options('/suggestions', function (Request $request, Response $response, $args) {
+        return $response->withStatus(200);
+    });
 
     $group->put('/updatetutor/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
         // used to edit join date or leave date
