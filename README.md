@@ -20,10 +20,12 @@ Reactive and user-friendly interface.
 
 ## Run Backend
 
-Testing backend is a simple python flask server, running on `localhost:5000`.
+~~Testing backend is a simple python flask server, running on `localhost:5000`.~~
+Testing backend is now a PHP server running Slim Framework, which connects to a MongoDB instance (credentials separate from codebase). 
 
 ```
-py backend/server.py
+cd backend
+php -S localhost:8001
 ```
 
 ## Run frontend
