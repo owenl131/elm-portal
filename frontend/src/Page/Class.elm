@@ -45,9 +45,9 @@ getPageTitle model =
     RemoteData.toMaybe model.data |> Maybe.map .name |> Maybe.withDefault ("Class ID: " ++ model.id)
 
 
-getPageLink : Model -> String
-getPageLink model =
-    "/class/" ++ model.id
+getPageLink : Class.ClassId -> String
+getPageLink id =
+    Builder.absolute [ "class", id ] []
 
 
 fetchClassData : Api.Credentials -> ClassId -> Cmd Msg
@@ -126,10 +126,10 @@ update msg model =
             ( model, Navigation.pushUrl model.key (Page.Tutor.getPageLink id) )
 
         NavigateToAddTutors ->
-            ( model, Navigation.pushUrl model.key (getPageLink model ++ "/addtutor") )
+            ( model, Navigation.pushUrl model.key (getPageLink model.id ++ "/addtutor") )
 
         NavigateToTakeAttendance sessionId ->
-            ( model, Navigation.pushUrl model.key (getPageLink model ++ "/session/" ++ String.fromInt sessionId) )
+            ( model, Navigation.pushUrl model.key (getPageLink model.id ++ "/session/" ++ String.fromInt sessionId) )
 
         DisplayAddSession ->
             ( model, Cmd.none )

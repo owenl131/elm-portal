@@ -107,7 +107,7 @@ getNestedNavigation model =
             [ ( "Tutors", "/tutors" ), ( TutorPage.getPageTitle submodel, TutorPage.getPageLink submodel.id ) ]
 
         ClassPage submodel ->
-            [ ( "Classes", "/classes" ), ( ClassPage.getPageTitle submodel, ClassPage.getPageLink submodel ) ]
+            [ ( "Classes", "/classes" ), ( ClassPage.getPageTitle submodel, ClassPage.getPageLink submodel.id ) ]
 
         ClassAddTutorPage submodel ->
             ClassAddTutorPage.getNestedNavigation submodel
@@ -204,8 +204,9 @@ handleUrlChange url model =
         Just credentials ->
             case Maybe.withDefault NotFound (UrlParser.parse routeParser url) of
                 RouteHome ->
-                    ( Home.init credentials key, Cmd.none )
+                    Home.init credentials key
                         |> Tuple.mapFirst Home
+                        |> Tuple.mapSecond (Cmd.map GotHomeMsg)
 
                 RouteTutors filters maybePage ->
                     TutorListPage.init credentials key filters (maybePage |> Maybe.withDefault 0)
@@ -253,8 +254,9 @@ handleUrlChange url model =
                         |> Tuple.mapSecond (Cmd.map GotLoginMsg)
 
                 NotFound ->
-                    ( Home.init credentials key, Cmd.none )
+                    Home.init credentials key
                         |> Tuple.mapFirst Home
+                        |> Tuple.mapSecond (Cmd.map GotHomeMsg)
 
 
 init : () -> Url -> Navigation.Key -> ( Model, Cmd Msg )

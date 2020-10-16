@@ -14,7 +14,11 @@ class DBTutor
             'sessionExpiry' => array('$exists' => 1, '$gte' => new \MongoDB\BSON\UTCDateTime())
         ));
         if ($result == 1) {
-            return true;
+            $tutor = $collection->findOne(
+                array('sessionId' => new \MongoDB\BSON\ObjectId($sessionId)),
+                array('projection' => array('_id' => 1))
+            );
+            return (string) $tutor['_id'];
         } else {
             return false;
         }
@@ -182,6 +186,26 @@ class DBTutor
         $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('tutors');
         return $collection->countDocuments(array('_id' => new \MongoDB\BSON\ObjectId($id))) == 1;
+    }
+
+    static function getClasses(string $tutorId)
+    {
+        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $collection = $db->selectCollection('classes');
+        $results = $collection->find(
+            array(
+                'tutors' => array(
+                    '$elemMatch' => array(
+                        'id' => new \MongoDB\BSON\ObjectId($tutorId)
+                    )
+                )
+            ),
+            array('projection' => array(
+                'sessions' => 0,
+                'tutors' => 0
+            ))
+        )->toArray();
+        return $results;
     }
 
     static function getTutorList(int $page, array $filters, int $perPage = 20)

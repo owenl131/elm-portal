@@ -16,3 +16,13 @@ buttonStyleComfy =
     , Element.width (Element.shrink |> Element.minimum 100)
     , Element.mouseOver [ Background.color Colors.theme.a200 ]
     ]
+
+
+buttonStyleCozy : List (Element.Attribute msg)
+buttonStyleCozy =
+    [ Background.color Colors.theme.a400
+    , Border.width 1
+    , Border.rounded 3
+    , Element.paddingXY 10 4
+    , Element.mouseOver [ Background.color Colors.theme.a200 ]
+    ]

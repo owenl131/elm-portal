@@ -18,6 +18,7 @@ import RemoteData exposing (WebData)
 import Time
 import Url.Builder as Builder
 import Url.Parser.Query as Query
+import Utils
 
 
 type alias ClassFilters =
@@ -26,31 +27,6 @@ type alias ClassFilters =
     , yearUpper : Int
     , days : List Date.Weekday
     }
-
-
-daysToString : Time.Weekday -> String
-daysToString day =
-    case day of
-        Time.Mon ->
-            "Mon"
-
-        Time.Tue ->
-            "Tues"
-
-        Time.Wed ->
-            "Wed"
-
-        Time.Thu ->
-            "Thur"
-
-        Time.Fri ->
-            "Fri"
-
-        Time.Sat ->
-            "Sat"
-
-        Time.Sun ->
-            "Sun"
 
 
 classFiltersFromUrl : Query.Parser ClassFilters
@@ -387,7 +363,7 @@ viewData data =
                       }
                     , { header = "Days" |> toHeader
                       , width = Element.fill |> Element.maximum 150
-                      , view = .days >> List.map daysToString >> List.intersperse ", " >> String.concat >> Element.text >> Element.el [ Element.centerY ]
+                      , view = .days >> List.map Utils.daysToString >> List.intersperse ", " >> String.concat >> Element.text >> Element.el [ Element.centerY ]
                       }
                     , { header = "Year" |> toHeader
                       , width = Element.fill |> Element.maximum 80
