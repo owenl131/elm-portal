@@ -53,14 +53,19 @@ type alias TutorFiltersForm =
     }
 
 
+updatePickerWithDate : Maybe Date.Date -> DatePicker.Model -> DatePicker.Model
+updatePickerWithDate maybeDate =
+    maybeDate |> Maybe.map DatePicker.setVisibleMonth |> Maybe.withDefault Basics.identity
+
+
 initFromFilters : TutorFilters -> TutorFiltersForm
 initFromFilters filters =
     { nameFilter = ""
     , schoolFilter = ""
-    , dobLowerPicker = DatePicker.init
-    , dobUpperPicker = DatePicker.init
-    , joinLowerPicker = DatePicker.init
-    , joinUpperPicker = DatePicker.init
+    , dobLowerPicker = DatePicker.init |> updatePickerWithDate filters.dobLower
+    , dobUpperPicker = DatePicker.init |> updatePickerWithDate filters.dobUpper
+    , joinLowerPicker = DatePicker.init |> updatePickerWithDate filters.joinDateLower
+    , joinUpperPicker = DatePicker.init |> updatePickerWithDate filters.joinDateUpper
     , dobLowerText = filters.dobLower |> Maybe.map Date.toIsoString |> Maybe.withDefault "No bound"
     , dobUpperText = filters.dobUpper |> Maybe.map Date.toIsoString |> Maybe.withDefault "No bound"
     , joinLowerText = filters.joinDateLower |> Maybe.map Date.toIsoString |> Maybe.withDefault "No bound"
@@ -141,6 +146,7 @@ type Msg
     | DateCleared WhichDatePicker
     | SetToday Date.Date
     | ToDetails String
+    | ToNew
     | GotTutorList (Result Http.Error (Paged.Paged (List Tutor)))
     | EnteredNameFilter String
     | EnteredSchoolFilter String
@@ -323,6 +329,9 @@ update msg model =
         ToDetails id ->
             ( model, Navigation.pushUrl model.key ("/tutor/" ++ id) )
 
+        ToNew ->
+            ( model, Navigation.pushUrl model.key (Builder.absolute [ "tutors", "new" ] []) )
+
         EnteredNameFilter name ->
             ( { model | filtersForm = { filtersForm | nameFilter = name } }, Cmd.none )
 
@@ -412,9 +421,13 @@ update msg model =
                 | filtersForm =
                     filtersForm
                         |> updatePicker JoinUpper (DatePicker.setToday today)
+                        |> updatePicker JoinUpper (updatePickerWithDate filters.joinDateUpper)
                         |> updatePicker JoinLower (DatePicker.setToday today)
+                        |> updatePicker JoinLower (updatePickerWithDate filters.joinDateLower)
                         |> updatePicker DobUpper (DatePicker.setToday today)
+                        |> updatePicker DobUpper (updatePickerWithDate filters.dobUpper)
                         |> updatePicker DobLower (DatePicker.setToday today)
+                        |> updatePicker DobLower (updatePickerWithDate filters.dobLower)
               }
             , Cmd.none
             )
@@ -424,7 +437,9 @@ update msg model =
                 newModel =
                     { model
                         | filters = filters |> updateDate whichDatePicker Nothing
-                        , filtersForm = filtersForm |> updateText whichDatePicker "Not bound"
+                        , filtersForm =
+                            filtersForm
+                                |> updateText whichDatePicker "Not bound"
                     }
             in
             ( newModel, pushUrl newModel )
@@ -436,7 +451,10 @@ update msg model =
                         newModel =
                             { model
                                 | filters = filters |> updateDate whichDatePicker (Just date)
-                                , filtersForm = filtersForm |> updateText whichDatePicker (Date.toIsoString date)
+                                , filtersForm =
+                                    filtersForm
+                                        |> updateText whichDatePicker (Date.toIsoString date)
+                                        |> updatePicker whichDatePicker (DatePicker.setVisibleMonth date)
                             }
                     in
                     ( newModel, pushUrl newModel )
@@ -452,7 +470,10 @@ update msg model =
                                     newModel =
                                         { model
                                             | filters = filters |> updateDate whichDatePicker (Just date)
-                                            , filtersForm = filtersForm |> updateText whichDatePicker text
+                                            , filtersForm =
+                                                filtersForm
+                                                    |> updateText whichDatePicker text
+                                                    |> updatePicker whichDatePicker (DatePicker.setVisibleMonth date)
                                         }
                                 in
                                 ( newModel
@@ -463,7 +484,9 @@ update msg model =
                                 ( { model | filtersForm = filtersForm |> updateText whichDatePicker text }, Cmd.none )
 
                 DatePicker.PickerChanged subMsg ->
-                    ( { model | filtersForm = updatePicker whichDatePicker (DatePicker.update subMsg) filtersForm }
+                    ( { model
+                        | filtersForm = updatePicker whichDatePicker (DatePicker.update subMsg) filtersForm
+                      }
                     , Cmd.none
                     )
 
@@ -472,7 +495,10 @@ pushUrl : Model -> Cmd Msg
 pushUrl model =
     Navigation.pushUrl
         model.key
-        ("/tutors" ++ Builder.toQuery (Builder.int "page" model.page :: tutorFiltersToQueryList model.filters))
+        (Builder.absolute
+            [ "tutors" ]
+            (Builder.int "page" model.page :: tutorFiltersToQueryList model.filters)
+        )
 
 
 viewToggleFilter : List ( a, String ) -> (a -> Msg) -> List a -> Element Msg
@@ -729,7 +755,7 @@ viewData data =
             Element.text "Loading"
 
         RemoteData.Failure err ->
-            Element.text (Debug.toString err)
+            Element.text (Api.errorToString err)
 
         RemoteData.Success pagedData ->
             let
@@ -804,10 +830,22 @@ viewActionBar =
         , Element.spacing 5
         , Element.width Element.fill
         ]
-        [ Input.button buttonStyles { onPress = Nothing, label = Element.text "Add New" |> Element.el [ Element.centerX, Element.centerY ] }
-        , Input.button buttonStyles { onPress = Nothing, label = Element.text "Export" |> Element.el [ Element.centerX, Element.centerY ] }
-        , Input.button buttonStyles { onPress = Nothing, label = Element.text "Import" |> Element.el [ Element.centerX, Element.centerY ] }
-        , Input.button buttonStyles { onPress = Nothing, label = Element.text "Demographics" |> Element.el [ Element.centerX, Element.centerY ] }
+        [ Input.button buttonStyles
+            { onPress = Just ToNew
+            , label = Element.text "Add New" |> Element.el [ Element.centerX, Element.centerY ]
+            }
+        , Input.button buttonStyles
+            { onPress = Nothing
+            , label = Element.text "Export" |> Element.el [ Element.centerX, Element.centerY ]
+            }
+        , Input.button buttonStyles
+            { onPress = Nothing
+            , label = Element.text "Import" |> Element.el [ Element.centerX, Element.centerY ]
+            }
+        , Input.button buttonStyles
+            { onPress = Nothing
+            , label = Element.text "Demographics" |> Element.el [ Element.centerX, Element.centerY ]
+            }
         ]
 
 

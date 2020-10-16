@@ -16,6 +16,7 @@ import Http
 import Json.Decode as Decode
 import Page.Tutor
 import RemoteData exposing (WebData)
+import Styles
 import Url.Builder as Builder
 
 
@@ -228,12 +229,7 @@ viewTutors tutors =
         , Background.color Colors.theme.p50
         ]
         [ Input.button
-            [ Background.color Colors.theme.a400
-            , Border.width 1
-            , Border.rounded 3
-            , Element.paddingXY 10 4
-            , Element.mouseOver [ Background.color Colors.theme.a200 ]
-            ]
+            Styles.buttonStyleComfy
             { onPress = Just NavigateToAddTutors, label = Element.text "Add New Tutor" }
         , let
             toHeader : String -> Element Msg
@@ -294,7 +290,7 @@ view model =
                 Element.text "Not asked"
 
             RemoteData.Failure err ->
-                Element.text (Debug.toString err)
+                Element.text (Api.errorToString err)
         , case model.sessions of
             RemoteData.Success sessions ->
                 viewSessions sessions
@@ -306,7 +302,7 @@ view model =
                 Element.text "Not asked"
 
             RemoteData.Failure err ->
-                Element.text (Debug.toString err)
+                Element.text (Api.errorToString err)
         , case model.tutors of
             RemoteData.Success tutors ->
                 viewTutors tutors
@@ -318,5 +314,5 @@ view model =
                 Element.text "Not asked"
 
             RemoteData.Failure err ->
-                Element.text (Debug.toString err)
+                Element.text (Api.errorToString err)
         ]

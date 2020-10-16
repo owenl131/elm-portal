@@ -1,16 +1,33 @@
-module Page.Tutor exposing (Model, Msg, getPageLink, getPageTitle, init, update, view)
+module Page.Tutor exposing
+    ( Model
+    , Msg
+    , getPageLink
+    , getPageTitle
+    , init
+    , update
+    , view
+    )
 
 import Api
 import Base64
-import Browser.Navigation
+import Browser.Navigation as Navigation
+import Class exposing (ClassTutor)
+import Colors
+import Date
 import Element exposing (Element)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
+import Element.Input as Input
 import Http
 import RemoteData exposing (WebData)
+import Styles
 import Tutor exposing (Tutor, tutorDecoder)
+import Url.Builder as Builder
 
 
 type alias Model =
-    { key : Browser.Navigation.Key
+    { key : Navigation.Key
     , credentials : Api.Credentials
     , id : String
     , data : WebData Tutor
@@ -19,6 +36,7 @@ type alias Model =
 
 type Msg
     = GotTutorData (Result Http.Error Tutor)
+    | ToEditDetails
 
 
 getPageTitle : Model -> String
@@ -28,17 +46,17 @@ getPageTitle model =
 
 getPageLink : String -> String
 getPageLink id =
-    "/tutor/" ++ id
+    Builder.absolute [ "tutor", id ] []
 
 
-init : Api.Credentials -> Browser.Navigation.Key -> String -> ( Model, Cmd Msg )
+init : Api.Credentials -> Navigation.Key -> String -> ( Model, Cmd Msg )
 init credentials key id =
     ( { key = key, credentials = credentials, id = id, data = RemoteData.Loading }
     , Http.request
         { method = "GET"
         , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
         , body = Http.emptyBody
-        , url = "http://localhost:8001/backend/tutor/" ++ id
+        , url = Builder.crossOrigin Api.endpoint [ "tutor", id ] []
         , expect = Http.expectJson GotTutorData tutorDecoder
         , timeout = Nothing
         , tracker = Nothing
@@ -50,14 +68,14 @@ viewRow : String -> Tutor -> (Tutor -> String) -> Element Msg
 viewRow label tutor accessor =
     Element.row
         []
-        [ Element.text label
-        , Element.text (accessor tutor)
+        [ Element.text label |> Element.el [ Element.width (Element.px 150) ]
+        , Element.text (accessor tutor) |> Element.el []
         ]
 
 
-view : Model -> Element Msg
-view model =
-    case model.data of
+viewWebData : WebData a -> (a -> Element Msg) -> Element Msg
+viewWebData webdata viewFn =
+    case webdata of
         RemoteData.NotAsked ->
             Element.text "Not Asked"
 
@@ -65,32 +83,99 @@ view model =
             Element.text "Loading"
 
         RemoteData.Failure err ->
-            Element.text (Debug.toString err)
+            Element.text (Api.errorToString err)
 
         RemoteData.Success data ->
-            -- Display tutor classes
-            -- Display tutor recently attended sessions
-            -- Display tutor hours with breakdown by class
-            -- Display tutor trainings
-            -- Display chart of attended sessions over last year
-            Element.column
-                []
-                [ viewRow "Name" data .name
-                , viewRow "Email" data .email
-                , viewRow "School" data .school
-                , viewRow "School" data .school
-                , viewRow "School" data .school
-                , viewRow "School" data .school
-                ]
+            viewFn data
+
+
+viewDetails : Tutor -> Element Msg
+viewDetails data =
+    Element.column
+        [ Background.color Colors.theme.p50
+        , Element.padding 20
+        , Element.width Element.fill
+        , Element.spacing 10
+        ]
+        [ Element.row [ Element.spacing 20 ]
+            [ Element.text "Tutor Details" |> Element.el [ Font.size 16, Font.bold ]
+            , Input.button
+                Styles.buttonStyleComfy
+                { onPress = Just ToEditDetails, label = Element.text "Edit" |> Element.el [ Element.centerX ] }
+            ]
+        , Element.el [ Element.height (Element.px 10) ] Element.none
+        , viewRow "Name" data .name
+        , viewRow "Email" data .email
+        , viewRow "School" data .school
+        , viewRow "Status" data (.status >> Tutor.tutorStatusAsString)
+        , viewRow "Admin Level" data (.admin >> Tutor.adminLevelAsString)
+        , viewRow "Gender" data (.gender >> Tutor.genderToString)
+        , viewRow "Date of Birth" data (.dateOfBirth >> Date.toIsoString)
+        , viewRow "Start date" data (.dateOfRegistration >> Date.toIsoString)
+        ]
+
+
+viewClasses : List Class.Class -> Element Msg
+viewClasses classes =
+    Element.column
+        [ Background.color Colors.theme.p50
+        , Element.padding 20
+        , Element.width Element.fill
+        , Element.spacing 10
+        ]
+        []
+
+
+viewRecentSessions : List Class.ClassSession -> Element Msg
+viewRecentSessions sessions =
+    -- Sessions in a calendar format
+    Element.column
+        [ Background.color Colors.theme.p50
+        , Element.padding 20
+        , Element.width Element.fill
+        , Element.spacing 10
+        ]
+        []
+
+
+viewHours : List Class.Class -> Element Msg
+viewHours classStats =
+    Element.column
+        [ Background.color Colors.theme.p50
+        , Element.padding 20
+        , Element.width Element.fill
+        , Element.spacing 10
+        ]
+        []
+
+
+viewOtherActivities : List Class.ClassSession -> Element Msg
+viewOtherActivities activities =
+    Element.column
+        [ Background.color Colors.theme.p50
+        , Element.padding 20
+        , Element.width Element.fill
+        , Element.spacing 10
+        ]
+        []
+
+
+view : Model -> Element Msg
+view model =
+    Element.column [ Element.width Element.fill, Element.spacing 20 ]
+        [ viewWebData model.data viewDetails
+        , viewClasses []
+        , viewRecentSessions []
+        , viewOtherActivities []
+        , viewHours []
+        ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         GotTutorData result ->
-            case result of
-                Ok data ->
-                    ( { model | data = RemoteData.Success data }, Cmd.none )
+            ( { model | data = RemoteData.fromResult result }, Cmd.none )
 
-                Err error ->
-                    ( { model | data = RemoteData.Failure error }, Cmd.none )
+        ToEditDetails ->
+            ( model, Navigation.pushUrl model.key (Builder.absolute [ "tutor", model.id, "edit" ] []) )

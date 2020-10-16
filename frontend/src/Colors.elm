@@ -1,4 +1,12 @@
-module Colors exposing (black, clear, grey, theme, white)
+module Colors exposing
+    ( black
+    , clear
+    , green
+    , grey
+    , red
+    , theme
+    , white
+    )
 
 import Element exposing (Color)
 import Hex
@@ -35,6 +43,16 @@ hexStringToColor hexString =
             String.left 2 (String.dropLeft 4 hexString) |> Hex.fromString |> Result.withDefault 0
     in
     Element.rgb255 r g b
+
+
+green : Color
+green =
+    theme.a400
+
+
+red : Color
+red =
+    Element.rgb 255 0 0
 
 
 clear : Color

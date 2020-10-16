@@ -4,6 +4,7 @@ module Tutor exposing
     , Tutor
     , TutorStatus(..)
     , adminLevelAsString
+    , emptyTutor
     , genderToString
     , toGender
     , toTutorAdminLevel
@@ -205,6 +206,20 @@ type alias Tutor =
     , gender : Gender
     , status : TutorStatus
     , admin : AdminLevel
+    }
+
+
+emptyTutor : Tutor
+emptyTutor =
+    { id = ""
+    , name = ""
+    , email = ""
+    , school = ""
+    , dateOfBirth = Date.fromRataDie 1
+    , dateOfRegistration = Date.fromRataDie 1
+    , gender = Female
+    , status = New
+    , admin = LvlTutor
     }
 
 

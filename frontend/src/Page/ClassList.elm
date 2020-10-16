@@ -28,6 +28,31 @@ type alias ClassFilters =
     }
 
 
+daysToString : Time.Weekday -> String
+daysToString day =
+    case day of
+        Time.Mon ->
+            "Mon"
+
+        Time.Tue ->
+            "Tues"
+
+        Time.Wed ->
+            "Wed"
+
+        Time.Thu ->
+            "Thur"
+
+        Time.Fri ->
+            "Fri"
+
+        Time.Sat ->
+            "Sat"
+
+        Time.Sun ->
+            "Sun"
+
+
 classFiltersFromUrl : Query.Parser ClassFilters
 classFiltersFromUrl =
     Query.map4 ClassFilters
@@ -342,7 +367,7 @@ viewData data =
             Element.text "Loading"
 
         RemoteData.Failure error ->
-            Element.text (Debug.toString error)
+            Element.text (Api.errorToString error)
 
         RemoteData.Success pagedData ->
             let
@@ -362,7 +387,7 @@ viewData data =
                       }
                     , { header = "Days" |> toHeader
                       , width = Element.fill |> Element.maximum 150
-                      , view = .days >> List.map Debug.toString >> List.intersperse ", " >> String.concat >> Element.text >> Element.el [ Element.centerY ]
+                      , view = .days >> List.map daysToString >> List.intersperse ", " >> String.concat >> Element.text >> Element.el [ Element.centerY ]
                       }
                     , { header = "Year" |> toHeader
                       , width = Element.fill |> Element.maximum 80
