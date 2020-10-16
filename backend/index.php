@@ -246,7 +246,7 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
     $group->get('/sessions', function (Request $request, Response $response, $args) {
         $classId = $args['id'];
         $data = DBClass::getSessions($classId);
-        foreach ($data as $session) {
+        foreach ($data as &$session) {
             $session['id'] = (string) $session['_id'];
             unset($session['_id']);
         }

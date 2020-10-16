@@ -69,8 +69,6 @@ class DBClass
         );
     }
 
-
-
     static function addTutor($id, $tutorId, $joinDate)
     {
         if (!DBTutor::isValidTutor($tutorId)) {
@@ -83,7 +81,7 @@ class DBClass
         $collection = $db->selectCollection('classes');
         $collection->updateOne(
             array('_id' => new MongoDB\BSON\ObjectId($id)),
-            array('$addToSet' => array('tutors', array(
+            array('$addToSet' => array('tutors' => array(
                 'id' => new \MongoDB\BSON\ObjectId($tutorId),
                 'joinedOn' => new \MongoDB\BSON\UTCDateTime(strtotime($joinDate) * 1000)
             )))
@@ -99,13 +97,19 @@ class DBClass
             array('_id' => new MongoDB\BSON\ObjectId($id)),
             array('projections' => array('tutors' => 1))
         );
+        $tutorList = !is_null($tutorList) && isset($tutorList['tutors'])
+            ? $tutorList['tutors'] : array();
+        $tutorList = iterator_to_array($tutorList, false);
 
-        $tutorList = !is_null($tutorList) && isset($tutorList['tutors']) ? $tutorList['tutors'] : array();
-        foreach ($tutorList as $tutor) {
-            $tutorFull = DBTutor::getTutor((string) $tutor['id']);
+        $tutorList = array_map(function ($tutor) {
+            $tutor['id'] = (string) $tutor['id'];
+            $tutorFull = DBTutor::getTutor($tutor['id']);
             $tutor['name'] = $tutorFull['name'];
             $tutor['admin'] = $tutorFull['admin'];
-        }
+            $tutor['joinDate'] = $tutor['joinedOn']->toDateTime()->format('Y-m-d');
+            unset($tutor['joinedOn']);
+            return $tutor;
+        }, $tutorList);
         return $tutorList;
     }
 
@@ -117,8 +121,9 @@ class DBClass
             array('_id' => new MongoDB\BSON\ObjectId($id)),
             array('projections' => array('tutors' => 1, 'tutors.id' => 1))
         );
-
-        $tutorList = !is_null($tutorList) && isset($tutorList['tutors']) ? $tutorList['tutors'] : array();
+        $tutorList = !is_null($tutorList) && isset($tutorList['tutors'])
+            ? $tutorList['tutors'] : array();
+        $tutorList = iterator_to_array($tutorList, false);
         $tutorList = array_map(function ($elem) {
             return $elem['id'];
         }, $tutorList);

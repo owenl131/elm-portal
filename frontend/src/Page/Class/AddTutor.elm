@@ -159,7 +159,9 @@ postAddTutor : Api.Credentials -> Class.ClassId -> String -> Date.Date -> Cmd Ms
 postAddTutor credentials classId tutorId joinDate =
     Http.request
         { method = "POST"
-        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , headers =
+            [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session)
+            ]
         , timeout = Nothing
         , tracker = Nothing
         , url = Builder.crossOrigin Api.endpoint [ "class", classId, "addtutor" ] []
