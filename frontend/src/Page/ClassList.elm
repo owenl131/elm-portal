@@ -15,6 +15,7 @@ import Element.Input as Input
 import Http
 import Json.Decode as Decode
 import RemoteData exposing (WebData)
+import Styles
 import Time
 import Url.Builder as Builder
 import Url.Parser.Query as Query
@@ -399,13 +400,36 @@ blankIfAbsent viewIt webData =
             Element.none
 
 
+viewActionBar : Element Msg
+viewActionBar =
+    Element.row
+        [ Element.padding 2
+        , Element.spacing 5
+        , Element.width Element.fill
+        ]
+        [ Input.button Styles.buttonStyleWide
+            { onPress = Nothing
+            , label = Element.text "Add New" |> Element.el [ Element.centerX, Element.centerY ]
+            }
+        , Input.button Styles.buttonStyleWide
+            { onPress = Nothing
+            , label = Element.text "Export" |> Element.el [ Element.centerX, Element.centerY ]
+            }
+        , Input.button Styles.buttonStyleWide
+            { onPress = Nothing
+            , label = Element.text "Import" |> Element.el [ Element.centerX, Element.centerY ]
+            }
+        ]
+
+
 view : Model -> Element Msg
 view model =
     Element.column
         [ Element.width Element.fill
         , Element.spacing 10
         ]
-        [ viewClassFilters model.nameFilterForm model.filters
+        [ viewActionBar
+        , viewClassFilters model.nameFilterForm model.filters
         , blankIfAbsent Paged.viewPagination model.data |> Element.map PaginationChanged
         , viewData model.data
         , blankIfAbsent Paged.viewPagination model.data |> Element.map PaginationChanged

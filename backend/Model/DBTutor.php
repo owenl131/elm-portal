@@ -60,7 +60,7 @@ class DBTutor
         return false;
     }
 
-    function isAdmin(string $sessionId)
+    static function isAdmin(string $sessionId)
     {
         $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('tutors');
@@ -72,7 +72,7 @@ class DBTutor
         return $result == 1;
     }
 
-    function isLeaderAndAbove(string $sessionId)
+    static function isLeaderAndAbove(string $sessionId)
     {
         $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('tutors');
@@ -84,7 +84,7 @@ class DBTutor
         return $result == 1;
     }
 
-    function addTutor(array $details)
+    static function addTutor(array $details)
     {
         // ensure that required fields are present
         $required = array(
@@ -103,14 +103,18 @@ class DBTutor
                 return false;
             }
         }
-        $details = array_column(array($details), $required)[0];
+        foreach ($details as $key => $value) {
+            if (!in_array($key, $required)) {
+                return false;
+            }
+        }
         $details['password'] = password_hash($details['password'], PASSWORD_DEFAULT);
 
-        $db = new MongoDB\Client(connect_string);
-        $collection = $db->tutors;
-        $collection->insert($details);
+        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $collection = $db->selectCollection('tutors');
+        $result = $collection->insertOne($details);
 
-        return $details['_id'];
+        return (string) $result->getInsertedId();
     }
 
     static function processTutorFilters(array $filters)

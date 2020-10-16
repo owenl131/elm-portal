@@ -21,9 +21,12 @@ import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
 import Http
+import Json.Decode as Decode
 import Maybe exposing (withDefault)
+import Maybe.Extra
 import Page.Tutor exposing (getPageLink)
 import Regex
+import Styles
 import Task
 import Tutor exposing (AdminLevel, Gender, Tutor, TutorStatus, emptyTutor)
 import Url.Builder as Builder
@@ -36,6 +39,8 @@ type alias Model =
     , id : Maybe String
     , data : Tutor
     , formState : FormState
+    , errorMessage : Maybe String
+    , successMessage : Maybe String
     }
 
 
@@ -59,9 +64,14 @@ type Msg
     | GenderChanged Gender
     | StatusChanged TutorStatus
     | AdminChanged AdminLevel
+    | PasswordChanged String
     | PickerChanged WhichFormElement DatePicker.ChangeEvent
     | SetToday Date.Date
     | GotTutorData (Result Http.Error Tutor)
+    | GotUpdated (Result Http.Error ())
+    | GotTutorAdded (Result Http.Error String)
+    | ToProfile
+    | Submit
 
 
 getPageTitle : Model -> String
@@ -84,6 +94,19 @@ getPageLink model =
             Builder.absolute [ "tutor", tutorId, "edit" ] []
 
 
+postNewTutor : Api.Credentials -> Tutor -> Cmd Msg
+postNewTutor credentials tutor =
+    Http.request
+        { method = "POST"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.jsonBody (Tutor.tutorEncoder tutor)
+        , url = Builder.crossOrigin Api.endpoint [ "tutors", "new" ] []
+        , expect = Http.expectJson GotTutorAdded (Decode.field "id" Decode.string)
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
 initWithEmpty : Api.Credentials -> Navigation.Key -> ( Model, Cmd Msg )
 initWithEmpty credentials key =
     ( { key = key
@@ -96,6 +119,8 @@ initWithEmpty credentials key =
             , dobText = ""
             , docText = ""
             }
+      , errorMessage = Nothing
+      , successMessage = Nothing
       }
     , Task.perform SetToday Date.today
     )
@@ -113,6 +138,8 @@ initWithTutor credentials key id =
             , dobText = ""
             , docText = ""
             }
+      , errorMessage = Nothing
+      , successMessage = Nothing
       }
     , Http.request
         { method = "GET"
@@ -124,6 +151,20 @@ initWithTutor credentials key id =
         , tracker = Nothing
         }
     )
+
+
+isValidPassword : Bool -> Maybe String -> Bool
+isValidPassword isNew maybePassword =
+    case maybePassword of
+        Nothing ->
+            if isNew then
+                False
+
+            else
+                True
+
+        Just password ->
+            String.length password >= 8
 
 
 isValidEmail : String -> Bool
@@ -220,6 +261,9 @@ update msg model =
         AdminChanged value ->
             ( { model | data = { data | admin = value } }, Cmd.none )
 
+        PasswordChanged value ->
+            ( { model | data = { data | password = Just value } }, Cmd.none )
+
         PickerChanged which event ->
             case event of
                 DatePicker.PickerChanged change ->
@@ -264,6 +308,55 @@ update msg model =
             , Cmd.none
             )
 
+        Submit ->
+            if validateAll model.data model.formState then
+                case model.id of
+                    Nothing ->
+                        -- new tutor
+                        ( model, postNewTutor model.credentials model.data )
+
+                    Just tutorId ->
+                        -- update existing
+                        ( model, Cmd.none )
+
+            else
+                ( { model | errorMessage = Just "Some fields are invalid." }, Cmd.none )
+
+        GotUpdated result ->
+            case result of
+                Ok _ ->
+                    ( { model | successMessage = Just "Updated successfully." }, Cmd.none )
+
+                Err error ->
+                    ( { model | errorMessage = Just (Api.errorToString error) }, Cmd.none )
+
+        GotTutorAdded result ->
+            case result of
+                Ok tutorId ->
+                    ( { model | id = Just tutorId, successMessage = Just "Updated successfully." }, Cmd.none )
+
+                Err error ->
+                    ( { model | errorMessage = Just (Api.errorToString error) }, Cmd.none )
+
+        ToProfile ->
+            case model.id of
+                Nothing ->
+                    ( model, Navigation.back model.key 1 )
+
+                Just id ->
+                    ( model, Navigation.pushUrl model.key (Builder.absolute [ "tutor", id ] []) )
+
+
+validateAll : Tutor -> FormState -> Bool
+validateAll tutor form =
+    List.all Basics.identity
+        [ String.isEmpty tutor.name |> not
+        , String.isEmpty tutor.school |> not
+        , String.isEmpty tutor.email |> not
+        , Date.toIsoString tutor.dateOfBirth == form.dobText
+        , Date.toIsoString tutor.dateOfRegistration == form.docText
+        ]
+
 
 viewValidation : Bool -> Element Msg
 viewValidation validated =
@@ -305,6 +398,27 @@ viewRow label data accessor updateMsg validator =
             , onChange = updateMsg
             , placeholder = Nothing
             , text = accessor data
+            }
+        , viewValidation (validator (accessor data))
+        ]
+
+
+viewRowPassword : String -> Tutor -> (Tutor -> Maybe String) -> (String -> Msg) -> (Maybe String -> Bool) -> Element Msg
+viewRowPassword label data accessor updateMsg validator =
+    let
+        textFieldStyles =
+            [ Element.padding 4
+            , Element.width <| Element.px 200
+            ]
+    in
+    Element.wrappedRow
+        []
+        [ Input.newPassword textFieldStyles
+            { label = Element.text label |> Input.labelLeft [ Element.width (Element.px 150) ]
+            , onChange = updateMsg
+            , placeholder = Nothing
+            , text = accessor data |> withDefault ""
+            , show = False
             }
         , viewValidation (validator (accessor data))
         ]
@@ -397,6 +511,7 @@ viewForm data form =
             form.docText
             form.docPicker
             (PickerChanged Doc)
+        , viewRowPassword "Password" data .password PasswordChanged (isValidPassword (Maybe.Extra.isNothing data.password))
         ]
 
 
@@ -417,7 +532,22 @@ view model =
             , Element.paddingXY 10 2
             , Element.mouseOver [ Background.color Colors.theme.a200 ]
             ]
-            { onPress = Nothing
+            { onPress = Just Submit
             , label = Element.text "Submit"
             }
+        , case model.errorMessage of
+            Nothing ->
+                Element.none
+
+            Just message ->
+                Element.text message |> Element.el [ Font.color Colors.red, Font.bold ]
+        , case model.successMessage of
+            Nothing ->
+                Element.none
+
+            Just message ->
+                Element.row [ Element.spacing 30 ]
+                    [ Element.text message |> Element.el [ Font.color Colors.theme.p600, Font.bold ]
+                    , Input.button Styles.buttonStyleWide { onPress = Just ToProfile, label = Element.text "Back to profile" }
+                    ]
         ]

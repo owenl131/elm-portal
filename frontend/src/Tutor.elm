@@ -206,6 +206,7 @@ type alias Tutor =
     , gender : Gender
     , status : TutorStatus
     , admin : AdminLevel
+    , password : Maybe String
     }
 
 
@@ -220,6 +221,7 @@ emptyTutor =
     , gender = Female
     , status = New
     , admin = LvlTutor
+    , password = Nothing
     }
 
 
@@ -235,13 +237,23 @@ tutorDecoder =
         |> Pipeline.required "gender" genderDecoder
         |> Pipeline.required "status" tutorStatusDecoder
         |> Pipeline.required "admin" tutorAdminLevelDecoder
+        |> Pipeline.optional "password" (Decode.map Just Decode.string) Nothing
 
 
 tutorEncoder : Tutor -> Encode.Value
 tutorEncoder tutor =
     Encode.object
-        [ ( "id", Encode.string tutor.id )
-        , ( "name", Encode.string tutor.name )
-        , ( "email", Encode.string tutor.email )
-        , ( "dateOfBirth", Encode.string (Date.toIsoString tutor.dateOfBirth) )
-        ]
+        ([ ( "id", Encode.string tutor.id )
+         , ( "name", Encode.string tutor.name )
+         , ( "email", Encode.string tutor.email )
+         , ( "dateOfBirth", Encode.string (Date.toIsoString tutor.dateOfBirth) )
+         , ( "dateOfRegistration", Encode.string (Date.toIsoString tutor.dateOfRegistration) )
+         , ( "school", Encode.string tutor.school )
+         , ( "admin", Encode.int (tutorAdminLevelEncoder tutor.admin) )
+         , ( "status", Encode.int (tutorStatusEncoder tutor.status) )
+         , ( "gender", Encode.string (genderToString tutor.gender) )
+         ]
+            ++ (Maybe.map (\m -> [ ( "password", Encode.string m ) ]) tutor.password
+                    |> Maybe.withDefault []
+               )
+        )

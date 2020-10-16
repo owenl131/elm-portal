@@ -153,6 +153,7 @@ viewDetails class =
         , Background.color Colors.theme.p50
         ]
         [ viewRow "Name" class .name
+        , viewRow "Year" class (.year >> String.fromInt)
         , viewRow "Timeslot" class .timeslot
         , viewRow "Duration" class (.duration >> String.fromFloat)
         ]
