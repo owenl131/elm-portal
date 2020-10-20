@@ -117,6 +117,31 @@ class DBTutor
         return (string) $result->getInsertedId();
     }
 
+    static function updateTutorDetails($id, $data)
+    {
+        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $collection = $db->selectCollection('tutors');
+        $update = array(
+            'name' => $data['name'],
+            'school' => $data['school'],
+            'admin' => $data['admin'],
+            'gender' => $data['gender'],
+            'status' => $data['status'],
+            'email' => $data['email'],
+            'dob' => $data['dob'],
+            'doc' => $data['doc'],
+        );
+        if (isset($data['password'])) {
+            $update['password'] =
+                password_hash($data['password'], PASSWORD_DEFAULT);
+        }
+        $collection->updateOne(
+            array('_id' => new \MongoDB\BSON\ObjectId($id)),
+            array('$set' => $update)
+        );
+        return true;
+    }
+
     static function processTutorFilters(array $filters)
     {
         // filters: names, schools, statuses, genders, 

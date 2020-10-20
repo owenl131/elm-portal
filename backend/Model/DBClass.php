@@ -133,8 +133,8 @@ class DBClass
     static function isTutorInClass($id, $tutorId)
     {
         $tutorList = DBClass::getTutorIds($id);
-        foreach ($tutorList as $tutor) {
-            if ((string) $tutor['id'] == $tutorId) {
+        foreach ($tutorList as $tutorElemId) {
+            if ((string) $tutorElemId == $tutorId) {
                 return true;
             }
         }

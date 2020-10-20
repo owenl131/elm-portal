@@ -107,6 +107,19 @@ postNewTutor credentials tutor =
         }
 
 
+postTutorUpdate : Api.Credentials -> Tutor -> Cmd Msg
+postTutorUpdate credentials tutor =
+    Http.request
+        { method = "PATCH"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.jsonBody (Tutor.tutorEncoder tutor)
+        , url = Builder.crossOrigin Api.endpoint [ "tutor", tutor.id ] []
+        , expect = Http.expectWhatever GotUpdated
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
 initWithEmpty : Api.Credentials -> Navigation.Key -> ( Model, Cmd Msg )
 initWithEmpty credentials key =
     ( { key = key
@@ -317,7 +330,7 @@ update msg model =
 
                     Just tutorId ->
                         -- update existing
-                        ( model, Cmd.none )
+                        ( model, postTutorUpdate model.credentials model.data )
 
             else
                 ( { model | errorMessage = Just "Some fields are invalid." }, Cmd.none )
@@ -489,8 +502,8 @@ viewRowChoice label options msg choice =
         )
 
 
-viewForm : Tutor -> FormState -> Element Msg
-viewForm data form =
+viewForm : Bool -> Tutor -> FormState -> Element Msg
+viewForm isNew data form =
     Element.column
         [ Element.spacing 10 ]
         [ viewRow "Name" data .name NameChanged (String.isEmpty >> Basics.not)
@@ -511,7 +524,7 @@ viewForm data form =
             form.docText
             form.docPicker
             (PickerChanged Doc)
-        , viewRowPassword "Password" data .password PasswordChanged (isValidPassword (Maybe.Extra.isNothing data.password))
+        , viewRowPassword "Password" data .password PasswordChanged (isValidPassword isNew)
         ]
 
 
@@ -524,7 +537,7 @@ view model =
         , Background.color Colors.theme.p50
         , Element.spacing 20
         ]
-        [ viewForm model.data model.formState
+        [ viewForm (Maybe.Extra.isNothing model.id) model.data model.formState
         , Input.button
             [ Background.color Colors.theme.a400
             , Border.width 1
@@ -548,6 +561,9 @@ view model =
             Just message ->
                 Element.row [ Element.spacing 30 ]
                     [ Element.text message |> Element.el [ Font.color Colors.theme.p600, Font.bold ]
-                    , Input.button Styles.buttonStyleWide { onPress = Just ToProfile, label = Element.text "Back to profile" }
+                    , Input.button Styles.buttonStyleWide
+                        { onPress = Just ToProfile
+                        , label = Element.text "Back to profile" |> Element.el [ Element.centerX ]
+                        }
                     ]
         ]
