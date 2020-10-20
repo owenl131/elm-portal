@@ -28,6 +28,7 @@ type alias NewSessionForm =
     , remarks : String
     , duration : Float
     , display : Bool
+    , errorMessage : Maybe String
     }
 
 
@@ -39,6 +40,7 @@ emptyForm =
     , remarks = ""
     , duration = 3
     , display = False
+    , errorMessage = Nothing
     }
 
 
@@ -57,14 +59,16 @@ type Msg
     = GotClassData (Result Http.Error Class)
     | GotSessionsData (Result Http.Error (List ClassSession))
     | GotTutorsData (Result Http.Error (List ClassTutor))
+    | GotNewSession (Result Http.Error String)
     | GotToday Date.Date
     | NavigateToTutor String
     | NavigateToAddTutors
-    | NavigateToTakeAttendance Int
+    | NavigateToTakeAttendance String
     | DisplayAddSession
     | FormPickerChanged DatePicker.ChangeEvent
     | RemarksEntered String
     | DurationEntered Float
+    | SubmitNewSession
 
 
 getPageTitle : Model -> String
@@ -111,6 +115,19 @@ fetchSessionsData credentials id =
         , body = Http.emptyBody
         , url = Builder.crossOrigin Api.endpoint [ "class", id, "sessions" ] []
         , expect = Http.expectJson GotSessionsData (Decode.list Class.classSessionDecoder)
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+postNewSession : Api.Credentials -> ClassId -> ClassSession -> Cmd Msg
+postNewSession credentials id session =
+    Http.request
+        { method = "POST"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.jsonBody (Class.classSessionEncoder session)
+        , url = Builder.crossOrigin Api.endpoint [ "class", id, "addsession" ] []
+        , expect = Http.expectJson GotNewSession (Decode.field "id" Decode.string)
         , timeout = Nothing
         , tracker = Nothing
         }
@@ -178,7 +195,7 @@ update msg model =
             ( model, Navigation.pushUrl model.key (getPageLink model.id ++ "/addtutor") )
 
         NavigateToTakeAttendance sessionId ->
-            ( model, Navigation.pushUrl model.key (getPageLink model.id ++ "/session/" ++ String.fromInt sessionId) )
+            ( model, Navigation.pushUrl model.key (getPageLink model.id ++ "/session/" ++ sessionId) )
 
         DisplayAddSession ->
             ( { model | form = { newForm | display = not newForm.display } }, Cmd.none )
@@ -188,6 +205,25 @@ update msg model =
 
         DurationEntered duration ->
             ( { model | form = { newForm | duration = duration } }, Cmd.none )
+
+        SubmitNewSession ->
+            case newForm.date of
+                Nothing ->
+                    ( { model | form = { newForm | errorMessage = Just "Date must be provided." } }, Cmd.none )
+
+                Just date ->
+                    ( model
+                    , postNewSession model.credentials
+                        model.id
+                        { date = date
+                        , duration = newForm.duration
+                        , remarks = newForm.remarks
+                        , id = ""
+                        }
+                    )
+
+        GotNewSession result ->
+            ( model, Cmd.none )
 
         FormPickerChanged change ->
             case change of
@@ -331,7 +367,16 @@ viewNewSessionForm form =
                 , Element.text "Hours" |> Element.el [ Element.alignRight ]
                 ]
             , Element.el [ Element.height (Element.px 5) ] Element.none
-            , Input.button (Element.alignRight :: Styles.buttonStyleComfy) { onPress = Nothing, label = Element.text "Submit" |> Element.el [ Element.centerX ] }
+            , case form.errorMessage of
+                Nothing ->
+                    Element.none
+
+                Just message ->
+                    Element.text message |> Element.el [ Font.color Colors.red ]
+            , Input.button (Element.alignRight :: Styles.buttonStyleComfy)
+                { onPress = Just SubmitNewSession
+                , label = Element.text "Submit" |> Element.el [ Element.centerX ]
+                }
             ]
 
     else

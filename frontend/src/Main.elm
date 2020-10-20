@@ -61,7 +61,7 @@ type Route
     | RouteClasses ClassListPage.ClassFilters (Maybe Int)
     | RouteClass Class.ClassId
     | RouteClassAddTutor Class.ClassId
-    | RouteClassAttendance Class.ClassId Int
+    | RouteClassAttendance Class.ClassId Class.SessionId
     | RouteLogout
     | NotFound
 
@@ -83,7 +83,7 @@ routeParser =
         , UrlParser.map RouteClassAddTutor
             (UrlParser.s "class" </> UrlParser.string </> UrlParser.s "addtutor")
         , UrlParser.map RouteClassAttendance
-            (UrlParser.s "class" </> UrlParser.string </> UrlParser.s "session" </> UrlParser.int)
+            (UrlParser.s "class" </> UrlParser.string </> UrlParser.s "session" </> UrlParser.string)
         , UrlParser.map RouteLogout (UrlParser.s "logout")
         ]
 

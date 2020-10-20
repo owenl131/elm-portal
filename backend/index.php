@@ -385,10 +385,25 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
         foreach ($data as &$session) {
             $session['id'] = (string) $session['_id'];
             unset($session['_id']);
+            $session['date'] = $session['date']->toDateTime()->format('Y-m-d');
         }
         return $response->withJson($data, 200);
     })->add($authMiddleware);
     $group->options('/sessions', function (Request $request, Response $response, $args) {
+        return $response->withStatus(200);
+    });
+
+    $group->post('/addsession', function (Request $request, Response $response, $args) {
+        $classId = $args['id'];
+        $body = $request->getParsedBody();
+        $data = array();
+        $data['date'] = new \MongoDB\BSON\UTCDateTime(strtotime($body['date']) * 1000);
+        $data['remarks'] = $body['remarks'];
+        $data['duration'] = $body['duration'];
+        $sessionId = DBClass::addSession($classId, $data);
+        return $response->withJson(array('id' => $sessionId), 200);
+    })->add($authMiddleware)->add($adminOnlyMiddleware);
+    $group->options('/addsession', function (Request $request, Response $response, $args) {
         return $response->withStatus(200);
     });
 
@@ -434,7 +449,7 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
     })->add($authMiddleware)->add($adminOnlyMiddleware);
 
 
-    $group->group('/session/{sid:[0-9]+}', function (RouteCollectorProxy $subgroup) use ($authMiddleware, $leaderAboveMiddleware) {
+    $group->group('/session/{sid:[0-9a-z]+}', function (RouteCollectorProxy $subgroup) use ($authMiddleware, $leaderAboveMiddleware) {
 
         $subgroup->get('', function (Request $request, Response $response, $args) {
             // get session details

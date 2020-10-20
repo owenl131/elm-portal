@@ -3,16 +3,20 @@ module Class exposing
     , ClassId
     , ClassSession
     , ClassTutor
+    , SessionId
     , classDecoder
     , classIdDecoder
     , classIdToString
     , classSessionDecoder
+    , classSessionEncoder
     , classTutorDecoder
     )
 
 import Date
 import Json.Decode as Decode
 import Json.Decode.Pipeline as Pipeline
+import Json.Encode as Encode
+import Styles exposing (dateFieldStyle)
 import Tutor
 
 
@@ -75,14 +79,28 @@ type alias Class =
 classSessionDecoder : Decode.Decoder ClassSession
 classSessionDecoder =
     Decode.succeed ClassSession
-        |> Pipeline.required "id" Decode.int
+        |> Pipeline.required "id" Decode.string
         |> Pipeline.required "date" dateDecoder
         |> Pipeline.required "remarks" Decode.string
         |> Pipeline.required "duration" Decode.float
 
 
+classSessionEncoder : ClassSession -> Encode.Value
+classSessionEncoder session =
+    Encode.object
+        [ ( "id", Encode.string session.id )
+        , ( "date", Encode.string (Date.toIsoString session.date) )
+        , ( "remarks", Encode.string session.remarks )
+        , ( "duration", Encode.float session.duration )
+        ]
+
+
+type alias SessionId =
+    String
+
+
 type alias ClassSession =
-    { id : Int
+    { id : SessionId
     , date : Date.Date
     , remarks : String
     , duration : Float

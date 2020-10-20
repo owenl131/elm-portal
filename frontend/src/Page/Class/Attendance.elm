@@ -30,7 +30,7 @@ type alias Model =
     { key : Navigation.Key
     , credentials : Api.Credentials
     , classId : Class.ClassId
-    , sessionId : Int
+    , sessionId : Class.SessionId
     , classData : WebData Class.Class
     , sessionData : WebData Class.ClassSession
     , tutors : WebData (List Class.ClassTutor)
@@ -64,7 +64,7 @@ fetchClassDetails model =
 fetchSessionDetails : Model -> Cmd Msg
 fetchSessionDetails model =
     Http.get
-        { url = Builder.crossOrigin Api.endpoint [ "class", model.classId, "session", String.fromInt model.sessionId ] []
+        { url = Builder.crossOrigin Api.endpoint [ "class", model.classId, "session", model.sessionId ] []
         , expect = Http.expectJson GotSessionData Class.classSessionDecoder
         }
 
@@ -72,7 +72,7 @@ fetchSessionDetails model =
 fetchTutorsList : Model -> Cmd Msg
 fetchTutorsList model =
     Http.get
-        { url = Builder.crossOrigin Api.endpoint [ "class", model.classId, "session", String.fromInt model.sessionId, "tutors" ] []
+        { url = Builder.crossOrigin Api.endpoint [ "class", model.classId, "session", model.sessionId, "tutors" ] []
         , expect = Http.expectJson GotTutorsList (Decode.list Class.classTutorDecoder)
         }
 
@@ -80,24 +80,24 @@ fetchTutorsList model =
 fetchPresentList : Model -> Cmd Msg
 fetchPresentList model =
     Http.get
-        { url = Builder.crossOrigin Api.endpoint [ "class", model.classId, "session", String.fromInt model.sessionId, "attendance" ] []
+        { url = Builder.crossOrigin Api.endpoint [ "class", model.classId, "session", model.sessionId, "attendance" ] []
         , expect = Http.expectJson GotPresentList (Decode.list Decode.string)
         }
 
 
-postMarkPresent : Class.ClassId -> Int -> String -> Cmd Msg
+postMarkPresent : Class.ClassId -> Class.SessionId -> String -> Cmd Msg
 postMarkPresent classId sessionId tutorId =
     Http.post
-        { url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", String.fromInt sessionId, "present" ] []
+        { url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", sessionId, "present" ] []
         , body = Http.stringBody "text/plain" tutorId
         , expect = Http.expectWhatever GotMarkedResult
         }
 
 
-postMarkAbsent : Class.ClassId -> Int -> String -> Cmd Msg
+postMarkAbsent : Class.ClassId -> Class.SessionId -> String -> Cmd Msg
 postMarkAbsent classId sessionId tutorId =
     Http.post
-        { url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", String.fromInt sessionId, "absent" ] []
+        { url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", sessionId, "absent" ] []
         , body = Http.stringBody "text/plain" tutorId
         , expect = Http.expectWhatever GotMarkedResult
         }
@@ -113,8 +113,8 @@ getNestedNavigation model =
       )
     , ( RemoteData.toMaybe model.sessionData
             |> Maybe.map (.date >> Date.toIsoString)
-            |> Maybe.withDefault ("Session ID: " ++ String.fromInt model.sessionId)
-      , Builder.absolute [ "class", model.classId, "session", String.fromInt model.sessionId ] []
+            |> Maybe.withDefault ("Session ID: " ++ model.sessionId)
+      , Builder.absolute [ "class", model.classId, "session", model.sessionId ] []
       )
     ]
 
@@ -126,10 +126,10 @@ getPageTitle _ =
 
 getPageLink : Model -> String
 getPageLink model =
-    Builder.absolute [ "class", model.classId, "session", String.fromInt model.sessionId ] []
+    Builder.absolute [ "class", model.classId, "session", model.sessionId ] []
 
 
-init : Api.Credentials -> Navigation.Key -> Class.ClassId -> Int -> ( Model, Cmd Msg )
+init : Api.Credentials -> Navigation.Key -> Class.ClassId -> Class.SessionId -> ( Model, Cmd Msg )
 init credentials key classId sessionId =
     let
         model =

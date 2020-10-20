@@ -128,7 +128,6 @@ view model =
          ]
             ++ List.map Element.text
                 [ "Home - Use this for short term dev goals"
-                , "Update tutor fields"
                 , "Tutor extended fields, view fields by selection across tutors"
                 , "Extended fields : languages spoken, days available, subjects keen, career goal, date of graduation, school type, remarks"
                 , "Update class fields"

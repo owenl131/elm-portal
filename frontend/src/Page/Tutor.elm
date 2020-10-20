@@ -31,7 +31,7 @@ import Utils
 type alias Model =
     { key : Navigation.Key
     , credentials : Api.Credentials
-    , id : String
+    , id : Tutor.TutorId
     , tutorData : WebData Tutor
     , classData : WebData (List Class)
     }

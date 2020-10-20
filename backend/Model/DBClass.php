@@ -69,6 +69,18 @@ class DBClass
         );
     }
 
+    static function addSession($id, $data)
+    {
+        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $collection = $db->selectCollection('classes');
+        $data['_id'] = new \MongoDB\BSON\ObjectId();
+        $result = $collection->updateOne(
+            array('_id' => new \MongoDB\BSON\ObjectId($id)),
+            array('$push' => array('sessions' => $data))
+        );
+        return (string) $data['_id'];
+    }
+
     static function addTutor($id, $tutorId, $joinDate)
     {
         if (!DBTutor::isValidTutor($tutorId)) {

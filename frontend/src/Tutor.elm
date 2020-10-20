@@ -2,6 +2,7 @@ module Tutor exposing
     ( AdminLevel(..)
     , Gender(..)
     , Tutor
+    , TutorId
     , TutorStatus(..)
     , adminLevelAsString
     , emptyTutor
@@ -196,8 +197,12 @@ type AdminLevel
     | LvlTutor
 
 
+type alias TutorId =
+    String
+
+
 type alias Tutor =
-    { id : String
+    { id : TutorId
     , name : String
     , email : String
     , school : String
