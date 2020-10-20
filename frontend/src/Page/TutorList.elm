@@ -25,6 +25,7 @@ import Json.Decode as Decode
 import List.Extra
 import Maybe.Extra
 import RemoteData exposing (WebData)
+import Styles
 import Task
 import Tutor
     exposing
@@ -575,19 +576,6 @@ viewFilterSingle action label =
 viewFilters : TutorFiltersForm -> TutorFilters -> Element Msg
 viewFilters form filters =
     let
-        textFieldStyles =
-            [ Element.padding 4
-            , Element.width <| Element.px 200
-            ]
-
-        dateFieldStyles =
-            [ Element.padding 4
-            , Element.width <| Element.px 100
-            ]
-
-        textLabelStyles =
-            [ Element.width <| Element.px 100 ]
-
         crossButtonStyle =
             [ Border.roundEach { topLeft = 0, bottomLeft = 0, bottomRight = 3, topRight = 3 }
             , Element.paddingXY 5 4
@@ -605,7 +593,7 @@ viewFilters form filters =
                 [ Element.spacing 5 ]
                 [ DatePicker.input
                     (Element.inFront (Input.button (crossButtonStyle ++ [ Element.centerY, Element.alignRight ]) { onPress = Just (DateCleared JoinLower), label = Element.text "x" })
-                        :: dateFieldStyles
+                        :: Styles.dateFieldStyle
                     )
                     { onChange = ChangePicker JoinLower
                     , selected = filters.joinDateLower
@@ -631,7 +619,7 @@ viewFilters form filters =
                     ]
                 , DatePicker.input
                     (Element.inFront (Input.button (crossButtonStyle ++ [ Element.centerY, Element.alignRight ]) { onPress = Just (DateCleared JoinUpper), label = Element.text "x" })
-                        :: dateFieldStyles
+                        :: Styles.dateFieldStyle
                     )
                     { onChange = ChangePicker JoinUpper
                     , selected = filters.joinDateUpper
@@ -646,7 +634,7 @@ viewFilters form filters =
                 [ Element.spacing 5 ]
                 [ DatePicker.input
                     (Element.inFront (Input.button (crossButtonStyle ++ [ Element.centerY, Element.alignRight ]) { onPress = Just (DateCleared DobLower), label = Element.text "x" })
-                        :: dateFieldStyles
+                        :: Styles.dateFieldStyle
                     )
                     { onChange = ChangePicker DobLower
                     , selected = filters.dobLower
@@ -672,7 +660,7 @@ viewFilters form filters =
                     ]
                 , DatePicker.input
                     (Element.inFront (Input.button (crossButtonStyle ++ [ Element.centerY, Element.alignRight ]) { onPress = Just (DateCleared DobUpper), label = Element.text "x" })
-                        :: dateFieldStyles
+                        :: Styles.dateFieldStyle
                     )
                     { onChange = ChangePicker DobUpper
                     , selected = filters.dobUpper
@@ -684,15 +672,15 @@ viewFilters form filters =
                     }
                 ]
             , Element.row [ Element.spacing 4 ]
-                [ Element.paragraph textLabelStyles [ Element.text "Filter Status" ]
+                [ Element.paragraph Styles.textLabelStyle [ Element.text "Filter Status" ]
                 , viewToggleFilter [ ( Tutor.Active, "Active" ), ( Tutor.Inactive, "Inactive" ), ( Tutor.New, "New" ) ] ToggleStatus filters.statuses
                 ]
             , Element.row [ Element.spacing 4 ]
-                [ Element.paragraph textLabelStyles [ Element.text "Filter Gender" ]
+                [ Element.paragraph Styles.textLabelStyle [ Element.text "Filter Gender" ]
                 , viewToggleFilter [ ( Tutor.Male, "M" ), ( Tutor.Female, "F" ) ] ToggleGender filters.genders
                 ]
             , Element.row [ Element.spacing 4 ]
-                [ Element.paragraph textLabelStyles [ Element.text "Filter Role" ]
+                [ Element.paragraph Styles.textLabelStyle [ Element.text "Filter Role" ]
                 , viewToggleFilter [ ( Tutor.LvlAdmin, "Admin" ), ( Tutor.LvlTutor, "Tutor" ) ] ToggleAdminLvl filters.admins
                 ]
             , Element.el [ Element.width <| Element.px 10 ] Element.none
@@ -705,8 +693,8 @@ viewFilters form filters =
             [ Element.row
                 [ Element.spacing 4 ]
                 ([ Input.text
-                    textFieldStyles
-                    { label = Input.labelLeft textLabelStyles (Element.text "Filter Name")
+                    Styles.textFieldStyle
+                    { label = Input.labelLeft Styles.textLabelStyle (Element.text "Filter Name")
                     , onChange = EnteredNameFilter
                     , placeholder = Nothing
                     , text = form.nameFilter
@@ -718,8 +706,8 @@ viewFilters form filters =
             , Element.row
                 [ Element.spacing 4 ]
                 ([ Input.text
-                    textFieldStyles
-                    { label = Input.labelLeft textLabelStyles (Element.text "Filter School")
+                    Styles.textFieldStyle
+                    { label = Input.labelLeft Styles.textLabelStyle (Element.text "Filter School")
                     , onChange = EnteredSchoolFilter
                     , placeholder = Nothing
                     , text = form.schoolFilter
@@ -731,8 +719,8 @@ viewFilters form filters =
             , Element.row
                 [ Element.spacing 4 ]
                 ([ Input.text
-                    textFieldStyles
-                    { label = Input.labelLeft textLabelStyles (Element.text "Filter Classes")
+                    Styles.textFieldStyle
+                    { label = Input.labelLeft Styles.textLabelStyle (Element.text "Filter Classes")
                     , onChange = EnteredClassFilter
                     , placeholder = Nothing
                     , text = form.classFilter

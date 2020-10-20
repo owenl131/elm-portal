@@ -17,7 +17,29 @@ import Json.Decode as Decode
 import Page.Tutor
 import RemoteData exposing (WebData)
 import Styles
+import Task
 import Url.Builder as Builder
+
+
+type alias NewSessionForm =
+    { datePicker : DatePicker.Model
+    , datePickerText : String
+    , date : Maybe Date.Date
+    , remarks : String
+    , duration : Float
+    , display : Bool
+    }
+
+
+emptyForm : NewSessionForm
+emptyForm =
+    { datePicker = DatePicker.init
+    , datePickerText = ""
+    , date = Nothing
+    , remarks = ""
+    , duration = 3
+    , display = False
+    }
 
 
 type alias Model =
@@ -27,6 +49,7 @@ type alias Model =
     , data : WebData Class
     , sessions : WebData (List ClassSession)
     , tutors : WebData (List ClassTutor)
+    , form : NewSessionForm
     }
 
 
@@ -34,10 +57,14 @@ type Msg
     = GotClassData (Result Http.Error Class)
     | GotSessionsData (Result Http.Error (List ClassSession))
     | GotTutorsData (Result Http.Error (List ClassTutor))
+    | GotToday Date.Date
     | NavigateToTutor String
     | NavigateToAddTutors
     | NavigateToTakeAttendance Int
     | DisplayAddSession
+    | FormPickerChanged DatePicker.ChangeEvent
+    | RemarksEntered String
+    | DurationEntered Float
 
 
 getPageTitle : Model -> String
@@ -99,6 +126,7 @@ init id credentials key =
             , data = RemoteData.Loading
             , sessions = RemoteData.Loading
             , tutors = RemoteData.Loading
+            , form = emptyForm
             }
     in
     ( model
@@ -106,21 +134,42 @@ init id credentials key =
         [ fetchClassData model.credentials model.id
         , fetchSessionsData model.credentials model.id
         , fetchTutorData model.credentials model.id
+        , Task.perform GotToday Date.today
         ]
     )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        newForm =
+            model.form
+    in
     case msg of
         GotClassData result ->
-            ( { model | data = RemoteData.fromResult result }, Cmd.none )
+            ( { model
+                | data = RemoteData.fromResult result
+                , form = { newForm | duration = Result.toMaybe result |> Maybe.map .duration |> Maybe.withDefault 3.0 }
+              }
+            , Cmd.none
+            )
 
         GotSessionsData result ->
             ( { model | sessions = RemoteData.fromResult result }, Cmd.none )
 
         GotTutorsData result ->
             ( { model | tutors = RemoteData.fromResult result }, Cmd.none )
+
+        GotToday today ->
+            ( { model
+                | form =
+                    { newForm
+                        | date = Just today
+                        , datePicker = newForm.datePicker |> DatePicker.setToday today
+                    }
+              }
+            , Cmd.none
+            )
 
         NavigateToTutor id ->
             ( model, Navigation.pushUrl model.key (Page.Tutor.getPageLink id) )
@@ -132,7 +181,54 @@ update msg model =
             ( model, Navigation.pushUrl model.key (getPageLink model.id ++ "/session/" ++ String.fromInt sessionId) )
 
         DisplayAddSession ->
-            ( model, Cmd.none )
+            ( { model | form = { newForm | display = not newForm.display } }, Cmd.none )
+
+        RemarksEntered remark ->
+            ( { model | form = { newForm | remarks = remark } }, Cmd.none )
+
+        DurationEntered duration ->
+            ( { model | form = { newForm | duration = duration } }, Cmd.none )
+
+        FormPickerChanged change ->
+            case change of
+                DatePicker.TextChanged text ->
+                    case Date.fromIsoString text of
+                        Ok date ->
+                            ( { model
+                                | form =
+                                    { newForm
+                                        | date = Just date
+                                        , datePickerText = text
+                                        , datePicker = newForm.datePicker |> DatePicker.setVisibleMonth date
+                                    }
+                              }
+                            , Cmd.none
+                            )
+
+                        Err _ ->
+                            ( { model | form = { newForm | datePickerText = text } }, Cmd.none )
+
+                DatePicker.PickerChanged event ->
+                    ( { model
+                        | form =
+                            { newForm
+                                | datePicker = newForm.datePicker |> DatePicker.update event
+                            }
+                      }
+                    , Cmd.none
+                    )
+
+                DatePicker.DateChanged date ->
+                    ( { model
+                        | form =
+                            { newForm
+                                | date = Just date
+                                , datePickerText = Date.toIsoString date
+                                , datePicker = newForm.datePicker |> DatePicker.setVisibleMonth date
+                            }
+                      }
+                    , Cmd.none
+                    )
 
 
 viewRow : String -> Class -> (Class -> String) -> Element Msg
@@ -152,15 +248,98 @@ viewDetails class =
         , Element.width Element.fill
         , Background.color Colors.theme.p50
         ]
-        [ viewRow "Name" class .name
+        [ Element.row [ Element.spacing 20 ]
+            [ Element.text "Class Details" |> Element.el [ Font.size 16, Font.bold ]
+            , Input.button
+                Styles.buttonStyleCozy
+                { onPress = Nothing, label = Element.text "Edit" |> Element.el [ Element.centerX ] }
+            ]
+        , Element.el [ Element.height (Element.px 5) ] Element.none
+        , viewRow "Name" class .name
         , viewRow "Year" class (.year >> String.fromInt)
         , viewRow "Timeslot" class .timeslot
         , viewRow "Duration" class (.duration >> String.fromFloat)
         ]
 
 
-viewSessions : List ClassSession -> Element Msg
-viewSessions sessions =
+viewNewSessionForm : NewSessionForm -> Element Msg
+viewNewSessionForm form =
+    if form.display then
+        Element.column
+            [ Element.spacing 5
+            , Element.paddingXY 30 20
+            , Border.width 1
+            , Border.rounded 3
+            ]
+            [ Element.text "Create New Session" |> Element.el [ Font.bold ]
+            , Element.el [ Element.height (Element.px 5) ] Element.none
+            , DatePicker.input Styles.dateFieldStyle
+                { label = Element.text "Date" |> Input.labelLeft Styles.textLabelStyle
+                , model = form.datePicker
+                , onChange = FormPickerChanged
+                , placeholder = Nothing
+                , selected = form.date
+                , settings = DatePicker.defaultSettings
+                , text = form.datePickerText
+                }
+            , Element.row
+                [ Element.spacing 5
+                ]
+                [ Element.text "Remark" |> Element.el Styles.textLabelStyle
+                , Input.text
+                    Styles.textFieldStyle
+                    { onChange = RemarksEntered
+                    , text = form.remarks
+                    , placeholder = Element.text "Enter or choose from below" |> Input.placeholder [] |> Just
+                    , label = Input.labelHidden "Remarks"
+                    }
+                ]
+            , Element.row
+                [ Element.spacing 5 ]
+                [ Element.el Styles.textLabelStyle Element.none
+                , Input.button Styles.buttonStyleCozy
+                    { onPress = Just (RemarksEntered "Class"), label = Element.text "Class" }
+                , Input.button Styles.buttonStyleCozy
+                    { onPress = Just (RemarksEntered "Public Holiday"), label = Element.text "Public Holiday" }
+                , Input.button Styles.buttonStyleCozy
+                    { onPress = Just (RemarksEntered "Cancelled (Enter reason)"), label = Element.text "Cancelled" }
+                ]
+            , Element.row [ Element.spacing 20, Element.width Element.fill ]
+                [ Input.slider
+                    [ Element.width Element.fill
+                    , Element.centerY
+                    , Element.behindContent
+                        (Element.el
+                            [ Element.width Element.fill
+                            , Element.height (Element.px 2)
+                            , Element.centerY
+                            , Background.color Colors.grey
+                            , Border.rounded 2
+                            ]
+                            Element.none
+                        )
+                    ]
+                    { onChange = DurationEntered
+                    , label = Element.text "Duration" |> Input.labelLeft Styles.textLabelStyle
+                    , min = 0
+                    , max = 10
+                    , value = form.duration
+                    , thumb = Input.defaultThumb
+                    , step = Just 0.5
+                    }
+                , Element.text (String.fromFloat form.duration) |> Element.el [ Element.width (Element.px 25) ]
+                , Element.text "Hours" |> Element.el [ Element.alignRight ]
+                ]
+            , Element.el [ Element.height (Element.px 5) ] Element.none
+            , Input.button (Element.alignRight :: Styles.buttonStyleComfy) { onPress = Nothing, label = Element.text "Submit" |> Element.el [ Element.centerX ] }
+            ]
+
+    else
+        Element.none
+
+
+viewSessions : NewSessionForm -> List ClassSession -> Element Msg
+viewSessions form sessions =
     let
         toHeader : String -> Element Msg
         toHeader text =
@@ -175,14 +354,20 @@ viewSessions sessions =
         , Element.width Element.fill
         , Background.color Colors.theme.p50
         ]
-        [ Input.button
-            [ Background.color Colors.theme.a400
-            , Border.width 1
-            , Border.rounded 3
-            , Element.paddingXY 10 4
-            , Element.mouseOver [ Background.color Colors.theme.a200 ]
+        [ Element.row [ Element.spacing 20, Element.width Element.fill ]
+            [ Element.text "Sessions" |> Element.el [ Font.size 16, Font.bold ]
+            , Input.button
+                Styles.buttonStyleCozy
+                { onPress = Just DisplayAddSession
+                , label =
+                    if form.display then
+                        Element.text "Hide ▲" |> Element.el [ Element.width Element.shrink ]
+
+                    else
+                        Element.text "Add New Session ▼" |> Element.el [ Element.width Element.shrink ]
+                }
             ]
-            { onPress = Just DisplayAddSession, label = Element.text "Add New Session" }
+        , viewNewSessionForm form
         , Element.table
             [ Element.spacing 5
             , Element.width Element.fill
@@ -229,9 +414,12 @@ viewTutors tutors =
         , Element.width Element.fill
         , Background.color Colors.theme.p50
         ]
-        [ Input.button
-            Styles.buttonStyleComfy
-            { onPress = Just NavigateToAddTutors, label = Element.text "Add New Tutor" }
+        [ Element.row [ Element.spacing 20, Element.width Element.fill ]
+            [ Element.text "Tutors" |> Element.el [ Font.size 16, Font.bold ]
+            , Input.button
+                Styles.buttonStyleCozy
+                { onPress = Just NavigateToAddTutors, label = Element.text "Add New Tutor" }
+            ]
         , let
             toHeader : String -> Element Msg
             toHeader text =
@@ -294,7 +482,7 @@ view model =
                 Element.text (Api.errorToString err)
         , case model.sessions of
             RemoteData.Success sessions ->
-                viewSessions sessions
+                viewSessions model.form sessions
 
             RemoteData.Loading ->
                 Element.text "Loading"

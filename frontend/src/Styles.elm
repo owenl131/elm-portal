@@ -37,3 +37,22 @@ buttonStyleWide =
     , Border.rounded 3
     , Element.paddingXY 20 10
     ]
+
+
+dateFieldStyle : List (Element.Attribute msg)
+dateFieldStyle =
+    [ Element.padding 4
+    , Element.width (Element.px 100)
+    ]
+
+
+textFieldStyle : List (Element.Attribute msg)
+textFieldStyle =
+    [ Element.padding 4
+    , Element.width (Element.px 200)
+    ]
+
+
+textLabelStyle : List (Element.Attribute msg)
+textLabelStyle =
+    [ Element.width (Element.px 100), Element.centerY ]
