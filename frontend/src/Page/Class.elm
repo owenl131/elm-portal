@@ -18,6 +18,7 @@ import Page.Tutor
 import RemoteData exposing (WebData)
 import Styles
 import Task
+import Tutor
 import Url.Builder as Builder
 
 
@@ -64,6 +65,7 @@ type Msg
     | NavigateToTutor String
     | NavigateToAddTutors
     | NavigateToTakeAttendance String
+    | NavigateToEdit
     | DisplayAddSession
     | FormPickerChanged DatePicker.ChangeEvent
     | RemarksEntered String
@@ -197,6 +199,9 @@ update msg model =
         NavigateToTakeAttendance sessionId ->
             ( model, Navigation.pushUrl model.key (getPageLink model.id ++ "/session/" ++ sessionId) )
 
+        NavigateToEdit ->
+            ( model, Navigation.pushUrl model.key (Builder.absolute [ "class", model.id, "edit" ] []) )
+
         DisplayAddSession ->
             ( { model | form = { newForm | display = not newForm.display } }, Cmd.none )
 
@@ -288,7 +293,7 @@ viewDetails class =
             [ Element.text "Class Details" |> Element.el [ Font.size 16, Font.bold ]
             , Input.button
                 Styles.buttonStyleCozy
-                { onPress = Nothing, label = Element.text "Edit" |> Element.el [ Element.centerX ] }
+                { onPress = Just NavigateToEdit, label = Element.text "Edit" |> Element.el [ Element.centerX ] }
             ]
         , Element.el [ Element.height (Element.px 5) ] Element.none
         , viewRow "Name" class .name
@@ -478,6 +483,10 @@ viewTutors tutors =
                 [ { header = "Name" |> toHeader
                   , width = Element.fill |> Element.maximum 200
                   , view = .name >> Element.text
+                  }
+                , { header = "Name" |> toHeader
+                  , width = Element.fill |> Element.maximum 200
+                  , view = .admin >> Tutor.adminLevelAsString >> Element.text
                   }
                 , { header = "Join Class Date" |> toHeader
                   , width = Element.fill |> Element.maximum 140

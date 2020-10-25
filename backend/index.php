@@ -453,8 +453,17 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
 
         $subgroup->get('', function (Request $request, Response $response, $args) {
             // get session details
-            return $response;
+            $classId = $args['id'];
+            $sessionId = $args['sid'];
+            $session = DBClass::getSession($classId, $sessionId);
+            $session['id'] = (string) $session['_id'];
+            unset($session['_id']);
+            $session['date'] = $session['date']->toDateTime()->format('Y-m-d');
+            return $response->withJson($session, 200);
         })->add($authMiddleware);
+        $subgroup->options('', function (Request $request, Response $response, $args) {
+            return $response->withStatus(200);
+        });
 
         $subgroup->patch('', function (Request $request, Response $response, $args) {
             // update session details
@@ -463,18 +472,52 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
 
         $subgroup->get('/tutors', function (Request $request, Response $response, $args) {
             // get list of tutors in session
-            return $response;
+            $classId = $args['id'];
+            $sessionId = $args['sid'];
+            $tutors = DBClass::sessionTutors($classId, $sessionId);
+            $tutors = array_map(function ($elem) {
+                $elem['id'] = (string) $elem['id'];
+                $elem['joinDate'] = $elem['joinedOn']->toDateTime()->format('Y-m-d');
+                unset($elem['joinedOn']);
+                if (isset($elem['leftOn'])) {
+                    $elem['leaveDate'] = $elem['leftOn']->toDateTime()->format('Y-m-d');
+                    unset($elem['leftOn']);
+                }
+                return $elem;
+            }, $tutors);
+            return $response->withJson($tutors, 200);
         })->add($authMiddleware);
+        $subgroup->options('/tutors', function (Request $request, Response $response, $args) {
+            return $response->withStatus(200);
+        });
 
         $subgroup->get('/present', function (Request $request, Response $response, $args) {
             // get list of tutors present in session
-            return $response;
+            $classId = $args['id'];
+            $sessionId = $args['sid'];
+            $tutors = DBClass::tutorsPresent($classId, $sessionId);
+            $tutors = array_map(function ($elem) {
+                return (string) $elem;
+            }, $tutors);
+            return $response->withJson($tutors, 200);
         })->add($authMiddleware);
+        $subgroup->options('/present', function (Request $request, Response $response, $args) {
+            return $response->withStatus(200);
+        });
 
         $subgroup->get('/absent', function (Request $request, Response $response, $args) {
             // get list of tutors absent in session
-            return $response;
+            $classId = $args['id'];
+            $sessionId = $args['sid'];
+            $tutors = DBClass::tutorsAbsent($classId, $sessionId);
+            $tutors = array_map(function ($elem) {
+                return (string) $elem;
+            }, $tutors);
+            return $response->withJson($tutors, 200);
         })->add($authMiddleware);
+        $subgroup->options('/absent', function (Request $request, Response $response, $args) {
+            return $response->withStatus(200);
+        });
 
         $subgroup->put('/present/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
             // mark tutor as present

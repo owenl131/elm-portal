@@ -28,6 +28,14 @@ classes collection consists of
   timeslot: String
   duration: Float
   active: Boolean
+  tutors: 
+  [
+    {
+      _id: ObjectId
+      joinedOn: Date
+      leftOn: Date
+    }
+  ]
   sessions: 
   [
     {

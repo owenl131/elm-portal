@@ -36,7 +36,7 @@ import Validate
 type alias Model =
     { key : Navigation.Key
     , credentials : Api.Credentials
-    , id : Maybe String
+    , id : Maybe Tutor.TutorId
     , data : Tutor
     , formState : FormState
     , errorMessage : Maybe String

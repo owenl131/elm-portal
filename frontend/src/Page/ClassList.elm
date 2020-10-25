@@ -61,6 +61,7 @@ type Msg
     = PaginationChanged Paged.Msg
     | GotClassList (Result Http.Error (Paged.Paged (List Class)))
     | ToDetails String
+    | ToNewClass
     | EnteredNameFilter String
     | AddNameFilter
     | RemoveNameFilter String
@@ -132,6 +133,9 @@ update msg model =
 
         ToDetails id ->
             ( model, Navigation.pushUrl model.key (Builder.absolute [ "class", id ] []) )
+
+        ToNewClass ->
+            ( model, Navigation.pushUrl model.key (Builder.absolute [ "classes", "new" ] []) )
 
         EnteredNameFilter name ->
             ( { model | nameFilterForm = name }, Cmd.none )
@@ -408,7 +412,7 @@ viewActionBar =
         , Element.width Element.fill
         ]
         [ Input.button Styles.buttonStyleWide
-            { onPress = Nothing
+            { onPress = Just ToNewClass
             , label = Element.text "Add New" |> Element.el [ Element.centerX, Element.centerY ]
             }
         , Input.button Styles.buttonStyleWide

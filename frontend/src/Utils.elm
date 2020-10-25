@@ -6,6 +6,18 @@ import RemoteData exposing (WebData)
 import Time
 
 
+allDays : List Time.Weekday
+allDays =
+    [ Time.Mon
+    , Time.Tue
+    , Time.Wed
+    , Time.Thu
+    , Time.Fri
+    , Time.Sat
+    , Time.Sun
+    ]
+
+
 daysToString : Time.Weekday -> String
 daysToString day =
     case day of

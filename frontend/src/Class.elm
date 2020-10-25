@@ -10,13 +10,16 @@ module Class exposing
     , classSessionDecoder
     , classSessionEncoder
     , classTutorDecoder
+    , emptyClass
     )
 
+import Array exposing (empty)
 import Date
 import Json.Decode as Decode
 import Json.Decode.Pipeline as Pipeline
 import Json.Encode as Encode
 import Styles exposing (dateFieldStyle)
+import Time
 import Tutor
 
 
@@ -69,10 +72,22 @@ type alias Class =
     { id : ClassId
     , name : String
     , year : Int
-    , days : List Date.Weekday
+    , days : List Time.Weekday
     , timeslot : String
     , duration : Float
     , active : Bool
+    }
+
+
+emptyClass : Class
+emptyClass =
+    { id = ""
+    , name = ""
+    , year = 0
+    , days = []
+    , timeslot = ""
+    , duration = 3
+    , active = True
     }
 
 

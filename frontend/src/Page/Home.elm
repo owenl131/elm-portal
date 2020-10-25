@@ -43,10 +43,10 @@ fetchMyClasses credentials =
         { method = "GET"
         , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
         , body = Http.emptyBody
-        , url = Builder.crossOrigin Api.endpoint [ "my", "classes" ] []
-        , expect = Http.expectJson GotClassData (Decode.list Class.classDecoder)
         , timeout = Nothing
         , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "my", "classes" ] []
+        , expect = Http.expectJson GotClassData (Decode.list Class.classDecoder)
         }
 
 
@@ -127,11 +127,17 @@ view model =
          , Element.el [ Element.height (Element.px 50) ] Element.none
          ]
             ++ List.map Element.text
-                [ "Home - Use this for short term dev goals"
+                [ "Short term dev goals"
+                , "Implement attendance on backend"
+                , "Make table hoverable"
+                , "Make tables redirect on double click"
                 , "Tutor extended fields, view fields by selection across tutors"
                 , "Extended fields : languages spoken, days available, subjects keen, career goal, date of graduation, school type, remarks"
                 , "Update class fields"
-                , "Create class session"
+                , "Create class"
+                , "When creating session check for correct day, and check if same session already exists"
+                , "On class page display sessions on calendar"
+                , "On tutor page display sessions on calendar"
                 , "Implement CIP hours page"
                 , "Implement sort by which field"
                 , "Separate API out into its own file"

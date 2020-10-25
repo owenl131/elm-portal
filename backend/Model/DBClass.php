@@ -209,6 +209,121 @@ class DBClass
         return $sessionList;
     }
 
+    static function sessionTutors($id, $sessionId)
+    {
+        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $collection = $db->selectCollection('classes');
+        $sessionList = $collection->findOne(
+            array(
+                '_id' => new MongoDB\BSON\ObjectId($id),
+                'sessions._id' => new \MongoDB\BSON\ObjectId($sessionId)
+            ),
+            array('projections' => array(
+                'tutors' => 1,
+                'tutors.id' => 1,
+                'tutors.joinedOn' => 1,
+                'tutors.leftOn' => 1,
+                'sessions' => 1,
+                'sessions._id' => 1,
+                'sessions.date' => 1,
+                'sessions.present' => 1,
+            ))
+        );
+        if (is_null($sessionList) || !isset($sessionList['sessions']) || count($sessionList['sessions']) == 0) {
+            return array();
+        }
+        if (!isset($sessionList['tutors'])) {
+            return array();
+        }
+        $tutors = $sessionList['tutors'];
+        $sessionDate = $sessionList['sessions'][0]['date'];
+        $tutors = iterator_to_array($tutors);
+        $tutors = array_filter($tutors, function ($elem) use ($sessionDate) {
+            $joinedOn = $elem['joinedOn'];
+            $tutorFull = DBTutor::getTutor((string) $elem['id']);
+            $elem['name'] = $tutorFull['name'];
+            $elem['admin'] = $tutorFull['admin'];
+            if ($sessionDate < $joinedOn) {
+                return false;
+            }
+            if (isset($elem['leftOn'])) {
+                if ($sessionDate > $elem['leftOn']) {
+                    return false;
+                }
+            }
+            return true;
+        });
+        return $tutors;
+    }
+
+    static function tutorsAbsent($id, $sessionId)
+    {
+        $allTutors = DBClass::sessionTutors($id, $sessionId);
+        $allTutors = array_map(function ($elem) {
+            return $elem['id'];
+        }, $allTutors);
+        $present = DBClass::tutorsPresent($id, $sessionId);
+        $absent = array_filter($allTutors, function ($elem) use ($present) {
+            return !in_array($elem, $present);
+        });
+        return $absent;
+    }
+
+    static function tutorsPresent($id, $sessionId)
+    {
+        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $collection = $db->selectCollection('classes');
+        $sessionList = $collection->findOne(
+            array(
+                '_id' => new MongoDB\BSON\ObjectId($id),
+                'sessions._id' => new \MongoDB\BSON\ObjectId($sessionId)
+            ),
+            array('projections' => array(
+                'sessions' => 1,
+                'sessions._id' => 1,
+                'sessions.present' => 1,
+            ))
+        );
+        if (is_null($sessionList) || !isset($sessionList['sessions'])) {
+            return array();
+        }
+        $sessionList = iterator_to_array($sessionList['sessions']);
+        if (count($sessionList) != 1) {
+            return array();
+        }
+        $session = $sessionList[0];
+        if (!isset($session['present'])) {
+            return array();
+        }
+        $tutors = iterator_to_array($session['present']);
+        return $tutors;
+    }
+
+    static function getSession($id, $sessionId)
+    {
+        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $collection = $db->selectCollection('classes');
+        $sessionList = $collection->findOne(
+            array(
+                '_id' => new MongoDB\BSON\ObjectId($id),
+                'sessions._id' => new \MongoDB\BSON\ObjectId($sessionId)
+            ),
+            array('projections' => array(
+                'sessions' => 1,
+                'sessions._id' => 1,
+                'sessions.date' => 1,
+                'sessions.duration' => 1,
+                'sessions.remarks' => 1
+            ))
+        );
+        if (is_null($sessionList) || !isset($sessionList['sessions'])) {
+            return array();
+        }
+        $sessionList = iterator_to_array($sessionList['sessions']);
+        $session = $sessionList[0];
+        return $session;
+    }
+
     static function tutorSuggestions($id, $filter)
     {
         $tutorsToAvoid = DBClass::getTutorIds($id);

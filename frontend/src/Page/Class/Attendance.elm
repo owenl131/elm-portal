@@ -10,8 +10,9 @@ module Page.Class.Attendance exposing
     )
 
 import Api
+import Base64
 import Browser.Navigation as Navigation
-import Class exposing (ClassSession, ClassTutor)
+import Class exposing (ClassId, ClassSession, ClassTutor)
 import Colors
 import Date
 import Element exposing (Element)
@@ -53,34 +54,54 @@ type Msg
 -- | RemoveExternalTutor String
 
 
-fetchClassDetails : Model -> Cmd Msg
-fetchClassDetails model =
-    Http.get
-        { url = Builder.crossOrigin Api.endpoint [ "class", model.classId ] []
+fetchClassDetails : Api.Credentials -> Class.ClassId -> Cmd Msg
+fetchClassDetails credentials classId =
+    Http.request
+        { method = "GET"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId ] []
         , expect = Http.expectJson GotClassData Class.classDecoder
         }
 
 
-fetchSessionDetails : Model -> Cmd Msg
-fetchSessionDetails model =
-    Http.get
-        { url = Builder.crossOrigin Api.endpoint [ "class", model.classId, "session", model.sessionId ] []
+fetchSessionDetails : Api.Credentials -> Class.ClassId -> Class.SessionId -> Cmd Msg
+fetchSessionDetails credentials classId sessionId =
+    Http.request
+        { method = "GET"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", sessionId ] []
         , expect = Http.expectJson GotSessionData Class.classSessionDecoder
         }
 
 
-fetchTutorsList : Model -> Cmd Msg
-fetchTutorsList model =
-    Http.get
-        { url = Builder.crossOrigin Api.endpoint [ "class", model.classId, "session", model.sessionId, "tutors" ] []
+fetchTutorsList : Api.Credentials -> Class.ClassId -> Class.SessionId -> Cmd Msg
+fetchTutorsList credentials classId sessionId =
+    Http.request
+        { method = "GET"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", sessionId, "tutors" ] []
         , expect = Http.expectJson GotTutorsList (Decode.list Class.classTutorDecoder)
         }
 
 
-fetchPresentList : Model -> Cmd Msg
-fetchPresentList model =
-    Http.get
-        { url = Builder.crossOrigin Api.endpoint [ "class", model.classId, "session", model.sessionId, "attendance" ] []
+fetchPresentList : Api.Credentials -> Class.ClassId -> Class.SessionId -> Cmd Msg
+fetchPresentList credentials classId sessionId =
+    Http.request
+        { method = "GET"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", sessionId, "present" ] []
         , expect = Http.expectJson GotPresentList (Decode.list Decode.string)
         }
 
@@ -145,10 +166,10 @@ init credentials key classId sessionId =
     in
     ( model
     , Cmd.batch
-        [ fetchPresentList model
-        , fetchTutorsList model
-        , fetchSessionDetails model
-        , fetchClassDetails model
+        [ fetchPresentList model.credentials model.classId model.sessionId
+        , fetchTutorsList model.credentials model.classId model.sessionId
+        , fetchSessionDetails model.credentials model.classId model.sessionId
+        , fetchClassDetails model.credentials model.classId
         ]
     )
 
@@ -173,7 +194,7 @@ update msg model =
             ( { model | classData = RemoteData.fromResult result }, Cmd.none )
 
         GotMarkedResult _ ->
-            ( model, fetchPresentList model )
+            ( model, fetchPresentList model.credentials model.classId model.sessionId )
 
         MarkPresent tutorId ->
             case model.present of
