@@ -317,7 +317,7 @@ viewToggleActive isActive =
             Element.rgb 0 255 0
 
         inactiveWhite =
-            Element.rgb 255 255 255
+            Colors.white
 
         backgroundColor : Bool -> Element.Color
         backgroundColor active =
@@ -371,7 +371,7 @@ viewToggleDays all selectedDays =
             Element.rgb 0 255 0
 
         inactiveWhite =
-            Element.rgb 255 255 255
+            Colors.white
 
         backgroundColor : Bool -> Element.Color
         backgroundColor active =

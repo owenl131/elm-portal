@@ -467,7 +467,7 @@ viewRowChoice label options msg choice =
             Element.rgb 0 255 0
 
         inactiveWhite =
-            Element.rgb 255 255 255
+            Colors.white
 
         backgroundColor : Bool -> Element.Color
         backgroundColor active =

@@ -62,7 +62,7 @@ clear =
 
 white : Color
 white =
-    Element.rgb255 200 200 200
+    Element.rgb255 255 255 255
 
 
 black : Color

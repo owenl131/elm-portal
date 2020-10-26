@@ -129,12 +129,11 @@ view model =
             ++ List.map Element.text
                 [ "Short term dev goals"
                 , "Implement attendance on backend"
-                , "Make table hoverable"
-                , "Make tables redirect on double click"
                 , "Tutor extended fields, view fields by selection across tutors"
                 , "Extended fields : languages spoken, days available, subjects keen, career goal, date of graduation, school type, remarks"
                 , "Update class fields"
                 , "Create class"
+                , "Create are you sure modals"
                 , "When creating session check for correct day, and check if same session already exists"
                 , "On class page display sessions on calendar"
                 , "On tutor page display sessions on calendar"

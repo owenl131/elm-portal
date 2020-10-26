@@ -10,6 +10,7 @@ import Date
 import Element exposing (Element)
 import Element.Background as Background
 import Element.Border as Border
+import Element.Events
 import Element.Font as Font
 import Element.Input as Input
 import Http
@@ -53,6 +54,7 @@ type alias Model =
     , page : Int
     , filters : ClassFilters
     , nameFilterForm : String
+    , hoveredIndex : Int
     , data : WebData (Paged.Paged (List Class))
     }
 
@@ -67,6 +69,7 @@ type Msg
     | RemoveNameFilter String
     | EnteredYearLowerFilter Int
     | EnteredYearUpperFilter Int
+    | TableHover Int
     | ToggleDay Date.Weekday
 
 
@@ -77,6 +80,7 @@ init credentials key filters page =
       , page = page
       , filters = filters
       , nameFilterForm = ""
+      , hoveredIndex = -1
       , data = RemoteData.Loading
       }
     , Http.request
@@ -168,6 +172,9 @@ update msg model =
             in
             ( newModel, pushUrl newModel )
 
+        TableHover index ->
+            ( { model | hoveredIndex = index }, Cmd.none )
+
         ToggleDay day ->
             let
                 newModel =
@@ -206,7 +213,7 @@ viewToggleFilter all toggle selected =
             Element.rgb 0 255 0
 
         inactiveWhite =
-            Element.rgb 255 255 255
+            Colors.white
 
         backgroundColor : Bool -> Bool -> Element.Color
         backgroundColor disabled active =
@@ -338,8 +345,8 @@ viewClassFilters nameFilter filters =
         ]
 
 
-viewData : WebData (Paged.Paged (List Class)) -> Element Msg
-viewData data =
+viewData : Int -> WebData (Paged.Paged (List Class)) -> Element Msg
+viewData hovered data =
     case data of
         RemoteData.NotAsked ->
             Element.text "Not asked"
@@ -357,27 +364,52 @@ viewData data =
 
                 toHeader : String -> Element Msg
                 toHeader text =
-                    text |> Element.text |> Element.el [ Font.bold, Element.paddingEach { top = 0, bottom = 5, left = 0, right = 3 } ]
+                    text |> Element.text |> Element.el [ Font.bold, Element.paddingEach { top = 0, bottom = 8, left = 5, right = 5 } ]
+
+                cell : (Class -> Element Msg) -> Int -> Class -> Element Msg
+                cell toElem index e =
+                    Element.el
+                        ([ Element.centerY
+                         , Element.Events.onMouseEnter (TableHover index)
+                         , Element.Events.onMouseLeave (TableHover -1)
+                         , Element.Events.onDoubleClick (ToDetails e.id)
+                         , Element.height Element.fill
+                         , Element.padding 4
+                         ]
+                            ++ (if index == hovered then
+                                    [ Background.color Colors.theme.p100 ]
+
+                                else
+                                    []
+                               )
+                        )
+                        (toElem e |> Element.el [ Element.centerY ])
             in
-            Element.table
-                [ Element.padding 20, Element.spacing 5 ]
+            Element.indexedTable
+                [ Element.padding 20 ]
                 { columns =
                     [ { header = "Name" |> toHeader
                       , width = Element.fill |> Element.maximum 200
-                      , view = .name >> Element.text >> Element.el [ Element.centerY ]
+                      , view = .name >> Element.text |> cell
                       }
                     , { header = "Days" |> toHeader
                       , width = Element.fill |> Element.maximum 150
-                      , view = .days >> List.map Utils.daysToString >> List.intersperse ", " >> String.concat >> Element.text >> Element.el [ Element.centerY ]
+                      , view =
+                            .days
+                                >> List.map Utils.daysToString
+                                >> List.intersperse ", "
+                                >> String.concat
+                                >> Element.text
+                                |> cell
                       }
                     , { header = "Year" |> toHeader
                       , width = Element.fill |> Element.maximum 80
-                      , view = .year >> String.fromInt >> Element.text >> Element.el [ Element.centerY ]
+                      , view = .year >> String.fromInt >> Element.text |> cell
                       }
                     , { header = "Details" |> toHeader
                       , width = Element.fill |> Element.maximum 60
                       , view =
-                            \class ->
+                            (\class ->
                                 Input.button
                                     [ Background.color Colors.theme.a400
                                     , Border.width 1
@@ -388,6 +420,8 @@ viewData data =
                                     { label = Element.text "More" |> Element.el [ Element.centerX ]
                                     , onPress = Just (ToDetails class.id)
                                     }
+                            )
+                                |> cell
                       }
                     ]
                 , data = classList
@@ -435,6 +469,6 @@ view model =
         [ viewActionBar
         , viewClassFilters model.nameFilterForm model.filters
         , blankIfAbsent Paged.viewPagination model.data |> Element.map PaginationChanged
-        , viewData model.data
+        , viewData model.hoveredIndex model.data
         , blankIfAbsent Paged.viewPagination model.data |> Element.map PaginationChanged
         ]

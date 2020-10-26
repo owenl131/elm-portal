@@ -1,4 +1,4 @@
-module Page.Class exposing (Model, Msg, getPageLink, getPageTitle, init, update, view)
+module Page.Class exposing (Model, Msg, getPageLink, getPageTitle, init, update, view, viewSessions)
 
 import Api
 import Base64
@@ -12,6 +12,7 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
+import Html.Attributes
 import Http
 import Json.Decode as Decode
 import Page.Tutor
@@ -20,6 +21,7 @@ import Styles
 import Task
 import Tutor
 import Url.Builder as Builder
+import Utils
 
 
 type alias NewSessionForm =
@@ -52,6 +54,7 @@ type alias Model =
     , data : WebData Class
     , sessions : WebData (List ClassSession)
     , tutors : WebData (List ClassTutor)
+    , today : Maybe Date.Date
     , form : NewSessionForm
     }
 
@@ -145,6 +148,7 @@ init id credentials key =
             , data = RemoteData.Loading
             , sessions = RemoteData.Loading
             , tutors = RemoteData.Loading
+            , today = Nothing
             , form = emptyForm
             }
     in
@@ -186,6 +190,7 @@ update msg model =
                         | date = Just today
                         , datePicker = newForm.datePicker |> DatePicker.setToday today
                     }
+                , today = Just today
               }
             , Cmd.none
             )
@@ -311,6 +316,7 @@ viewNewSessionForm form =
             , Element.paddingXY 30 20
             , Border.width 1
             , Border.rounded 3
+            , Background.color (Element.rgb255 255 255 255)
             ]
             [ Element.text "Create New Session" |> Element.el [ Font.bold ]
             , Element.el [ Element.height (Element.px 5) ] Element.none
@@ -388,8 +394,128 @@ viewNewSessionForm form =
         Element.none
 
 
-viewSessions : NewSessionForm -> List ClassSession -> Element Msg
-viewSessions form sessions =
+viewCalendarWeek : Date.Date -> Date.Date -> List ClassSession -> Element Msg
+viewCalendarWeek today weekStart sessions =
+    let
+        year =
+            Date.year weekStart
+
+        weekNo =
+            Date.weekNumber weekStart
+    in
+    Utils.allDays
+        |> List.map
+            (\day ->
+                let
+                    date =
+                        Date.fromWeekDate year weekNo day
+
+                    text =
+                        (date
+                            |> Date.day
+                            |> String.fromInt
+                        )
+                            ++ (if Date.day date == 1 then
+                                    " " ++ Date.format "MMM" date
+
+                                else
+                                    ""
+                               )
+
+                    sessionsOnDate =
+                        List.filter (.date >> (==) date) sessions
+                in
+                text
+                    |> Element.text
+                    |> Element.el
+                        []
+                    |> Element.el
+                        ((if date == today then
+                            [ Element.behindContent
+                                (Element.el
+                                    [ Element.width Element.fill
+                                    , Element.height Element.fill
+                                    , Border.rounded 10
+                                    , Border.width 1
+                                    ]
+                                    Element.none
+                                )
+                            ]
+
+                          else
+                            []
+                         )
+                            |> List.append
+                                (if List.isEmpty sessionsOnDate then
+                                    []
+
+                                 else
+                                    [ Element.behindContent
+                                        (Input.button
+                                            [ Background.color Colors.theme.p700
+                                            , Element.width Element.fill
+                                            , Element.height Element.fill
+                                            , Border.rounded 10
+                                            ]
+                                            { label = Element.text ""
+                                            , onPress = Nothing
+                                            }
+                                        )
+                                    , Font.color Colors.white
+                                    ]
+                                )
+                            |> List.append
+                                [ if (date |> Date.monthNumber |> Basics.modBy 2) == 0 then
+                                    Background.color Colors.theme.p200
+
+                                  else
+                                    Background.color Colors.theme.p50
+                                , Element.width (Element.fill |> Element.minimum 40)
+                                , Element.paddingEach { top = 5, bottom = 5, left = 8, right = 0 }
+                                , Element.htmlAttribute (Html.Attributes.title (Date.format "dd MMMM YYYY" date))
+                                ]
+                        )
+            )
+        |> Element.column
+            [ Element.paddingXY 0 10 ]
+
+
+viewSessionsCalendar : Date.Date -> List ClassSession -> Element Msg
+viewSessionsCalendar today sessions =
+    (Element.column [ Element.paddingXY 0 10 ]
+        (Utils.allDays
+            |> List.map
+                (Utils.daysToString
+                    >> Element.text
+                    >> Element.el
+                        [ Element.paddingEach
+                            { top = 5
+                            , bottom = 5
+                            , left = 0
+                            , right = 10
+                            }
+                        ]
+                )
+        )
+        :: (List.range
+                0
+                20
+                |> List.reverse
+                |> List.map
+                    (\before ->
+                        viewCalendarWeek
+                            today
+                            (Date.toRataDie today - 7 * before |> Date.fromRataDie)
+                            sessions
+                    )
+           )
+    )
+        |> Element.wrappedRow
+            []
+
+
+viewSessions : Maybe Date.Date -> NewSessionForm -> List ClassSession -> Element Msg
+viewSessions maybeToday form sessions =
     let
         toHeader : String -> Element Msg
         toHeader text =
@@ -453,6 +579,12 @@ viewSessions form sessions =
                   }
                 ]
             }
+        , case maybeToday of
+            Nothing ->
+                Element.none
+
+            Just today ->
+                viewSessionsCalendar today sessions
         ]
 
 
@@ -536,7 +668,7 @@ view model =
                 Element.text (Api.errorToString err)
         , case model.sessions of
             RemoteData.Success sessions ->
-                viewSessions model.form sessions
+                viewSessions model.today model.form sessions
 
             RemoteData.Loading ->
                 Element.text "Loading"

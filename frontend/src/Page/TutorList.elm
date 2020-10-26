@@ -522,7 +522,7 @@ viewToggleFilter all toggle selected =
             Element.rgb 0 255 0
 
         inactiveWhite =
-            Element.rgb 255 255 255
+            Colors.white
 
         backgroundColor : Bool -> Bool -> Element.Color
         backgroundColor disabled active =
@@ -759,11 +759,12 @@ viewData hovered data =
 
                 toHeader : String -> Element Msg
                 toHeader text =
-                    text |> Element.text |> Element.el [ Font.bold, Element.paddingEach { top = 0, bottom = 5, left = 0, right = 3 } ]
-
-                toTextElem : String -> Element Msg
-                toTextElem text =
-                    Element.text text |> Element.el [ Element.centerY ]
+                    text
+                        |> Element.text
+                        |> Element.el
+                            [ Font.bold
+                            , Element.paddingEach { top = 0, bottom = 8, left = 5, right = 5 }
+                            ]
 
                 cell : (Tutor -> Element Msg) -> Int -> Tutor -> Element Msg
                 cell toElem index e =
