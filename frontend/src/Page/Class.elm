@@ -450,18 +450,20 @@ viewCalendarWeek today weekStart sessions =
                                     []
 
                                  else
-                                    [ Element.behindContent
+                                    [ Element.inFront
                                         (Input.button
                                             [ Background.color Colors.theme.p700
                                             , Element.width Element.fill
                                             , Element.height Element.fill
                                             , Border.rounded 10
+                                            , Element.paddingEach { top = 5, bottom = 5, left = 8, right = 0 }
                                             ]
-                                            { label = Element.text ""
+                                            { label = Element.text text
                                             , onPress = Nothing
                                             }
                                         )
                                     , Font.color Colors.white
+                                    , Font.bold
                                     ]
                                 )
                             |> List.append
@@ -494,6 +496,7 @@ viewSessionsCalendar today sessions =
                             , left = 0
                             , right = 10
                             }
+                        , Font.bold
                         ]
                 )
         )
