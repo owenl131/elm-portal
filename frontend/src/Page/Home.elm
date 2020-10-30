@@ -6,14 +6,17 @@ import Browser.Navigation as Navigation
 import Class exposing (Class)
 import Colors
 import Date
+import Dict exposing (Dict)
 import Element exposing (Element)
 import Element.Background as Background
 import Element.Border as Border
+import Element.Events
 import Element.Font as Font
 import Element.Input as Input
 import Http
 import Json.Decode as Decode
 import RemoteData exposing (WebData)
+import Set exposing (Set)
 import Styles
 import Task
 import Tutor exposing (Tutor)
@@ -28,6 +31,7 @@ type alias Model =
     , myData : WebData Tutor
     , classesToday : WebData (List Class)
     , myClasses : WebData (List Class)
+    , hovered : Set Class.ClassId
     }
 
 
@@ -35,6 +39,8 @@ type Msg
     = GotClassData (Result Http.Error (List Class))
     | SetToday Date.Date
     | ToClass Class.ClassId
+    | StartHover Class.ClassId
+    | StopHover Class.ClassId
 
 
 fetchMyClasses : Api.Credentials -> Cmd Msg
@@ -58,6 +64,7 @@ init credentials key =
       , today = Nothing
       , myClasses = RemoteData.Loading
       , myData = RemoteData.NotAsked
+      , hovered = Set.empty
       }
     , Cmd.batch [ fetchMyClasses credentials, Task.perform SetToday Date.today ]
     )
@@ -72,17 +79,31 @@ update msg model =
         SetToday today ->
             ( { model | today = Just today }, Cmd.none )
 
+        StartHover id ->
+            ( { model | hovered = Set.insert id model.hovered }, Cmd.none )
+
+        StopHover id ->
+            ( { model | hovered = Set.remove id model.hovered }, Cmd.none )
+
         ToClass classId ->
             ( model, Navigation.pushUrl model.key (Builder.absolute [ "class", classId ] []) )
 
 
-viewMyClassesSingle : Maybe Date.Date -> Class -> Element Msg
-viewMyClassesSingle today class =
+viewMyClassesSingle : Set Class.ClassId -> Maybe Date.Date -> Class -> Element Msg
+viewMyClassesSingle hovered today class =
+    let
+        isHovered =
+            Set.member class.id hovered
+    in
     Element.el
         [ Element.padding 25
         , Border.color Colors.theme.p400
         , Border.width 1
         , Border.rounded 10
+        , Background.color (Utils.ifElse Colors.theme.p100 Colors.clear isHovered)
+        , Element.Events.onClick (ToClass class.id)
+        , Element.Events.onMouseEnter (StartHover class.id)
+        , Element.Events.onMouseLeave (StopHover class.id)
         ]
         (Element.column
             [ Element.spacing 10 ]
@@ -112,18 +133,18 @@ viewMyClassesSingle today class =
         )
 
 
-viewMyClasses : Maybe Date.Date -> List Class -> Element Msg
-viewMyClasses today classes =
+viewMyClasses : Set Class.ClassId -> Maybe Date.Date -> List Class -> Element Msg
+viewMyClasses hovered today classes =
     Element.wrappedRow
         [ Element.spacing 20, Element.padding 20 ]
-        (List.map (viewMyClassesSingle today) classes)
+        (List.map (viewMyClassesSingle hovered today) classes)
 
 
 view : Model -> Element Msg
 view model =
     Element.column
         [ Element.spacing 5 ]
-        ([ Utils.viewWebData (viewMyClasses model.today) model.myClasses
+        ([ Utils.viewWebData (viewMyClasses model.hovered model.today) model.myClasses
          , Element.el [ Element.height (Element.px 50) ] Element.none
          ]
             ++ List.map Element.text
