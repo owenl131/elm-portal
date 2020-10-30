@@ -519,15 +519,35 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
             return $response->withStatus(200);
         });
 
-        $subgroup->put('/present/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
+        $subgroup->post('/present/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
             // mark tutor as present
-            return $response;
+            $classId = $args['id'];
+            $sessionId = $args['sid'];
+            $tutorId = $args['tid'];
+            $result = DBClass::markPresent($classId, $sessionId, $tutorId);
+            if (!$result) {
+                return $response->withStatus(400);
+            }
+            return $response->withStatus(200);
         })->add($authMiddleware)->add($leaderAboveMiddleware);
+        $subgroup->options('/present/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
+            return $response->withStatus(200);
+        });
 
-        $subgroup->put('/absent/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
+        $subgroup->post('/absent/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
             // mark tutor as absent
-            return $response;
+            $classId = $args['id'];
+            $sessionId = $args['sid'];
+            $tutorId = $args['tid'];
+            $result = DBClass::markAbsent($classId, $sessionId, $tutorId);
+            if (!$result) {
+                return $response->withStatus(400);
+            }
+            return $response->withStatus(200);
         })->add($authMiddleware)->add($leaderAboveMiddleware);
+        $subgroup->options('/absent/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
+            return $response->withStatus(200);
+        });
 
         $subgroup->put('/addexternal/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
             // add a tutor that is not under this class to this session

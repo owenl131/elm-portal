@@ -275,19 +275,21 @@ class DBClass
         $collection = $db->selectCollection('classes');
         $sessionList = $collection->findOne(
             array(
-                '_id' => new MongoDB\BSON\ObjectId($id),
-                'sessions._id' => new \MongoDB\BSON\ObjectId($sessionId)
+                '_id' => new MongoDB\BSON\ObjectId($id)
             ),
             array('projections' => array(
-                'sessions' => 1,
-                'sessions._id' => 1,
-                'sessions.present' => 1,
+                'sessions' => array('$elemMatch' => array('_id' => array('$eq' => new \MongoDB\BSON\ObjectId($sessionId)))),
+                'tutors' => 0
             ))
         );
+        // seems to be a bug in the PHP mongodb driver that the $elemMatch projection does not filter the output array
         if (is_null($sessionList) || !isset($sessionList['sessions'])) {
             return array();
         }
         $sessionList = iterator_to_array($sessionList['sessions']);
+        $sessionList = array_filter($sessionList, function ($elem) use ($sessionId) {
+            return $elem['_id'] == new \MongoDB\BSON\ObjectId($sessionId);
+        });
         if (count($sessionList) != 1) {
             return array();
         }
@@ -297,6 +299,62 @@ class DBClass
         }
         $tutors = iterator_to_array($session['present']);
         return $tutors;
+    }
+
+    static function markPresent($id, $sessionId, $tutorId)
+    {
+        if (!DBTutor::isValidTutor($tutorId)) {
+            return false;
+        }
+        if (!DBClass::isTutorInClass($id, $tutorId)) {
+            return false;
+        }
+        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $collection = $db->selectCollection('classes');
+        $collection->updateOne(
+            array(
+                '_id' => new \MongoDB\BSON\ObjectId($id),
+                'sessions._id' => new \MongoDB\BSON\ObjectId($sessionId),
+                'sessions.present' => array('$exists' => false)
+            ),
+            array('$set' => array('sessions.$.present' => array()))
+        );
+        $collection->updateOne(
+            array(
+                '_id' => new \MongoDB\BSON\ObjectId($id),
+                'sessions._id' => new \MongoDB\BSON\ObjectId($sessionId)
+            ),
+            array('$addToSet' => array('sessions.$.present' => new \MongoDB\BSON\ObjectId($tutorId)))
+        );
+        return true;
+    }
+
+    static function markAbsent($id, $sessionId, $tutorId)
+    {
+        if (!DBTutor::isValidTutor($tutorId)) {
+            return false;
+        }
+        if (!DBClass::isTutorInClass($id, $tutorId)) {
+            return false;
+        }
+        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $collection = $db->selectCollection('classes');
+        $collection->updateOne(
+            array(
+                '_id' => new \MongoDB\BSON\ObjectId($id),
+                'sessions._id' => new \MongoDB\BSON\ObjectId($sessionId),
+                'sessions.present' => array('$exists' => false)
+            ),
+            array('$set' => array('sessions.$.present' => array()))
+        );
+        $collection->updateOne(
+            array(
+                '_id' => new \MongoDB\BSON\ObjectId($id),
+                'sessions._id' => new \MongoDB\BSON\ObjectId($sessionId)
+            ),
+            array('$pull' => array('sessions.$.present' => new \MongoDB\BSON\ObjectId($tutorId)))
+        );
+        return true;
     }
 
     static function getSession($id, $sessionId)

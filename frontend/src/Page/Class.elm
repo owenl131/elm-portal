@@ -304,6 +304,7 @@ viewDetails class =
         , viewRow "Name" class .name
         , viewRow "Year" class (.year >> String.fromInt)
         , viewRow "Timeslot" class .timeslot
+        , viewRow "Days" class (.days >> List.map Utils.daysToString >> String.join ", ")
         , viewRow "Duration" class (.duration >> String.fromFloat)
         ]
 

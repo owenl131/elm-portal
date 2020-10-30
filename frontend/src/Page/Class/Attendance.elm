@@ -24,6 +24,7 @@ import Http
 import Json.Decode as Decode
 import RemoteData exposing (WebData)
 import String
+import Tutor
 import Url.Builder as Builder
 
 
@@ -106,20 +107,28 @@ fetchPresentList credentials classId sessionId =
         }
 
 
-postMarkPresent : Class.ClassId -> Class.SessionId -> String -> Cmd Msg
-postMarkPresent classId sessionId tutorId =
-    Http.post
-        { url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", sessionId, "present" ] []
-        , body = Http.stringBody "text/plain" tutorId
+postMarkPresent : Api.Credentials -> Class.ClassId -> Class.SessionId -> Tutor.TutorId -> Cmd Msg
+postMarkPresent credentials classId sessionId tutorId =
+    Http.request
+        { method = "POST"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", sessionId, "present", tutorId ] []
         , expect = Http.expectWhatever GotMarkedResult
         }
 
 
-postMarkAbsent : Class.ClassId -> Class.SessionId -> String -> Cmd Msg
-postMarkAbsent classId sessionId tutorId =
-    Http.post
-        { url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", sessionId, "absent" ] []
-        , body = Http.stringBody "text/plain" tutorId
+postMarkAbsent : Api.Credentials -> Class.ClassId -> Class.SessionId -> Tutor.TutorId -> Cmd Msg
+postMarkAbsent credentials classId sessionId tutorId =
+    Http.request
+        { method = "POST"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", sessionId, "absent", tutorId ] []
         , expect = Http.expectWhatever GotMarkedResult
         }
 
@@ -203,7 +212,7 @@ update msg model =
                         ignore
 
                     else
-                        ( model, postMarkPresent model.classId model.sessionId tutorId )
+                        ( model, postMarkPresent model.credentials model.classId model.sessionId tutorId )
 
                 _ ->
                     ignore
@@ -215,7 +224,7 @@ update msg model =
                         ignore
 
                     else
-                        ( model, postMarkAbsent model.classId model.sessionId tutorId )
+                        ( model, postMarkAbsent model.credentials model.classId model.sessionId tutorId )
 
                 _ ->
                     ignore
