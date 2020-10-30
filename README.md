@@ -1,4 +1,4 @@
-# elm-portal
+# elm-portal [![Build Status](https://travis-ci.com/owenl131/elm-portal.svg?branch=master)](https://travis-ci.com/owenl131/elm-portal)
 
 ## Plan
 
