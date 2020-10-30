@@ -290,6 +290,7 @@ class DBClass
         $sessionList = array_filter($sessionList, function ($elem) use ($sessionId) {
             return $elem['_id'] == new \MongoDB\BSON\ObjectId($sessionId);
         });
+        $sessionList = array_values($sessionList);
         if (count($sessionList) != 1) {
             return array();
         }

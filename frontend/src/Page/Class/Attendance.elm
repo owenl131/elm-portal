@@ -18,12 +18,14 @@ import Date
 import Element exposing (Element)
 import Element.Background as Background
 import Element.Border as Border
+import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
 import Http
 import Json.Decode as Decode
 import RemoteData exposing (WebData)
 import String
+import Styles
 import Tutor
 import Url.Builder as Builder
 
@@ -37,6 +39,7 @@ type alias Model =
     , sessionData : WebData Class.ClassSession
     , tutors : WebData (List Class.ClassTutor)
     , present : WebData (List String)
+    , hoveredIndex : Int
     }
 
 
@@ -48,6 +51,7 @@ type Msg
     | GotMarkedResult (Result Http.Error ())
     | MarkPresent String
     | MarkAbsent String
+    | HoverChanged Int
 
 
 
@@ -171,6 +175,7 @@ init credentials key classId sessionId =
             , classData = RemoteData.Loading
             , present = RemoteData.Loading
             , tutors = RemoteData.Loading
+            , hoveredIndex = -1
             }
     in
     ( model
@@ -204,6 +209,9 @@ update msg model =
 
         GotMarkedResult _ ->
             ( model, fetchPresentList model.credentials model.classId model.sessionId )
+
+        HoverChanged value ->
+            ( { model | hoveredIndex = value }, Cmd.none )
 
         MarkPresent tutorId ->
             case model.present of
@@ -243,9 +251,13 @@ viewSessionInfo session =
         [ Element.width Element.fill
         , Background.color Colors.theme.p50
         , Element.padding 20
+        , Element.spacing 5
         ]
         [ Element.text
             (Date.toIsoString session.date)
+
+        -- should allow user to edit the duration and remarks
+        , Element.text (String.fromFloat session.duration ++ " hours")
         ]
 
 
@@ -263,21 +275,76 @@ viewSummary tutors present =
         ]
 
 
-viewAttendance : List ClassTutor -> List String -> Element Msg
-viewAttendance tutors present =
+viewAttendance : Int -> List ClassTutor -> List String -> Element Msg
+viewAttendance hoveredIndex tutors present =
     let
         toHeader : String -> Element Msg
         toHeader text =
-            text |> Element.text |> Element.el [ Font.bold, Element.paddingEach { top = 0, bottom = 5, left = 0, right = 3 } ]
+            text
+                |> Element.text
+                |> Element.el [ Font.bold, Element.padding 4 ]
+                |> Element.el [ Element.paddingXY 0 10 ]
+
+        centeredHeader : String -> Element Msg
+        centeredHeader text =
+            text
+                |> Element.text
+                |> Element.el [ Element.centerX, Font.bold, Element.padding 4 ]
+                |> Element.el [ Element.width Element.fill, Element.paddingXY 0 10 ]
+
+        cell : (ClassTutor -> Element Msg) -> Int -> ClassTutor -> Element Msg
+        cell toElem index e =
+            Element.el
+                ([ Element.centerY
+                 , Events.onMouseEnter (HoverChanged index)
+                 , Events.onMouseLeave (HoverChanged -1)
+                 , Element.height Element.fill
+                 , Element.padding 4
+                 ]
+                    ++ (if index == hoveredIndex then
+                            [ Background.color Colors.theme.p100 ]
+
+                        else
+                            []
+                       )
+                )
+                (toElem e |> Element.el [ Element.centerY ])
+
+        presentButton : ClassTutor -> Element Msg
+        presentButton t =
+            Input.button
+                [ Background.color Colors.theme.a400
+                , Border.width 1
+                , Border.rounded 20
+                , Element.paddingXY 10 6
+                , Element.width (Element.shrink |> Element.minimum 100)
+                , Element.mouseOver [ Background.color Colors.theme.a700 ]
+                ]
+                { label = Element.text "+" |> Element.el [ Element.centerX ]
+                , onPress = Just (MarkPresent t.id)
+                }
+
+        absentButton : ClassTutor -> Element Msg
+        absentButton t =
+            Input.button
+                [ Background.color Colors.red
+                , Border.width 1
+                , Border.rounded 20
+                , Element.paddingXY 10 6
+                , Element.width (Element.shrink |> Element.minimum 100)
+                , Font.color Colors.white
+                ]
+                { label = Element.text "-" |> Element.el [ Element.centerX ]
+                , onPress = Just (MarkAbsent t.id)
+                }
     in
     Element.column
         [ Element.spacing 10
         , Element.width Element.fill
         ]
         [ viewSummary tutors present
-        , Element.table
-            [ Element.spacing 5
-            , Element.padding 20
+        , Element.indexedTable
+            [ Element.padding 20
             , Element.width Element.fill
             , Border.color Colors.theme.p50
             , Border.width 2
@@ -286,25 +353,27 @@ viewAttendance tutors present =
             , columns =
                 [ { header = "Name" |> toHeader
                   , width = Element.fill |> Element.maximum 100
-                  , view = .name >> Element.text
+                  , view = .name >> Element.text |> cell
                   }
                 , { header = Element.none
                   , width = Element.fill |> Element.maximum 80
                   , view =
-                        \t ->
+                        (\t ->
                             if List.member t.id present then
                                 Element.text "Present"
 
                             else
                                 Element.text "Absent"
+                        )
+                            |> cell
                   }
-                , { header = "Mark Present" |> toHeader
+                , { header = "Mark Present" |> centeredHeader
                   , width = Element.fill |> Element.maximum 100
-                  , view = \t -> Input.button [] { label = Element.text "+", onPress = Just (MarkPresent t.id) }
+                  , view = presentButton |> cell
                   }
-                , { header = "Mark Absent" |> toHeader
+                , { header = "Mark Absent" |> centeredHeader
                   , width = Element.fill |> Element.maximum 100
-                  , view = \t -> Input.button [] { label = Element.text "-", onPress = Just (MarkAbsent t.id) }
+                  , view = absentButton |> cell
                   }
                 ]
             }
@@ -331,7 +400,7 @@ view model =
                 Element.text (Debug.toString err)
         , case ( model.tutors, model.present ) of
             ( RemoteData.Success tutorList, RemoteData.Success presentList ) ->
-                viewAttendance tutorList presentList
+                viewAttendance model.hoveredIndex tutorList presentList
 
             ( RemoteData.Failure err, _ ) ->
                 Element.text ("Failed to get tutor data: " ++ Debug.toString err)

@@ -34,6 +34,7 @@ type alias Model =
     , id : Tutor.TutorId
     , tutorData : WebData Tutor
     , classData : WebData (List Class)
+    , hoveredClass : Int
     }
 
 
@@ -42,6 +43,7 @@ type Msg
     | GotClassData (Result Http.Error (List Class))
     | ToEditDetails
     | ToClassDetails Class.ClassId
+    | HoveredChangedClass Int
 
 
 getPageTitle : Model -> String
@@ -61,6 +63,7 @@ init credentials key id =
       , id = id
       , tutorData = RemoteData.Loading
       , classData = RemoteData.Loading
+      , hoveredClass = -1
       }
     , Cmd.batch [ fetchTutorData credentials id, fetchClassData credentials id ]
     )
@@ -127,12 +130,18 @@ viewDetails data =
         ]
 
 
-viewClasses : List Class.Class -> Element Msg
-viewClasses classes =
+viewClasses : Int -> List Class.Class -> Element Msg
+viewClasses hovered classes =
     let
         toHeader : String -> Element Msg
         toHeader text =
-            text |> Element.text |> Element.el [ Font.bold, Element.paddingEach { top = 0, bottom = 5, left = 0, right = 3 } ]
+            text
+                |> Element.text
+                |> Element.el [ Font.bold, Element.padding 4 ]
+                |> Element.el [ Element.paddingXY 0 4 ]
+
+        cell =
+            Utils.cell HoveredChangedClass (.id >> ToClassDetails) hovered
     in
     Element.column
         [ Background.color Colors.theme.p50
@@ -141,35 +150,44 @@ viewClasses classes =
         , Element.spacing 20
         ]
         [ Element.text "Classes" |> Element.el [ Font.size 16, Font.bold ]
-        , Element.table
-            [ Element.spacing 5 ]
+        , Element.indexedTable
+            []
             { columns =
                 [ { header = "Name" |> toHeader
                   , width = Element.fill |> Element.maximum 200
-                  , view = .name >> Element.text >> Element.el [ Element.centerY ]
+                  , view = .name >> Element.text >> Element.el [ Element.centerY ] |> cell
                   }
                 , { header = "Days" |> toHeader
                   , width = Element.fill |> Element.maximum 150
-                  , view = .days >> List.map Utils.daysToString >> List.intersperse ", " >> String.concat >> Element.text >> Element.el [ Element.centerY ]
+                  , view =
+                        .days
+                            >> List.map Utils.daysToString
+                            >> List.intersperse ", "
+                            >> String.concat
+                            >> Element.text
+                            >> Element.el [ Element.centerY ]
+                            |> cell
                   }
                 , { header = "Year" |> toHeader
                   , width = Element.fill |> Element.maximum 80
-                  , view = .year >> String.fromInt >> Element.text >> Element.el [ Element.centerY ]
+                  , view =
+                        .year
+                            >> String.fromInt
+                            >> Element.text
+                            >> Element.el [ Element.centerY ]
+                            |> cell
                   }
                 , { header = "Details" |> toHeader
                   , width = Element.fill |> Element.maximum 60
                   , view =
-                        \class ->
+                        (\class ->
                             Input.button
-                                [ Background.color Colors.theme.a400
-                                , Border.width 1
-                                , Border.rounded 3
-                                , Element.paddingXY 10 2
-                                , Element.mouseOver [ Background.color Colors.theme.a200 ]
-                                ]
+                                Styles.buttonStyleCozy
                                 { label = Element.text "More" |> Element.el [ Element.centerX ]
                                 , onPress = Just (ToClassDetails class.id)
                                 }
+                        )
+                            |> cell
                   }
                 ]
             , data = classes
@@ -215,7 +233,7 @@ view : Model -> Element Msg
 view model =
     Element.column [ Element.width Element.fill, Element.spacing 20 ]
         [ Utils.viewWebData viewDetails model.tutorData
-        , Utils.viewWebData viewClasses model.classData
+        , Utils.viewWebData (viewClasses model.hoveredClass) model.classData
         , viewRecentSessions []
         , viewOtherActivities []
         , viewHours []
@@ -230,6 +248,9 @@ update msg model =
 
         GotClassData result ->
             ( { model | classData = RemoteData.fromResult result }, Cmd.none )
+
+        HoveredChangedClass value ->
+            ( { model | hoveredClass = value }, Cmd.none )
 
         ToEditDetails ->
             ( model, Navigation.pushUrl model.key (Builder.absolute [ "tutor", model.id, "edit" ] []) )

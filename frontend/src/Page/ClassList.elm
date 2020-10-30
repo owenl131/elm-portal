@@ -346,18 +346,9 @@ viewClassFilters nameFilter filters =
 
 
 viewData : Int -> WebData (Paged.Paged (List Class)) -> Element Msg
-viewData hovered data =
-    case data of
-        RemoteData.NotAsked ->
-            Element.text "Not asked"
-
-        RemoteData.Loading ->
-            Element.text "Loading"
-
-        RemoteData.Failure error ->
-            Element.text (Api.errorToString error)
-
-        RemoteData.Success pagedData ->
+viewData hovered =
+    Utils.viewWebData
+        (\pagedData ->
             let
                 classList =
                     pagedData.data
@@ -367,23 +358,8 @@ viewData hovered data =
                     text |> Element.text |> Element.el [ Font.bold, Element.paddingEach { top = 0, bottom = 8, left = 5, right = 5 } ]
 
                 cell : (Class -> Element Msg) -> Int -> Class -> Element Msg
-                cell toElem index e =
-                    Element.el
-                        ([ Element.centerY
-                         , Element.Events.onMouseEnter (TableHover index)
-                         , Element.Events.onMouseLeave (TableHover -1)
-                         , Element.Events.onDoubleClick (ToDetails e.id)
-                         , Element.height Element.fill
-                         , Element.padding 4
-                         ]
-                            ++ (if index == hovered then
-                                    [ Background.color Colors.theme.p100 ]
-
-                                else
-                                    []
-                               )
-                        )
-                        (toElem e |> Element.el [ Element.centerY ])
+                cell =
+                    Utils.cell TableHover (.id >> ToDetails) hovered
             in
             Element.indexedTable
                 [ Element.padding 20 ]
@@ -411,12 +387,7 @@ viewData hovered data =
                       , view =
                             (\class ->
                                 Input.button
-                                    [ Background.color Colors.theme.a400
-                                    , Border.width 1
-                                    , Border.rounded 3
-                                    , Element.paddingXY 10 2
-                                    , Element.mouseOver [ Background.color Colors.theme.a200 ]
-                                    ]
+                                    Styles.buttonStyleCozy
                                     { label = Element.text "More" |> Element.el [ Element.centerX ]
                                     , onPress = Just (ToDetails class.id)
                                     }
@@ -426,6 +397,7 @@ viewData hovered data =
                     ]
                 , data = classList
                 }
+        )
 
 
 blankIfAbsent : (a -> Element msg) -> WebData a -> Element msg

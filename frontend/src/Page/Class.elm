@@ -56,6 +56,8 @@ type alias Model =
     , tutors : WebData (List ClassTutor)
     , today : Maybe Date.Date
     , form : NewSessionForm
+    , hoveredSession : Int
+    , hoveredTutor : Int
     }
 
 
@@ -74,6 +76,8 @@ type Msg
     | RemarksEntered String
     | DurationEntered Float
     | SubmitNewSession
+    | HoverChangedTutor Int
+    | HoverChangedSession Int
 
 
 getPageTitle : Model -> String
@@ -150,6 +154,8 @@ init id credentials key =
             , tutors = RemoteData.Loading
             , today = Nothing
             , form = emptyForm
+            , hoveredSession = -1
+            , hoveredTutor = -1
             }
     in
     ( model
@@ -215,6 +221,12 @@ update msg model =
 
         DurationEntered duration ->
             ( { model | form = { newForm | duration = duration } }, Cmd.none )
+
+        HoverChangedSession value ->
+            ( { model | hoveredSession = value }, Cmd.none )
+
+        HoverChangedTutor value ->
+            ( { model | hoveredTutor = value }, Cmd.none )
 
         SubmitNewSession ->
             case newForm.date of
@@ -518,15 +530,18 @@ viewSessionsCalendar today sessions =
             []
 
 
-viewSessions : Maybe Date.Date -> NewSessionForm -> List ClassSession -> Element Msg
-viewSessions maybeToday form sessions =
+viewSessions : Int -> Maybe Date.Date -> NewSessionForm -> List ClassSession -> Element Msg
+viewSessions hovered maybeToday form sessions =
     let
         toHeader : String -> Element Msg
         toHeader text =
             text
                 |> Element.text
-                |> Element.el
-                    [ Font.bold, Element.paddingEach { top = 0, bottom = 5, left = 0, right = 3 } ]
+                |> Element.el [ Font.bold, Element.padding 4 ]
+                |> Element.el [ Element.paddingXY 0 4 ]
+
+        cell =
+            Utils.cell HoverChangedSession (.id >> NavigateToTakeAttendance) hovered
     in
     Element.column
         [ Element.padding 20
@@ -548,28 +563,27 @@ viewSessions maybeToday form sessions =
                 }
             ]
         , viewNewSessionForm form
-        , Element.table
-            [ Element.spacing 5
-            , Element.width Element.fill
+        , Element.indexedTable
+            [ Element.width Element.fill
             ]
             { data = sessions
             , columns =
                 [ { header = "Date" |> toHeader
                   , width = Element.fill |> Element.maximum 100
-                  , view = .date >> Date.toIsoString >> Element.text
+                  , view = .date >> Date.toIsoString >> Element.text |> cell
                   }
                 , { header = "Duration" |> toHeader
                   , width = Element.fill |> Element.maximum 100
-                  , view = .duration >> String.fromFloat >> Element.text
+                  , view = .duration >> String.fromFloat >> Element.text |> cell
                   }
                 , { header = "Remarks" |> toHeader
                   , width = Element.fill |> Element.maximum 300
-                  , view = .remarks >> Element.text
+                  , view = .remarks >> Element.text |> cell
                   }
                 , { header = "Attendance" |> toHeader
                   , width = Element.fill |> Element.maximum 50
                   , view =
-                        \sess ->
+                        (\sess ->
                             Input.button
                                 [ Background.color Colors.theme.a400
                                 , Border.width 1
@@ -580,6 +594,8 @@ viewSessions maybeToday form sessions =
                                 { onPress = Just (NavigateToTakeAttendance sess.id)
                                 , label = Element.el [ Element.centerX ] (Element.text "Take")
                                 }
+                        )
+                            |> cell
                   }
                 ]
             }
@@ -592,8 +608,8 @@ viewSessions maybeToday form sessions =
         ]
 
 
-viewTutors : List ClassTutor -> Element Msg
-viewTutors tutors =
+viewTutors : Int -> List ClassTutor -> Element Msg
+viewTutors hovered tutors =
     Element.column
         [ Element.padding 20
         , Element.spacing 20
@@ -609,39 +625,41 @@ viewTutors tutors =
         , let
             toHeader : String -> Element Msg
             toHeader text =
-                text |> Element.text |> Element.el [ Font.bold, Element.paddingEach { top = 0, bottom = 5, left = 0, right = 3 } ]
+                text
+                    |> Element.text
+                    |> Element.el [ Font.bold, Element.padding 4 ]
+                    |> Element.el [ Element.paddingXY 0 4 ]
+
+            cell =
+                Utils.cell HoverChangedTutor (.id >> NavigateToTutor) hovered
           in
-          Element.table
-            [ Element.spacing 5
-            ]
+          Element.indexedTable
+            []
             { data = tutors
             , columns =
                 [ { header = "Name" |> toHeader
                   , width = Element.fill |> Element.maximum 200
-                  , view = .name >> Element.text
+                  , view = .name >> Element.text |> cell
                   }
                 , { header = "Name" |> toHeader
                   , width = Element.fill |> Element.maximum 200
-                  , view = .admin >> Tutor.adminLevelAsString >> Element.text
+                  , view = .admin >> Tutor.adminLevelAsString >> Element.text |> cell
                   }
                 , { header = "Join Class Date" |> toHeader
                   , width = Element.fill |> Element.maximum 140
-                  , view = .joinDate >> Date.toIsoString >> Element.text
+                  , view = .joinDate >> Date.toIsoString >> Element.text |> cell
                   }
                 , { header = "Details" |> toHeader
                   , width = Element.fill |> Element.maximum 60
                   , view =
-                        \t ->
+                        (\t ->
                             Input.button
-                                [ Background.color Colors.theme.a400
-                                , Border.width 1
-                                , Border.rounded 3
-                                , Element.paddingXY 10 2
-                                , Element.mouseOver [ Background.color Colors.theme.a200 ]
-                                ]
+                                Styles.buttonStyleCozy
                                 { onPress = Just (NavigateToTutor t.id)
                                 , label = Element.text "More" |> Element.el [ Element.centerX ]
                                 }
+                        )
+                            |> cell
                   }
                 ]
             }
@@ -672,7 +690,7 @@ view model =
                 Element.text (Api.errorToString err)
         , case model.sessions of
             RemoteData.Success sessions ->
-                viewSessions model.today model.form sessions
+                viewSessions model.hoveredSession model.today model.form sessions
 
             RemoteData.Loading ->
                 Element.text "Loading"
@@ -684,7 +702,7 @@ view model =
                 Element.text (Api.errorToString err)
         , case model.tutors of
             RemoteData.Success tutors ->
-                viewTutors tutors
+                viewTutors model.hoveredTutor tutors
 
             RemoteData.Loading ->
                 Element.text "Loading"
