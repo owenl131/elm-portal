@@ -4,7 +4,7 @@
 
 ~~v 0.0 - Implement basic functionality like searching, viewing, update for users, attaching users to classes, and taking attendance for classes.~~
 
-v 0.1 - Implement basic styling, implement extended fields and updating fields, implement home shortcuts, implement create new class, new tutor, display more details on tutor page, try implementing some graphs.
+v 0.1 - ~~Implement basic styling,~~ implement extended fields ~~and updating fields, implement home shortcuts,~~ implement create new class, ~~new tutor, display more details on tutor page,~~ try implementing some graphs.
 
 v 0.2 - Implement reports and visualizations.
 
