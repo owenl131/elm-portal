@@ -85,6 +85,9 @@ $app->get('/', function (Request $request, Response $response, $args) {
     $response->getBody()->write('Hello world!');
     return $response;
 });
+$app->options('/', function (Request $request, Response $response, $args) {
+    return $response->withStatus(200);
+});
 
 
 $app->post('/auth', function (Request $request, Response $response, $args) {
@@ -618,5 +621,5 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
 
 
 $errorMiddleware = $app->addErrorMiddleware(true, true, true);
-$app->setBasePath('/backend');
+// $app->setBasePath('/backend');
 $app->run();
