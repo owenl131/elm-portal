@@ -23,7 +23,7 @@ $app->add(function (Request $request, RequestHandler $handler) {
     $response = $handler->handle($request);
 
     $response = $response
-        ->withHeader('Access-Control-Allow-Origin', '*')
+        ->withHeader('Access-Control-Allow-Origin', 'http://localhost:8000')
         ->withHeader('Access-Control-Allow-Methods', implode(', ', $methods))
         ->withHeader('Access-Control-Allow-Headers', $requestHeaders ?: '*');
 
