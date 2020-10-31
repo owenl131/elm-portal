@@ -1,5 +1,8 @@
 <?php
 
+require __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/../config.php';
+
 class DBClass
 {
     static function processFilters(array $filters)
@@ -36,7 +39,7 @@ class DBClass
 
     static function getClassList(int $page, array $filters, int $perPage = 20)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('classes');
         $filterBy = DBClass::processFilters($filters);
         $numResults = $collection->countDocuments($filterBy);
@@ -62,7 +65,7 @@ class DBClass
 
     static function getClass($id)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('classes');
         return $collection->findOne(
             array('_id' => new MongoDB\BSON\ObjectId($id))
@@ -91,7 +94,7 @@ class DBClass
         }
         $details['sessions'] = [];
         $details['present'] = [];
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('classes');
         $result = $collection->insertOne($details);
         return (string) $result->getInsertedId();
@@ -99,7 +102,7 @@ class DBClass
 
     static function updateClassDetails($id, $data)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('classes');
         $update = array();
         if (isset($data['name']))
@@ -123,7 +126,7 @@ class DBClass
 
     static function deleteSession($id, $sessionId)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('classes');
         $result = $collection->updateOne(
             array('_id' => new \MongoDB\BSON\ObjectId($id)),
@@ -134,7 +137,7 @@ class DBClass
 
     static function addSession($id, $data)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('classes');
         $data['_id'] = new \MongoDB\BSON\ObjectId();
         $result = $collection->updateOne(
@@ -152,7 +155,7 @@ class DBClass
         if (DBClass::isTutorInClass($id, $tutorId)) {
             return false;
         }
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('classes');
         $collection->updateOne(
             array('_id' => new MongoDB\BSON\ObjectId($id)),
@@ -166,7 +169,7 @@ class DBClass
 
     static function getTutors($id)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('classes');
         $tutorList = $collection->findOne(
             array('_id' => new MongoDB\BSON\ObjectId($id)),
@@ -189,7 +192,7 @@ class DBClass
 
     static function getTutorIds($id)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('classes');
         $tutorList = $collection->findOne(
             array('_id' => new MongoDB\BSON\ObjectId($id)),
@@ -220,7 +223,7 @@ class DBClass
         if (!DBTutor::isValidTutor($tutorId)) {
             return false;
         }
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('classes');
         $collection->updateOne(
             array('_id' => new MongoDB\BSON\ObjectId($id)),
@@ -236,7 +239,7 @@ class DBClass
         if (!DBTutor::isValidTutor($tutorId)) {
             return false;
         }
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('classes');
         $collection->updateOne(
             array(
@@ -254,7 +257,7 @@ class DBClass
 
     static function getSessions($id)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('classes');
         $sessionList = $collection->findOne(
             array('_id' => new MongoDB\BSON\ObjectId($id)),
@@ -273,7 +276,7 @@ class DBClass
 
     static function sessionTutors($id, $sessionId)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('classes');
         $sessionList = $collection->findOne(
             array(
@@ -333,7 +336,7 @@ class DBClass
 
     static function tutorsPresent($id, $sessionId)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('classes');
         $sessionList = $collection->findOne(
             array(
@@ -372,7 +375,7 @@ class DBClass
         if (!DBClass::isTutorInClass($id, $tutorId)) {
             return false;
         }
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('classes');
         $collection->updateOne(
             array(
@@ -400,7 +403,7 @@ class DBClass
         if (!DBClass::isTutorInClass($id, $tutorId)) {
             return false;
         }
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('classes');
         $collection->updateOne(
             array(
@@ -422,7 +425,7 @@ class DBClass
 
     static function getSession($id, $sessionId)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('classes');
         $sessionList = $collection->findOne(
             array(
@@ -448,7 +451,7 @@ class DBClass
     static function tutorSuggestions($id, $filter)
     {
         $tutorsToAvoid = DBClass::getTutorIds($id);
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('tutors');
         $results = $collection->find(
             array(

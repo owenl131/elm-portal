@@ -500,7 +500,6 @@ viewCalendarDay today sessions date =
                             }
                         )
                     , Font.color Colors.white
-                    , Font.bold
                     ]
                     (List.isEmpty sessionsOnDate)
                 , -- Other attributes

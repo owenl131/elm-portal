@@ -1,13 +1,13 @@
 <?php
 
 require __DIR__ . '/../../vendor/autoload.php';
-require __DIR__ . '/../config.php';
+require_once __DIR__ . '/../config.php';
 
 class DBTutor
 {
     static function authenticateBySessionId(string $sessionId)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('tutors');
         $result = $collection->countDocuments(array(
             'sessionId' => new \MongoDB\BSON\ObjectId($sessionId),
@@ -26,7 +26,7 @@ class DBTutor
 
     static function authenticateByCredentials(string $email, string $password)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('tutors');
         if ($collection->countDocuments(array('email' => $email)) == 1) {
             $result = $collection->findOne(
@@ -62,7 +62,7 @@ class DBTutor
 
     static function isAdmin(string $sessionId)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('tutors');
         $result = $collection->countDocuments(array(
             'sessionId' => new \MongoDB\BSON\ObjectId($sessionId),
@@ -74,7 +74,7 @@ class DBTutor
 
     static function isLeaderAndAbove(string $sessionId)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('tutors');
         $result = $collection->countDocuments(array(
             'sessionId' => new \MongoDB\BSON\ObjectId($sessionId),
@@ -110,7 +110,7 @@ class DBTutor
         }
         $details['password'] = password_hash($details['password'], PASSWORD_DEFAULT);
 
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('tutors');
         $result = $collection->insertOne($details);
 
@@ -119,7 +119,7 @@ class DBTutor
 
     static function updateTutorDetails($id, $data)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('tutors');
         $update = array(
             'name' => $data['name'],
@@ -200,7 +200,7 @@ class DBTutor
 
     static function getTutor(string $id)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('tutors');
         return $collection->findOne(
             array('_id' => new MongoDB\BSON\ObjectId($id)),
@@ -212,14 +212,14 @@ class DBTutor
 
     static function isValidTutor($id)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('tutors');
         return $collection->countDocuments(array('_id' => new \MongoDB\BSON\ObjectId($id))) == 1;
     }
 
     static function getClasses(string $tutorId)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('classes');
         $results = $collection->find(
             array(
@@ -239,7 +239,7 @@ class DBTutor
 
     static function getTutorList(int $page, array $filters, int $perPage = 20)
     {
-        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $filterBy = DBTutor::processTutorFilters($filters);
         $collection = $db->selectCollection('tutors');
         $numResults = $collection->countDocuments($filterBy);

@@ -3,5 +3,3 @@
 /frontend/repl-temp-*
 # Composer
 /vendor/
-# Backend
-/backend/config.php
