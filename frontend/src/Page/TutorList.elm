@@ -886,6 +886,7 @@ view model =
         [ Element.width Element.fill
         , Element.height Element.fill
         , Element.spacing 10
+        , Element.padding 20
         ]
         [ viewActionBar
         , viewFilters model.filtersForm model.filters

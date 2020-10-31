@@ -513,7 +513,6 @@ viewWrapped model body =
             , Element.el
                 [ Element.width Element.fill
                 , Element.height Element.fill
-                , Element.padding 20
                 ]
                 body
             ]

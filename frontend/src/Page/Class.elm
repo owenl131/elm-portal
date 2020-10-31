@@ -3,13 +3,14 @@ module Page.Class exposing (Model, Msg, getPageLink, getPageTitle, init, update,
 import Api
 import Base64
 import Browser.Navigation as Navigation
-import Class exposing (Class, ClassId, ClassSession, ClassTutor)
+import Class exposing (Class, ClassId, ClassSession, ClassTutor, SessionId)
 import Colors
 import Date
 import DatePicker exposing (Model)
 import Element exposing (Element)
 import Element.Background as Background
 import Element.Border as Border
+import Element.Events
 import Element.Font as Font
 import Element.Input as Input
 import Html.Attributes
@@ -47,6 +48,13 @@ emptyForm =
     }
 
 
+type alias Modal =
+    { msg : Msg
+    , title : String
+    , description : String
+    }
+
+
 type alias Model =
     { key : Navigation.Key
     , credentials : Api.Credentials
@@ -58,6 +66,7 @@ type alias Model =
     , form : NewSessionForm
     , hoveredSession : Int
     , hoveredTutor : Int
+    , modal : Maybe Modal
     }
 
 
@@ -66,6 +75,7 @@ type Msg
     | GotSessionsData (Result Http.Error (List ClassSession))
     | GotTutorsData (Result Http.Error (List ClassTutor))
     | GotNewSession (Result Http.Error String)
+    | GotSessionDeleted (Result Http.Error ())
     | GotToday Date.Date
     | NavigateToTutor String
     | NavigateToAddTutors
@@ -76,8 +86,11 @@ type Msg
     | RemarksEntered String
     | DurationEntered Float
     | SubmitNewSession
+    | PostDeleteSession SessionId
     | HoverChangedTutor Int
     | HoverChangedSession Int
+    | ShowModal Msg String String
+    | ModalCancel
 
 
 getPageTitle : Model -> String
@@ -142,6 +155,19 @@ postNewSession credentials id session =
         }
 
 
+postDeleteSession : Api.Credentials -> ClassId -> SessionId -> Cmd Msg
+postDeleteSession credentials classId sessionId =
+    Http.request
+        { method = "DELETE"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", sessionId ] []
+        , expect = Http.expectWhatever GotSessionDeleted
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
 init : ClassId -> Api.Credentials -> Navigation.Key -> ( Model, Cmd Msg )
 init id credentials key =
     let
@@ -156,6 +182,7 @@ init id credentials key =
             , form = emptyForm
             , hoveredSession = -1
             , hoveredTutor = -1
+            , modal = Nothing
             }
     in
     ( model
@@ -184,7 +211,16 @@ update msg model =
             )
 
         GotSessionsData result ->
-            ( { model | sessions = RemoteData.fromResult result }, Cmd.none )
+            ( { model
+                | sessions =
+                    RemoteData.fromResult result
+                        |> RemoteData.map (List.sortBy (.date >> Date.toRataDie))
+              }
+            , Cmd.none
+            )
+
+        GotSessionDeleted result ->
+            ( model, fetchSessionsData model.credentials model.id )
 
         GotTutorsData result ->
             ( { model | tutors = RemoteData.fromResult result }, Cmd.none )
@@ -228,6 +264,9 @@ update msg model =
         HoverChangedTutor value ->
             ( { model | hoveredTutor = value }, Cmd.none )
 
+        PostDeleteSession sessionId ->
+            ( model, postDeleteSession model.credentials model.id sessionId )
+
         SubmitNewSession ->
             case newForm.date of
                 Nothing ->
@@ -245,7 +284,7 @@ update msg model =
                     )
 
         GotNewSession result ->
-            ( model, Cmd.none )
+            ( model, fetchSessionsData model.credentials model.id )
 
         FormPickerChanged change ->
             case change of
@@ -287,6 +326,12 @@ update msg model =
                       }
                     , Cmd.none
                     )
+
+        ShowModal modalMsg title description ->
+            ( { model | modal = Just { msg = modalMsg, title = title, description = description } }, Cmd.none )
+
+        ModalCancel ->
+            ( { model | modal = Nothing }, Cmd.none )
 
 
 viewRow : String -> Class -> (Class -> String) -> Element Msg
@@ -430,6 +475,7 @@ viewCalendarDay today sessions date =
                             , Element.height Element.fill
                             , Border.rounded 10
                             , Border.width 1
+                            , Border.color Colors.black
                             ]
                             Element.none
                         )
@@ -446,6 +492,8 @@ viewCalendarDay today sessions date =
                             , Element.height Element.fill
                             , Border.rounded 10
                             , Element.paddingEach { top = 5, bottom = 5, left = 8, right = 0 }
+                            , Border.width (Utils.ifElse 1 0 (date == today))
+                            , Border.color Colors.black
                             ]
                             { label = Element.text text
                             , onPress = Nothing
@@ -560,8 +608,8 @@ viewSessions hovered maybeToday form sessions =
             { data = sessions
             , columns =
                 [ { header = "Date" |> toHeader
-                  , width = Element.fill |> Element.maximum 100
-                  , view = .date >> Date.toIsoString >> Element.text |> cell
+                  , width = Element.fill |> Element.maximum 150
+                  , view = .date >> Date.format "EEE, d MMM y" >> Element.text |> cell
                   }
                 , { header = "Duration" |> toHeader
                   , width = Element.fill |> Element.maximum 100
@@ -572,18 +620,30 @@ viewSessions hovered maybeToday form sessions =
                   , view = .remarks >> Element.text |> cell
                   }
                 , { header = "Attendance" |> toHeader
-                  , width = Element.fill |> Element.maximum 50
+                  , width = Element.fill |> Element.maximum 80
                   , view =
                         (\sess ->
                             Input.button
-                                [ Background.color Colors.theme.a400
-                                , Border.width 1
-                                , Border.rounded 3
-                                , Element.paddingXY 10 2
-                                , Element.mouseOver [ Background.color Colors.theme.a200 ]
-                                ]
+                                Styles.buttonStyleCozy
                                 { onPress = Just (NavigateToTakeAttendance sess.id)
                                 , label = Element.el [ Element.centerX ] (Element.text "Take")
+                                }
+                        )
+                            |> cell
+                  }
+                , { header = "Delete" |> toHeader
+                  , width = Element.fill |> Element.maximum 80
+                  , view =
+                        (\sess ->
+                            Input.button
+                                [ Background.color Colors.red
+                                , Font.color Colors.white
+                                , Border.width 1
+                                , Border.rounded 3
+                                , Element.paddingXY 10 4
+                                ]
+                                { onPress = Just (ShowModal (PostDeleteSession sess.id) "Delete Session?" "This cannot be undone")
+                                , label = Element.text "Delete" |> Element.el [ Element.centerX ]
                                 }
                         )
                             |> cell
@@ -657,12 +717,59 @@ viewTutors hovered tutors =
         ]
 
 
+viewModal : Modal -> Element Msg
+viewModal modal =
+    Element.el
+        [ Element.width Element.fill
+        , Element.height Element.fill
+        , Background.color (Element.rgba255 0 0 0 0.2)
+        , Element.Events.onClick ModalCancel
+        ]
+        (Element.column
+            [ Background.color Colors.white
+            , Element.spacing 10
+            , Element.padding 20
+            , Element.centerX
+            , Element.centerY
+            , Border.shadow { offset = ( 1, 1 ), size = 2, blur = 5, color = Colors.black }
+            ]
+            [ Element.text modal.title |> Element.el [ Font.bold ]
+            , Element.text modal.description
+                |> Element.el
+                    [ Element.width (Element.fill |> Element.maximum 200)
+                    ]
+            , Element.row [ Element.spacing 5 ]
+                [ Input.button
+                    [ Element.paddingXY 20 5
+                    , Border.width 1
+                    , Border.rounded 5
+                    ]
+                    { label = Element.text "Cancel"
+                    , onPress = Just ModalCancel
+                    }
+                , Input.button
+                    [ Element.paddingXY 20 5
+                    , Border.width 1
+                    , Background.color Colors.red
+                    , Font.color Colors.white
+                    , Border.rounded 5
+                    ]
+                    { label = Element.text "Proceed"
+                    , onPress = Just modal.msg
+                    }
+                ]
+            ]
+        )
+
+
 view : Model -> Element Msg
 view model =
     Element.column
         [ Element.spacing 10
         , Element.height Element.fill
         , Element.width Element.fill
+        , Element.padding 20
+        , Element.inFront (model.modal |> Maybe.map viewModal |> Maybe.withDefault Element.none)
         ]
         [ Utils.viewWebData viewDetails model.data
         , Utils.viewWebData (viewSessions model.hoveredSession model.today model.form) model.sessions

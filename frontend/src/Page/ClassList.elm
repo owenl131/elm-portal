@@ -437,6 +437,7 @@ view model =
     Element.column
         [ Element.width Element.fill
         , Element.spacing 10
+        , Element.padding 20
         ]
         [ viewActionBar
         , viewClassFilters model.nameFilterForm model.filters

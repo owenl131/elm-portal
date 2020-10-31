@@ -121,6 +121,17 @@ class DBClass
         return true;
     }
 
+    static function deleteSession($id, $sessionId)
+    {
+        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $collection = $db->selectCollection('classes');
+        $result = $collection->updateOne(
+            array('_id' => new \MongoDB\BSON\ObjectId($id)),
+            array('$pull' => array('sessions' => array('_id' => new \MongoDB\BSON\ObjectId($sessionId))))
+        );
+        return true;
+    }
+
     static function addSession($id, $data)
     {
         $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');

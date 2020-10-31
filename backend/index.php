@@ -502,6 +502,12 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
         $subgroup->options('', function (Request $request, Response $response, $args) {
             return $response->withStatus(200);
         });
+        $subgroup->delete('', function (Request $request, Response $response, $args) {
+            $classId = $args['id'];
+            $sessionId = $args['sid'];
+            DBClass::deleteSession($classId, $sessionId);
+            return $response->withStatus(200);
+        });
 
         $subgroup->patch('', function (Request $request, Response $response, $args) {
             // update session details

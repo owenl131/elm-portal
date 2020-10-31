@@ -143,24 +143,25 @@ viewMyClasses hovered today classes =
 view : Model -> Element Msg
 view model =
     Element.column
-        [ Element.spacing 5 ]
+        [ Element.spacing 5
+        , Element.padding 20
+        ]
         ([ Utils.viewWebData (viewMyClasses model.hovered model.today) model.myClasses
          , Element.el [ Element.height (Element.px 50) ] Element.none
          ]
             ++ List.map Element.text
-                [ "Short term dev goals"
-                , "Tutor extended fields, view fields by selection across tutors"
+                [ "Tutor extended fields, view fields by selection across tutors"
                 , "Extended fields : languages spoken, days available, subjects keen, career goal, date of graduation, school type, remarks"
-                , "NEXT: Create are you sure modals"
+                , "NEXT: On tutor page display sessions on calendar"
                 , "When creating session check for correct day, and check if same session already exists"
-                , "Delete session"
                 , "Delete class"
                 , "Delete tutor"
+                , "Remove tutor from class/mark as left class"
                 , "Mark all present/absent"
-                , "NEXT: On tutor page display sessions on calendar"
                 , "Implement CIP hours page"
                 , "Implement sort by which field"
                 , "Separate API out into its own file"
                 , "Possibly set up a mock API for demo without server"
+                , "Add information tooltips around"
                 ]
         )

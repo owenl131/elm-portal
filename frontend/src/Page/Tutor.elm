@@ -231,7 +231,11 @@ viewOtherActivities activities =
 
 view : Model -> Element Msg
 view model =
-    Element.column [ Element.width Element.fill, Element.spacing 20 ]
+    Element.column
+        [ Element.width Element.fill
+        , Element.spacing 20
+        , Element.padding 20
+        ]
         [ Utils.viewWebData viewDetails model.tutorData
         , Utils.viewWebData (viewClasses model.hoveredClass) model.classData
         , viewRecentSessions []
