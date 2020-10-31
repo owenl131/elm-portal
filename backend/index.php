@@ -341,6 +341,38 @@ $app->options('/classes', function (Request $request, Response $response, $args)
     return $response->withStatus(200);
 });
 
+$app->post('/classes/new', function (Request $request, Response $response, $args) {
+    $body = $request->getParsedBody();
+    $class = array();
+    if (!isset($body['name']) || strlen($body['name']) == 0) {
+        return $response->withStatus(400, "Name must be given");
+    }
+    $class['name'] = (string) $body['name'];
+    if (!isset($body['duration'])) {
+        $class['duration'] = 3;
+    } else {
+        $class['duration'] = floatval($body['duration']);
+    }
+    if (!isset($body['year'])) {
+        $class['year'] = intval(date("Y"));
+    } else {
+        $class['year'] = intval($body['year']);
+        if ($class['year'] > 2100 || $class['year'] < 2000) {
+            return $response->withStatus(400, "Invalid year");
+        }
+    }
+    $class['timeslot'] = $body['timeslot'] ?? "";
+    $class['active'] = boolval($body['active'] ?? true);
+    $class['days'] = $body['days'] ?? array();
+    $newId = DBClass::addClass($class);
+    if (!$newId) {
+        return $response->withStatus(400, "Failed to add tutor");
+    }
+    return $response->withJson(array('id' => $newId), 200);
+});
+$app->options('/classes/new', function (Request $request, Response $response, $args) {
+    return $response->withStatus(200);
+});
 
 $app->get('/classestoday', function (Request $Request, Response $response, $args) {
     // get all active classes with classes on this weekday with the most recent class at most 2 weeks ago
@@ -367,7 +399,13 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
 
     $group->patch('', function (Request $request, Response $response, $args) {
         // update class details
-        return $response;
+        $classId = $args['id'];
+        $body = $request->getParsedBody();
+        $result = DBClass::updateClassDetails($classId, $body);
+        if ($result) {
+            return $response->withStatus(200);
+        }
+        return $response->withStatus(400, "Failed to update class");
     })->add($authMiddleware)->add($adminOnlyMiddleware);
 
     $group->get('/tutors', function (Request $request, Response $response, $args) {

@@ -346,7 +346,7 @@ update msg model =
         GotTutorAdded result ->
             case result of
                 Ok tutorId ->
-                    ( { model | id = Just tutorId, successMessage = Just "Updated successfully." }, Cmd.none )
+                    ( { model | id = Just tutorId, successMessage = Just "Added successfully." }, Cmd.none )
 
                 Err error ->
                     ( { model | errorMessage = Just (Api.errorToString error) }, Cmd.none )

@@ -5,6 +5,7 @@ module Class exposing
     , ClassTutor
     , SessionId
     , classDecoder
+    , classEncoder
     , classIdDecoder
     , classIdToString
     , classSessionDecoder
@@ -52,6 +53,19 @@ classDecoder =
         |> Pipeline.required "timeslot" Decode.string
         |> Pipeline.required "duration" Decode.float
         |> Pipeline.required "active" Decode.bool
+
+
+classEncoder : Class -> Encode.Value
+classEncoder class =
+    Encode.object
+        [ ( "id", Encode.string class.id )
+        , ( "name", Encode.string class.name )
+        , ( "year", Encode.int class.year )
+        , ( "days", Encode.list (Date.weekdayToNumber >> Encode.int) class.days )
+        , ( "timeslot", Encode.string class.timeslot )
+        , ( "duration", Encode.float class.duration )
+        , ( "active", Encode.bool class.active )
+        ]
 
 
 type alias ClassId =

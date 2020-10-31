@@ -56,6 +56,8 @@ type Msg
     | ToClass
     | Submit
     | GotClassData (Result Http.Error Class.Class)
+    | GotNewClassResult (Result Http.Error Class.ClassId)
+    | GotEditClassResult (Result Http.Error ())
 
 
 type alias FormState =
@@ -84,12 +86,28 @@ getPageLink model =
 
 postNewClass : Api.Credentials -> Class.Class -> Cmd Msg
 postNewClass credentials data =
-    Cmd.none
+    Http.request
+        { method = "POST"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.jsonBody (Class.classEncoder data)
+        , url = Builder.crossOrigin Api.endpoint [ "classes", "new" ] []
+        , expect = Http.expectJson GotNewClassResult (Decode.field "id" Decode.string)
+        , timeout = Nothing
+        , tracker = Nothing
+        }
 
 
 postClassUpdate : Api.Credentials -> Class.ClassId -> Class.Class -> Cmd Msg
 postClassUpdate credentials classId data =
-    Cmd.none
+    Http.request
+        { method = "PATCH"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.jsonBody (Class.classEncoder data)
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId ] []
+        , expect = Http.expectWhatever GotEditClassResult
+        , timeout = Nothing
+        , tracker = Nothing
+        }
 
 
 initWithEmpty : Api.Credentials -> Navigation.Key -> ( Model, Cmd Msg )
@@ -193,10 +211,10 @@ update msg model =
         Submit ->
             case model.id of
                 Nothing ->
-                    ( model, Cmd.none )
+                    ( model, postNewClass model.credentials model.data )
 
                 Just id ->
-                    ( model, Cmd.none )
+                    ( model, postClassUpdate model.credentials id model.data )
 
         GotClassData result ->
             ( { model
@@ -206,6 +224,22 @@ update msg model =
               }
             , Cmd.none
             )
+
+        GotNewClassResult result ->
+            case result of
+                Ok id ->
+                    ( { model | id = Just id, successMessage = Just "Added successfully." }, Cmd.none )
+
+                Err error ->
+                    ( { model | errorMessage = Just (Api.errorToString error) }, Cmd.none )
+
+        GotEditClassResult result ->
+            case result of
+                Ok _ ->
+                    ( { model | successMessage = Just "Updated successfully." }, Cmd.none )
+
+                Err error ->
+                    ( { model | errorMessage = Just (Api.errorToString error) }, Cmd.none )
 
 
 viewValidation : Bool -> Element Msg

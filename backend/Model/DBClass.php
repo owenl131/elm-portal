@@ -69,6 +69,58 @@ class DBClass
         );
     }
 
+    static function addClass(array $details)
+    {
+        $required = array(
+            'name',
+            'year',
+            'days',
+            'timeslot',
+            'duration',
+            'active'
+        );
+        foreach ($required as $field) {
+            if (!isset($details[$field])) {
+                return false;
+            }
+        }
+        foreach ($details as $key => $value) {
+            if (!in_array($key, $required)) {
+                return false;
+            }
+        }
+        $details['sessions'] = [];
+        $details['present'] = [];
+        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $collection = $db->selectCollection('classes');
+        $result = $collection->insertOne($details);
+        return (string) $result->getInsertedId();
+    }
+
+    static function updateClassDetails($id, $data)
+    {
+        $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
+        $collection = $db->selectCollection('classes');
+        $update = array();
+        if (isset($data['name']))
+            $update['name'] = (string) $data['name'];
+        if (isset($data['year']))
+            $update['year'] = intval($data['year']);
+        if (isset($data['timeslot']))
+            $update['timeslot'] = (string) $data['timeslot'];
+        if (isset($data['duration']))
+            $update['duration'] = floatval($data['duration']);
+        if (isset($data['days']))
+            $update['days'] = $data['days'];
+        if (isset($data['active']))
+            $update['active'] = boolval($data['active']);
+        $collection->updateOne(
+            array('_id' => new \MongoDB\BSON\ObjectId($id)),
+            array('$set' => $update)
+        );
+        return true;
+    }
+
     static function addSession($id, $data)
     {
         $db = (new MongoDB\Client(connect_string))->selectDatabase('elmportal1');
@@ -110,8 +162,7 @@ class DBClass
             array('projections' => array('tutors' => 1))
         );
         $tutorList = !is_null($tutorList) && isset($tutorList['tutors'])
-            ? $tutorList['tutors'] : array();
-        $tutorList = iterator_to_array($tutorList, false);
+            ? iterator_to_array($tutorList['tutors'], false) : array();
 
         $tutorList = array_map(function ($tutor) {
             $tutor['id'] = (string) $tutor['id'];
