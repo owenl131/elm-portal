@@ -14,6 +14,7 @@ import Json.Decode.Pipeline as Pipeline
 import Json.Encode as Encode
 import RemoteData exposing (WebData)
 import Time
+import Url.Builder
 
 
 type alias Model =
@@ -53,7 +54,7 @@ credentialsDecoder =
 authenticate : String -> String -> Cmd Msg
 authenticate email password =
     Http.post
-        { url = "http://localhost:8001/backend/auth"
+        { url = Url.Builder.crossOrigin Api.endpoint [ "auth" ] []
         , body =
             Http.jsonBody
                 (Encode.object
