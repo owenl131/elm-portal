@@ -6,6 +6,7 @@ use Slim\Factory\AppFactory;
 use Slim\Http\Response as Response;
 use Slim\Psr7\Factory\ResponseFactory;
 use Slim\Routing\RouteCollectorProxy;
+use Slim\Routing\RouteContext;
 
 require 'Model/DBTutor.php';
 require 'Model/DBClass.php';
@@ -14,11 +15,21 @@ require __DIR__ . '/../vendor/autoload.php';
 
 $app = AppFactory::create();
 $app->add(function (Request $request, RequestHandler $handler) {
+    $routeContext = RouteContext::fromRequest($request);
+    $routingResults = $routeContext->getRoutingResults();
+    $methods = $routingResults->getAllowedMethods();
+    $requestHeaders = $request->getHeaderLine('Access-Control-Request-Headers');
+
     $response = $handler->handle($request);
-    return $response
+
+    $response = $response
         ->withHeader('Access-Control-Allow-Origin', '*')
-        ->withHeader('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Accept, Origin, Authorization')
-        ->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+        ->withHeader('Access-Control-Allow-Methods', implode(', ', $methods))
+        ->withHeader('Access-Control-Allow-Headers', $requestHeaders ?: '*');
+
+    $response = $response->withHeader('Access-Control-Allow-Credentials', 'true');
+
+    return $response;
 });
 $app->addRoutingMiddleware();
 
