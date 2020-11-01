@@ -9,14 +9,14 @@ class DBTutor
     {
         $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('tutors');
-        $result = $collection->countDocuments(array(
+        $result = $collection->countDocuments([
             'sessionId' => new \MongoDB\BSON\ObjectId($sessionId),
-            'sessionExpiry' => array('$exists' => 1, '$gte' => new \MongoDB\BSON\UTCDateTime())
-        ));
+            'sessionExpiry' => ['$exists' => 1, '$gte' => new \MongoDB\BSON\UTCDateTime()]
+        ]);
         if ($result == 1) {
             $tutor = $collection->findOne(
-                array('sessionId' => new \MongoDB\BSON\ObjectId($sessionId)),
-                array('projection' => array('_id' => 1))
+                ['sessionId' => new \MongoDB\BSON\ObjectId($sessionId)],
+                ['projection' => array('_id' => 1)]
             );
             return (string) $tutor['_id'];
         } else {
@@ -30,31 +30,35 @@ class DBTutor
         $collection = $db->selectCollection('tutors');
         if ($collection->countDocuments(array('email' => $email)) == 1) {
             $result = $collection->findOne(
-                array('email' => $email),
-                array('projection' => array('_id' => 1, 'password' => 1))
+                ['email' => $email],
+                ['projection' => array('_id' => 1, 'password' => 1)]
             );
             $isValid = password_verify($password, $result['password']);
             if ($isValid) {
-                if ($collection->countDocuments(array('email' => $email, 'sessionExpiry' => array('$gte' => new \MongoDB\BSON\UTCDateTime()))) == 0) {
+                $documentCount = $collection->countDocuments([
+                    'email' => $email,
+                    'sessionExpiry' => array('$gte' => new \MongoDB\BSON\UTCDateTime())
+                ]);
+                if ($documentCount == 0) {
                     $collection->updateOne(
-                        array('_id' => $result['_id']),
-                        array(
-                            '$set' => array(
+                        ['_id' => $result['_id']],
+                        [
+                            '$set' => [
                                 'sessionId' => new \MongoDB\BSON\ObjectId(),
                                 'sessionExpiry' => new \MongoDB\BSON\UTCDateTime((time() + 3600) * 1000)
                                 // Session lasts for 1 hour
-                            )
-                        )
+                            ]
+                        ]
                     );
                 }
                 $updated = $collection->findOne(
-                    array('_id' => $result['_id']),
-                    array('projection' => array('sessionId' => 1, 'sessionExpiry' => 1))
+                    ['_id' => $result['_id']],
+                    ['projection' => array('sessionId' => 1, 'sessionExpiry' => 1)]
                 );
-                return array(
+                return [
                     'session' => (string) $updated['sessionId'],
                     'sessionExpiry' => $updated['sessionExpiry']->toDateTime()->getTimestamp()
-                );
+                ];
             }
         }
         return false;
@@ -64,11 +68,11 @@ class DBTutor
     {
         $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('tutors');
-        $result = $collection->countDocuments(array(
+        $result = $collection->countDocuments([
             'sessionId' => new \MongoDB\BSON\ObjectId($sessionId),
-            'sessionExpiry' => array('$lte', new MongoDB\BSON\UTCDateTime(time() * 1000)),
+            'sessionExpiry' => ['$lte', new MongoDB\BSON\UTCDateTime(time() * 1000)],
             'admin' => 0
-        ));
+        ]);
         return $result == 1;
     }
 
@@ -76,18 +80,18 @@ class DBTutor
     {
         $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('tutors');
-        $result = $collection->countDocuments(array(
+        $result = $collection->countDocuments([
             'sessionId' => new \MongoDB\BSON\ObjectId($sessionId),
             'sessionExpiry' => array('$lte', new MongoDB\BSON\UTCDateTime(time() * 1000)),
             'admin' => array('$lte' => 1)
-        ));
+        ]);
         return $result == 1;
     }
 
     static function addTutor(array $details)
     {
         // ensure that required fields are present
-        $required = array(
+        $required = [
             'name',
             'school',
             'email',
@@ -97,7 +101,7 @@ class DBTutor
             'dob',
             'doc',
             'password'
-        );
+        ];
         foreach ($required as $field) {
             if (!isset($details[$field])) {
                 return false;
@@ -121,7 +125,7 @@ class DBTutor
     {
         $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
         $collection = $db->selectCollection('tutors');
-        $update = array(
+        $update = [
             'name' => $data['name'],
             'school' => $data['school'],
             'admin' => $data['admin'],
@@ -130,14 +134,14 @@ class DBTutor
             'email' => $data['email'],
             'dob' => $data['dob'],
             'doc' => $data['doc'],
-        );
+        ];
         if (isset($data['password'])) {
             $update['password'] =
                 password_hash($data['password'], PASSWORD_DEFAULT);
         }
         $collection->updateOne(
-            array('_id' => new \MongoDB\BSON\ObjectId($id)),
-            array('$set' => $update)
+            ['_id' => new \MongoDB\BSON\ObjectId($id)],
+            ['$set' => $update]
         );
         return true;
     }

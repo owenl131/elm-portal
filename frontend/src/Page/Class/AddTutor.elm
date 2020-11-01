@@ -515,12 +515,7 @@ viewSelector model =
             , text = model.nameFilter
             }
         , Input.button
-            [ Background.color Colors.theme.a400
-            , Border.width 1
-            , Border.rounded 3
-            , Element.paddingXY 10 2
-            , Element.mouseOver [ Background.color Colors.theme.a200 ]
-            ]
+            Styles.buttonStyleCozy
             { label = Element.text "Search", onPress = Just FetchSuggestions }
         , Element.el [ Element.height (Element.px 20) ] Element.none
         , DatePicker.input [ Element.padding 4, Element.width (Element.px 120) ]
