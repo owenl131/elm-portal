@@ -460,40 +460,45 @@ viewForm today class =
 
 view : Model -> Element Msg
 view model =
-    Element.column
+    Element.el
         [ Element.padding 20
         , Element.width Element.fill
-        , Element.height Element.fill
-        , Background.color Colors.theme.p50
-        , Element.spacing 20
         ]
-        [ viewForm model.today model.data
-        , Input.button
-            [ Background.color Colors.theme.a400
-            , Border.width 1
-            , Border.rounded 3
-            , Element.paddingXY 10 2
-            , Element.mouseOver [ Background.color Colors.theme.a200 ]
+        (Element.column
+            [ Element.padding 20
+            , Element.width Element.fill
+            , Element.height Element.fill
+            , Background.color Colors.theme.p50
+            , Element.spacing 20
             ]
-            { onPress = Just Submit
-            , label = Element.text "Submit"
-            }
-        , case model.errorMessage of
-            Nothing ->
-                Element.none
+            [ viewForm model.today model.data
+            , Input.button
+                [ Background.color Colors.theme.a400
+                , Border.width 1
+                , Border.rounded 3
+                , Element.paddingXY 10 2
+                , Element.mouseOver [ Background.color Colors.theme.a200 ]
+                ]
+                { onPress = Just Submit
+                , label = Element.text "Submit"
+                }
+            , case model.errorMessage of
+                Nothing ->
+                    Element.none
 
-            Just message ->
-                Element.text message |> Element.el [ Font.color Colors.red, Font.bold ]
-        , case model.successMessage of
-            Nothing ->
-                Element.none
+                Just message ->
+                    Element.text message |> Element.el [ Font.color Colors.red, Font.bold ]
+            , case model.successMessage of
+                Nothing ->
+                    Element.none
 
-            Just message ->
-                Element.row [ Element.spacing 30 ]
-                    [ Element.text message |> Element.el [ Font.color Colors.theme.p600, Font.bold ]
-                    , Input.button Styles.buttonStyleWide
-                        { onPress = Just ToClass
-                        , label = Element.text "Back to profile" |> Element.el [ Element.centerX ]
-                        }
-                    ]
-        ]
+                Just message ->
+                    Element.row [ Element.spacing 30 ]
+                        [ Element.text message |> Element.el [ Font.color Colors.theme.p600, Font.bold ]
+                        , Input.button Styles.buttonStyleWide
+                            { onPress = Just ToClass
+                            , label = Element.text "Back to profile" |> Element.el [ Element.centerX ]
+                            }
+                        ]
+            ]
+        )

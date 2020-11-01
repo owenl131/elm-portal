@@ -357,6 +357,7 @@ view model =
         [ Element.width Element.fill
         , Element.height Element.fill
         , Element.spacing 10
+        , Element.padding 20
         ]
         [ Element.el
             [ Element.height Element.fill ]

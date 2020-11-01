@@ -456,13 +456,18 @@ viewCalendarDay : Date.Date -> List ClassSession -> Date.Date -> Element Msg
 viewCalendarDay today sessions date =
     let
         text =
-            (date |> Date.day |> String.fromInt) ++ Utils.ifElse (" " ++ Date.format "MMM" date) "" (Date.day date == 1)
+            Element.row
+                []
+                [ date |> Date.day |> String.fromInt |> Element.text
+                , Utils.ifElse (" " ++ Date.format "MMM" date) "" (Date.day date == 1)
+                    |> Element.text
+                    |> Element.el [ Font.size 10, Element.alignBottom ]
+                ]
 
         sessionsOnDate =
             List.filter (.date >> (==) date) sessions
     in
     text
-        |> Element.text
         |> Element.el
             []
         |> Element.el
@@ -495,7 +500,7 @@ viewCalendarDay today sessions date =
                             , Border.width (Utils.ifElse 1 0 (date == today))
                             , Border.color Colors.black
                             ]
-                            { label = Element.text text
+                            { label = text
                             , onPress = Nothing
                             }
                         )

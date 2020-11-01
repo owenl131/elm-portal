@@ -384,6 +384,7 @@ view : Model -> Element Msg
 view model =
     Element.column
         [ Element.spacing 10
+        , Element.padding 20
         , Element.width Element.fill
         ]
         [ case model.sessionData of
