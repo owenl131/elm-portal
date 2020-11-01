@@ -38,6 +38,7 @@ import Tutor
         )
 import Url.Builder as Builder
 import Url.Parser.Query as Query
+import Utils
 
 
 type alias TutorFiltersForm =
@@ -757,33 +758,11 @@ viewData hovered data =
                 tutorList =
                     pagedData.data
 
-                toHeader : String -> Element Msg
-                toHeader text =
-                    text
-                        |> Element.text
-                        |> Element.el
-                            [ Font.bold
-                            , Element.paddingEach { top = 0, bottom = 8, left = 5, right = 5 }
-                            ]
+                toHeader =
+                    Utils.toHeader
 
-                cell : (Tutor -> Element Msg) -> Int -> Tutor -> Element Msg
-                cell toElem index e =
-                    Element.el
-                        ([ Element.centerY
-                         , Element.Events.onMouseEnter (TableHover index)
-                         , Element.Events.onMouseLeave (TableHover -1)
-                         , Element.Events.onDoubleClick (ToDetails e.id)
-                         , Element.height Element.fill
-                         , Element.padding 4
-                         ]
-                            ++ (if index == hovered then
-                                    [ Background.color Colors.theme.p100 ]
-
-                                else
-                                    []
-                               )
-                        )
-                        (toElem e |> Element.el [ Element.centerY ])
+                cell =
+                    Utils.cell TableHover (Just (.id >> ToDetails)) hovered
             in
             Element.indexedTable
                 [ Element.padding 20 ]

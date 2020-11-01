@@ -353,13 +353,11 @@ viewData hovered =
                 classList =
                     pagedData.data
 
-                toHeader : String -> Element Msg
-                toHeader text =
-                    text |> Element.text |> Element.el [ Font.bold, Element.paddingEach { top = 0, bottom = 8, left = 5, right = 5 } ]
+                toHeader =
+                    Utils.toHeader
 
-                cell : (Class -> Element Msg) -> Int -> Class -> Element Msg
                 cell =
-                    Utils.cell TableHover (.id >> ToDetails) hovered
+                    Utils.cell TableHover (Just (.id >> ToDetails)) hovered
             in
             Element.indexedTable
                 [ Element.padding 20 ]

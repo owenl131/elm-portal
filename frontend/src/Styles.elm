@@ -28,6 +28,24 @@ buttonStyleCozy =
     ]
 
 
+buttonStyleCozyRed : List (Element.Attribute msg)
+buttonStyleCozyRed =
+    [ Background.color Colors.red
+    , Border.width 1
+    , Border.rounded 3
+    , Element.paddingXY 10 4
+    ]
+
+
+buttonStyleCozyWhite : List (Element.Attribute msg)
+buttonStyleCozyWhite =
+    [ Background.color Colors.white
+    , Border.width 1
+    , Border.rounded 3
+    , Element.paddingXY 10 4
+    ]
+
+
 buttonStyleWide : List (Element.Attribute msg)
 buttonStyleWide =
     [ Element.width (Element.px 120 |> Element.minimum 80)

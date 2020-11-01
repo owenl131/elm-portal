@@ -576,15 +576,11 @@ viewSessionsCalendar today sessions =
 viewSessions : Int -> Maybe Date.Date -> NewSessionForm -> List ClassSession -> Element Msg
 viewSessions hovered maybeToday form sessions =
     let
-        toHeader : String -> Element Msg
-        toHeader text =
-            text
-                |> Element.text
-                |> Element.el [ Font.bold, Element.padding 4 ]
-                |> Element.el [ Element.paddingXY 0 4 ]
+        toHeader =
+            Utils.toHeader
 
         cell =
-            Utils.cell HoverChangedSession (.id >> NavigateToTakeAttendance) hovered
+            Utils.cell HoverChangedSession (Just (.id >> NavigateToTakeAttendance)) hovered
     in
     Element.column
         [ Element.padding 20
@@ -686,7 +682,7 @@ viewTutors hovered tutors =
                     |> Element.el [ Element.paddingXY 0 4 ]
 
             cell =
-                Utils.cell HoverChangedTutor (.id >> NavigateToTutor) hovered
+                Utils.cell HoverChangedTutor (Just (.id >> NavigateToTutor)) hovered
           in
           Element.indexedTable
             []

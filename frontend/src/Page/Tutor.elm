@@ -141,7 +141,7 @@ viewClasses hovered classes =
                 |> Element.el [ Element.paddingXY 0 4 ]
 
         cell =
-            Utils.cell HoveredChangedClass (.id >> ToClassDetails) hovered
+            Utils.cell HoveredChangedClass (Just (.id >> ToClassDetails)) hovered
     in
     Element.column
         [ Background.color Colors.theme.p50
