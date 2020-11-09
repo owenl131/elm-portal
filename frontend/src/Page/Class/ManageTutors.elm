@@ -1,4 +1,4 @@
-module Page.Class.AddTutor exposing
+module Page.Class.ManageTutors exposing
     ( Model
     , Msg
     , getNestedNavigation
@@ -107,12 +107,12 @@ tutorSuggestionDecoder =
 
 getPageTitle : Model -> String
 getPageTitle _ =
-    "Add Tutors"
+    "Manage Tutors"
 
 
 getPageLink : Model -> String
 getPageLink model =
-    Builder.absolute [ "class", model.id, "addtutor" ] []
+    Builder.absolute [ "class", model.id, "managetutors" ] []
 
 
 getNestedNavigation : Model -> List ( String, String )

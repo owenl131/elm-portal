@@ -392,6 +392,18 @@ viewData hovered =
                             )
                                 |> cell
                       }
+                    , { header = "Delete" |> toHeader
+                      , width = Element.fill |> Element.maximum 60
+                      , view =
+                            (\class ->
+                                Input.button
+                                    Styles.buttonStyleCozyRed
+                                    { label = Element.text "Delete" |> Element.el [ Element.centerX ]
+                                    , onPress = Nothing
+                                    }
+                            )
+                                |> cell
+                      }
                     ]
                 , data = classList
                 }

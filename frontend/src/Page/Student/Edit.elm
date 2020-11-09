@@ -1,13 +1,4 @@
-module Page.Tutor.Edit exposing
-    ( Model
-    , Msg
-    , getPageLink
-    , getPageTitle
-    , initWithEmpty
-    , initWithTutor
-    , update
-    , view
-    )
+module Page.Student.Edit exposing (..)
 
 import Api
 import Base64
@@ -22,13 +13,11 @@ import Element.Font as Font
 import Element.Input as Input
 import Http
 import Json.Decode as Decode
-import Maybe exposing (withDefault)
 import Maybe.Extra
-import Page.Tutor exposing (getPageLink)
 import Regex
+import Student exposing (Student, StudentId, StudentStatus, emptyStudent)
 import Styles
 import Task
-import Tutor exposing (AdminLevel, Tutor, TutorStatus, emptyTutor)
 import Url.Builder as Builder
 import Utils
 import Validate
@@ -37,17 +26,12 @@ import Validate
 type alias Model =
     { key : Navigation.Key
     , credentials : Api.Credentials
-    , id : Maybe Tutor.TutorId
-    , data : Tutor
+    , id : Maybe StudentId
+    , data : Student
     , formState : FormState
     , errorMessage : Maybe String
     , successMessage : Maybe String
     }
-
-
-type WhichFormElement
-    = Dob
-    | Doc
 
 
 type alias FormState =
@@ -58,19 +42,20 @@ type alias FormState =
     }
 
 
+type WhichFormElement
+    = Dob
+    | Doc
+
+
 type Msg
     = NameChanged String
-    | EmailChanged String
-    | SchoolChanged String
     | GenderChanged Utils.Gender
-    | StatusChanged TutorStatus
-    | AdminChanged AdminLevel
-    | PasswordChanged String
+    | StatusChanged StudentStatus
     | PickerChanged WhichFormElement DatePicker.ChangeEvent
     | SetToday Date.Date
-    | GotTutorData (Result Http.Error Tutor)
+    | GotStudentData (Result Http.Error Student)
     | GotUpdated (Result Http.Error ())
-    | GotTutorAdded (Result Http.Error String)
+    | GotStudentAdded (Result Http.Error String)
     | ToProfile
     | Submit
 
@@ -79,9 +64,9 @@ getPageTitle : Model -> String
 getPageTitle model =
     case model.id of
         Nothing ->
-            "New Tutor"
+            "New Student"
 
-        Just tutorId ->
+        Just _ ->
             "Edit: " ++ model.data.name
 
 
@@ -89,33 +74,30 @@ getPageLink : Model -> String
 getPageLink model =
     case model.id of
         Nothing ->
-            Builder.absolute [ "tutors", "new" ] []
+            Builder.absolute [ "students", "new" ] []
 
-        Just tutorId ->
-            Builder.absolute [ "tutor", tutorId, "edit" ] []
+        Just studentId ->
+            Builder.absolute [ "student", studentId, "edit" ] []
 
 
-postNewTutor : Api.Credentials -> Tutor -> Cmd Msg
-postNewTutor credentials tutor =
+postNewStudent : Api.Credentials -> Student -> Cmd Msg
+postNewStudent credentials student =
+    Cmd.none
+
+
+postStudentUpdate : Api.Credentials -> Student -> Cmd Msg
+postStudentUpdate credentials student =
+    Cmd.none
+
+
+fetchStudentData : Api.Credentials -> StudentId -> Cmd Msg
+fetchStudentData credentials id =
     Http.request
-        { method = "POST"
+        { method = "GET"
         , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
-        , body = Http.jsonBody (Tutor.tutorEncoder tutor)
-        , url = Builder.crossOrigin Api.endpoint [ "tutors", "new" ] []
-        , expect = Http.expectJson GotTutorAdded (Decode.field "id" Decode.string)
-        , timeout = Nothing
-        , tracker = Nothing
-        }
-
-
-postTutorUpdate : Api.Credentials -> Tutor -> Cmd Msg
-postTutorUpdate credentials tutor =
-    Http.request
-        { method = "PATCH"
-        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
-        , body = Http.jsonBody (Tutor.tutorEncoder tutor)
-        , url = Builder.crossOrigin Api.endpoint [ "tutor", tutor.id ] []
-        , expect = Http.expectWhatever GotUpdated
+        , body = Http.emptyBody
+        , url = Builder.crossOrigin Api.endpoint [ "student", id ] []
+        , expect = Http.expectJson GotStudentData Student.studentDecoder
         , timeout = Nothing
         , tracker = Nothing
         }
@@ -126,7 +108,7 @@ initWithEmpty credentials key =
     ( { key = key
       , credentials = credentials
       , id = Nothing
-      , data = Tutor.emptyTutor
+      , data = Student.emptyStudent
       , formState =
             { dobPicker = DatePicker.init
             , docPicker = DatePicker.init
@@ -140,12 +122,12 @@ initWithEmpty credentials key =
     )
 
 
-initWithTutor : Api.Credentials -> Navigation.Key -> String -> ( Model, Cmd Msg )
-initWithTutor credentials key id =
+initWithStudent : Api.Credentials -> Navigation.Key -> String -> ( Model, Cmd Msg )
+initWithStudent credentials key id =
     ( { key = key
       , credentials = credentials
       , id = Just id
-      , data = Tutor.emptyTutor
+      , data = Student.emptyStudent
       , formState =
             { dobPicker = DatePicker.init
             , docPicker = DatePicker.init
@@ -155,41 +137,8 @@ initWithTutor credentials key id =
       , errorMessage = Nothing
       , successMessage = Nothing
       }
-    , Http.request
-        { method = "GET"
-        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
-        , body = Http.emptyBody
-        , url = Builder.crossOrigin Api.endpoint [ "tutor", id ] []
-        , expect = Http.expectJson GotTutorData Tutor.tutorDecoder
-        , timeout = Nothing
-        , tracker = Nothing
-        }
+    , fetchStudentData credentials id
     )
-
-
-isValidPassword : Bool -> Maybe String -> Bool
-isValidPassword isNew maybePassword =
-    case maybePassword of
-        Nothing ->
-            if isNew then
-                False
-
-            else
-                True
-
-        Just password ->
-            String.length password >= 8
-
-
-isValidEmail : String -> Bool
-isValidEmail email =
-    Regex.contains
-        (Regex.fromStringWith
-            { caseInsensitive = True, multiline = False }
-            "^[\\w!#$%&'*+/=?`{|}~^-]+(?:\\.[\\w!#$%&'*+/=?`{|}~^-]+)*@(?:[A-Z0-9-]+\\.)+[A-Z]{2,6}$"
-            |> withDefault Regex.never
-        )
-        email
 
 
 updateFormStatePicker : WhichFormElement -> (DatePicker.Model -> DatePicker.Model) -> FormState -> FormState
@@ -212,24 +161,24 @@ updateFormStateText which newText form =
             { form | docText = newText }
 
 
-updateTutor : WhichFormElement -> Date.Date -> Tutor -> Tutor
-updateTutor which date tutor =
+updateStudent : WhichFormElement -> Date.Date -> Student -> Student
+updateStudent which date student =
     case which of
         Dob ->
-            { tutor | dateOfBirth = date }
+            { student | dateOfBirth = date }
 
         Doc ->
-            { tutor | dateOfRegistration = date }
+            { student | dateOfRegistration = date }
 
 
-getTutorField : WhichFormElement -> Tutor -> Date.Date
-getTutorField which tutor =
+getStudentField : WhichFormElement -> Student -> Date.Date
+getStudentField which student =
     case which of
         Dob ->
-            tutor.dateOfBirth
+            student.dateOfBirth
 
         Doc ->
-            tutor.dateOfRegistration
+            student.dateOfRegistration
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -239,20 +188,20 @@ update msg model =
             model.data
     in
     case msg of
-        GotTutorData result ->
+        GotStudentData result ->
             case Result.toMaybe result of
                 Nothing ->
-                    ( { model | data = emptyTutor }, Cmd.none )
+                    ( { model | data = emptyStudent }, Cmd.none )
 
-                Just tutor ->
+                Just student ->
                     ( { model
-                        | data = tutor
+                        | data = student
                         , formState =
                             model.formState
-                                |> updateFormStateText Dob (Date.toIsoString tutor.dateOfBirth)
-                                |> updateFormStateText Doc (Date.toIsoString tutor.dateOfRegistration)
-                                |> updateFormStatePicker Dob (DatePicker.setVisibleMonth tutor.dateOfBirth)
-                                |> updateFormStatePicker Doc (DatePicker.setVisibleMonth tutor.dateOfRegistration)
+                                |> updateFormStateText Dob (Date.toIsoString student.dateOfBirth)
+                                |> updateFormStateText Doc (Date.toIsoString student.dateOfRegistration)
+                                |> updateFormStatePicker Dob (DatePicker.setVisibleMonth student.dateOfBirth)
+                                |> updateFormStatePicker Doc (DatePicker.setVisibleMonth student.dateOfRegistration)
                       }
                     , Cmd.none
                     )
@@ -260,23 +209,11 @@ update msg model =
         NameChanged value ->
             ( { model | data = { data | name = value } }, Cmd.none )
 
-        EmailChanged value ->
-            ( { model | data = { data | email = value } }, Cmd.none )
-
-        SchoolChanged value ->
-            ( { model | data = { data | school = value } }, Cmd.none )
-
         GenderChanged value ->
             ( { model | data = { data | gender = value } }, Cmd.none )
 
         StatusChanged value ->
             ( { model | data = { data | status = value } }, Cmd.none )
-
-        AdminChanged value ->
-            ( { model | data = { data | admin = value } }, Cmd.none )
-
-        PasswordChanged value ->
-            ( { model | data = { data | password = Just value } }, Cmd.none )
 
         PickerChanged which event ->
             case event of
@@ -291,8 +228,10 @@ update msg model =
 
                 DatePicker.DateChanged date ->
                     ( { model
-                        | data = data |> updateTutor which date
-                        , formState = model.formState |> updateFormStateText which (date |> Date.toIsoString)
+                        | data = data |> updateStudent which date
+                        , formState =
+                            model.formState
+                                |> updateFormStateText which (date |> Date.toIsoString)
                       }
                     , Cmd.none
                     )
@@ -300,14 +239,15 @@ update msg model =
                 DatePicker.TextChanged text ->
                     let
                         date =
-                            Date.fromIsoString text |> Result.withDefault (getTutorField which data)
+                            Date.fromIsoString text
+                                |> Result.withDefault (getStudentField which data)
                     in
                     ( { model
                         | formState =
                             model.formState
                                 |> updateFormStateText which text
                                 |> updateFormStatePicker which (DatePicker.setVisibleMonth date)
-                        , data = data |> updateTutor which date
+                        , data = data |> updateStudent which date
                       }
                     , Cmd.none
                     )
@@ -326,12 +266,12 @@ update msg model =
             if validateAll model.data model.formState then
                 case model.id of
                     Nothing ->
-                        -- new tutor
-                        ( model, postNewTutor model.credentials model.data )
+                        -- new student
+                        ( model, postNewStudent model.credentials model.data )
 
-                    Just tutorId ->
+                    Just _ ->
                         -- update existing
-                        ( model, postTutorUpdate model.credentials model.data )
+                        ( model, postStudentUpdate model.credentials model.data )
 
             else
                 ( { model | errorMessage = Just "Some fields are invalid." }, Cmd.none )
@@ -344,10 +284,10 @@ update msg model =
                 Err error ->
                     ( { model | errorMessage = Just (Api.errorToString error) }, Cmd.none )
 
-        GotTutorAdded result ->
+        GotStudentAdded result ->
             case result of
-                Ok tutorId ->
-                    ( { model | id = Just tutorId, successMessage = Just "Added successfully." }, Cmd.none )
+                Ok id ->
+                    ( { model | id = Just id, successMessage = Just "Added successfully." }, Cmd.none )
 
                 Err error ->
                     ( { model | errorMessage = Just (Api.errorToString error) }, Cmd.none )
@@ -358,21 +298,15 @@ update msg model =
                     ( model, Navigation.back model.key 1 )
 
                 Just id ->
-                    ( model, Navigation.pushUrl model.key (Builder.absolute [ "tutor", id ] []) )
+                    ( model, Navigation.pushUrl model.key (Builder.absolute [ "student", id ] []) )
 
 
-validateAll : Tutor -> FormState -> Bool
-validateAll tutor form =
-    List.all Basics.identity
-        [ String.isEmpty tutor.name |> not
-        , String.isEmpty tutor.school |> not
-        , String.isEmpty tutor.email |> not
-        , Date.toIsoString tutor.dateOfBirth == form.dobText
-        , Date.toIsoString tutor.dateOfRegistration == form.docText
-        ]
+validateAll : Student -> FormState -> Bool
+validateAll student form =
+    True
 
 
-viewRow : String -> Tutor -> (Tutor -> String) -> (String -> Msg) -> (String -> Bool) -> Element Msg
+viewRow : String -> Student -> (Student -> String) -> (String -> Msg) -> (String -> Bool) -> Element Msg
 viewRow label data accessor updateMsg validator =
     let
         textFieldStyles =
@@ -387,27 +321,6 @@ viewRow label data accessor updateMsg validator =
             , onChange = updateMsg
             , placeholder = Nothing
             , text = accessor data
-            }
-        , Utils.viewValidation (validator (accessor data))
-        ]
-
-
-viewRowPassword : String -> Tutor -> (Tutor -> Maybe String) -> (String -> Msg) -> (Maybe String -> Bool) -> Element Msg
-viewRowPassword label data accessor updateMsg validator =
-    let
-        textFieldStyles =
-            [ Element.padding 4
-            , Element.width <| Element.px 200
-            ]
-    in
-    Element.wrappedRow
-        []
-        [ Input.newPassword textFieldStyles
-            { label = Element.text label |> Input.labelLeft [ Element.width (Element.px 150) ]
-            , onChange = updateMsg
-            , placeholder = Nothing
-            , text = accessor data |> withDefault ""
-            , show = False
             }
         , Utils.viewValidation (validator (accessor data))
         ]
@@ -478,13 +391,11 @@ viewRowChoice label options msg choice =
         )
 
 
-viewForm : Bool -> Tutor -> FormState -> Element Msg
+viewForm : Bool -> Student -> FormState -> Element Msg
 viewForm isNew data form =
     Element.column
         [ Element.spacing 10 ]
         [ viewRow "Name" data .name NameChanged (String.isEmpty >> Basics.not)
-        , viewRow "School" data .school SchoolChanged (String.isEmpty >> Basics.not)
-        , viewRow "Email" data .email EmailChanged isValidEmail
         , viewRowDatePicker
             "Date of Birth"
             data.dateOfBirth
@@ -492,15 +403,13 @@ viewForm isNew data form =
             form.dobPicker
             (PickerChanged Dob)
         , viewRowChoice "Gender" [ ( Utils.Male, "Male" ), ( Utils.Female, "Female" ) ] GenderChanged data.gender
-        , viewRowChoice "Admin Level" [ ( Tutor.LvlAdmin, "Admin" ), ( Tutor.LvlTutor, "Tutor" ) ] AdminChanged data.admin
-        , viewRowChoice "Tutor Status" [ ( Tutor.Active, "Active" ), ( Tutor.Inactive, "Inactive" ), ( Tutor.New, "New" ) ] StatusChanged data.status
+        , viewRowChoice "Student Status" [ ( Student.Active, "Active" ), ( Student.Inactive, "Inactive" ) ] StatusChanged data.status
         , viewRowDatePicker
-            "Start from"
+            "Joined on"
             data.dateOfRegistration
             form.docText
             form.docPicker
             (PickerChanged Doc)
-        , viewRowPassword "Password" data .password PasswordChanged (isValidPassword isNew)
         ]
 
 

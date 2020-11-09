@@ -78,7 +78,7 @@ type Msg
     | GotSessionDeleted (Result Http.Error ())
     | GotToday Date.Date
     | NavigateToTutor String
-    | NavigateToAddTutors
+    | NavigateToManageTutors
     | NavigateToTakeAttendance String
     | NavigateToEdit
     | DisplayAddSession
@@ -240,8 +240,8 @@ update msg model =
         NavigateToTutor id ->
             ( model, Navigation.pushUrl model.key (Page.Tutor.getPageLink id) )
 
-        NavigateToAddTutors ->
-            ( model, Navigation.pushUrl model.key (getPageLink model.id ++ "/addtutor") )
+        NavigateToManageTutors ->
+            ( model, Navigation.pushUrl model.key (getPageLink model.id ++ "/managetutors") )
 
         NavigateToTakeAttendance sessionId ->
             ( model, Navigation.pushUrl model.key (getPageLink model.id ++ "/session/" ++ sessionId) )
@@ -671,7 +671,7 @@ viewTutors hovered tutors =
             [ Element.text "Tutors" |> Element.el [ Font.size 16, Font.bold ]
             , Input.button
                 Styles.buttonStyleCozy
-                { onPress = Just NavigateToAddTutors, label = Element.text "Add New Tutor" }
+                { onPress = Just NavigateToManageTutors, label = Element.text "Manage Tutors" }
             ]
         , let
             toHeader : String -> Element Msg

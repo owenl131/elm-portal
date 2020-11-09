@@ -1,12 +1,4 @@
-module Page.TutorList exposing
-    ( Model
-    , Msg
-    , TutorFilters
-    , init
-    , tutorFiltersFromUrl
-    , update
-    , view
-    )
+module Page.StudentList exposing (..)
 
 import Api
 import Base64
@@ -26,21 +18,15 @@ import Json.Decode as Decode
 import List.Extra
 import Maybe.Extra
 import RemoteData exposing (WebData)
+import Student exposing (Student, toStudentStatus)
 import Styles
 import Task
-import Tutor
-    exposing
-        ( Tutor
-        , toTutorAdminLevel
-        , toTutorStatus
-        , tutorDecoder
-        )
 import Url.Builder as Builder
 import Url.Parser.Query as Query
 import Utils
 
 
-type alias TutorFiltersForm =
+type alias StudentFiltersForm =
     { nameFilter : String
     , schoolFilter : String
     , dobLowerPicker : DatePicker.Model
@@ -55,12 +41,27 @@ type alias TutorFiltersForm =
     }
 
 
+type alias StudentFilters =
+    { statuses : List Student.StudentStatus
+    , genders : List Utils.Gender
+    , names : List String
+    , schools : List String
+    , dobLower : Maybe Date.Date
+    , dobUpper : Maybe Date.Date
+    , joinDateLower : Maybe Date.Date
+    , joinDateUpper : Maybe Date.Date
+    , classes : List String
+    }
+
+
 updatePickerWithDate : Maybe Date.Date -> DatePicker.Model -> DatePicker.Model
 updatePickerWithDate maybeDate =
-    maybeDate |> Maybe.map DatePicker.setVisibleMonth |> Maybe.withDefault Basics.identity
+    maybeDate
+        |> Maybe.map DatePicker.setVisibleMonth
+        |> Maybe.withDefault Basics.identity
 
 
-initFromFilters : TutorFilters -> TutorFiltersForm
+initFromFilters : StudentFilters -> StudentFiltersForm
 initFromFilters filters =
     { nameFilter = ""
     , schoolFilter = ""
@@ -76,32 +77,17 @@ initFromFilters filters =
     }
 
 
-type alias TutorFilters =
-    { statuses : List Tutor.TutorStatus
-    , genders : List Utils.Gender
-    , admins : List Tutor.AdminLevel
-    , names : List String
-    , schools : List String
-    , dobLower : Maybe Date.Date
-    , dobUpper : Maybe Date.Date
-    , joinDateLower : Maybe Date.Date
-    , joinDateUpper : Maybe Date.Date
-    , classes : List String
-    }
-
-
 applyParser : Query.Parser a -> Query.Parser (a -> b) -> Query.Parser b
 applyParser argParser funcParser =
     Query.map2 (<|) funcParser argParser
 
 
-tutorFiltersFromUrl : Query.Parser TutorFilters
-tutorFiltersFromUrl =
+studentFiltersFromUrl : Query.Parser StudentFilters
+studentFiltersFromUrl =
     -- Handle the two widgets
-    Query.map TutorFilters
-        (Query.custom "status" (List.filterMap (String.toInt >> Maybe.andThen toTutorStatus)))
+    Query.map StudentFilters
+        (Query.custom "status" (List.filterMap (String.toInt >> Maybe.andThen toStudentStatus)))
         |> applyParser (Query.custom "gender" (List.filterMap Utils.toGender))
-        |> applyParser (Query.custom "admin" (List.filterMap (String.toInt >> Maybe.andThen toTutorAdminLevel)))
         |> applyParser (Query.custom "name" (\x -> x))
         |> applyParser (Query.custom "school" (\x -> x))
         |> applyParser (Query.string "dobLower" |> Query.map (Maybe.andThen (Date.fromIsoString >> Result.toMaybe)))
@@ -111,11 +97,10 @@ tutorFiltersFromUrl =
         |> applyParser (Query.custom "classes" (\x -> x))
 
 
-tutorFiltersToQueryList : TutorFilters -> List Builder.QueryParameter
-tutorFiltersToQueryList filters =
+studentFiltersToQueryList : StudentFilters -> List Builder.QueryParameter
+studentFiltersToQueryList filters =
     List.map (Utils.genderEncoder >> Builder.string "gender") filters.genders
-        ++ List.map (Tutor.tutorAdminLevelEncoder >> Builder.int "admin") filters.admins
-        ++ List.map (Tutor.tutorStatusEncoder >> Builder.int "status") filters.statuses
+        ++ List.map (Student.studentStatusEncoder >> Builder.int "status") filters.statuses
         ++ List.map (Builder.string "name") filters.names
         ++ List.map (Builder.string "school") filters.schools
         ++ List.map (Date.toIsoString >> Builder.string "dobLower") (Maybe.Extra.toList filters.dobLower)
@@ -128,11 +113,11 @@ tutorFiltersToQueryList filters =
 type alias Model =
     { key : Navigation.Key
     , credentials : Api.Credentials
-    , filters : TutorFilters
-    , filtersForm : TutorFiltersForm
+    , filters : StudentFilters
+    , filtersForm : StudentFiltersForm
     , page : Int
     , hoveredIndex : Int
-    , data : WebData (Paged.Paged (List Tutor))
+    , data : WebData (Paged.Paged (List Student))
     }
 
 
@@ -151,7 +136,7 @@ type Msg
     | ToDetails String
     | ToNew
     | TableHover Int
-    | GotTutorList (Result Http.Error (Paged.Paged (List Tutor)))
+    | GotStudentList (Result Http.Error (Paged.Paged (List Student)))
     | EnteredNameFilter String
     | EnteredSchoolFilter String
     | EnteredClassFilter String
@@ -161,25 +146,16 @@ type Msg
     | RemoveNameFilter String
     | RemoveSchoolFilter String
     | RemoveClassFilter String
-    | ToggleStatus Tutor.TutorStatus
+    | ToggleStatus Student.StudentStatus
     | ToggleGender Utils.Gender
-    | ToggleAdminLvl Tutor.AdminLevel
 
 
-fetchTutorList : Api.Credentials -> TutorFilters -> Int -> Cmd Msg
-fetchTutorList credentials filters page =
-    Http.request
-        { method = "GET"
-        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
-        , body = Http.emptyBody
-        , url = Builder.crossOrigin Api.endpoint [ "tutors" ] (Builder.int "page" page :: tutorFiltersToQueryList filters)
-        , expect = Http.expectJson GotTutorList <| Paged.pagedDecoder (Decode.list tutorDecoder)
-        , timeout = Nothing
-        , tracker = Nothing
-        }
+fetchStudentList : Api.Credentials -> StudentFilters -> Int -> Cmd Msg
+fetchStudentList credentials filters page =
+    Cmd.none
 
 
-init : Api.Credentials -> Navigation.Key -> TutorFilters -> Int -> ( Model, Cmd Msg )
+init : Api.Credentials -> Navigation.Key -> StudentFilters -> Int -> ( Model, Cmd Msg )
 init credentials key filters page =
     ( { key = key
       , credentials = credentials
@@ -191,36 +167,23 @@ init credentials key filters page =
       }
     , Cmd.batch
         [ Task.perform SetToday Date.today
-        , fetchTutorList credentials filters page
+        , fetchStudentList credentials filters page
         ]
     )
 
 
-toggleStatuses : Tutor.TutorStatus -> TutorFilters -> TutorFilters
+toggleStatuses : Student.StudentStatus -> StudentFilters -> StudentFilters
 toggleStatuses status filters =
     { filters
         | statuses =
-            if List.member status filters.statuses then
-                List.filter ((/=) status) filters.statuses
-
-            else
-                status :: filters.statuses
+            Utils.ifElse
+                (List.filter ((/=) status) filters.statuses)
+                (status :: filters.statuses)
+                (List.member status filters.statuses)
     }
 
 
-toggleAdminLvls : Tutor.AdminLevel -> TutorFilters -> TutorFilters
-toggleAdminLvls adminLvl filters =
-    { filters
-        | admins =
-            if List.member adminLvl filters.admins then
-                List.filter ((/=) adminLvl) filters.admins
-
-            else
-                adminLvl :: filters.admins
-    }
-
-
-toggleGender : Utils.Gender -> TutorFilters -> TutorFilters
+toggleGender : Utils.Gender -> StudentFilters -> StudentFilters
 toggleGender gender filters =
     { filters
         | genders =
@@ -232,7 +195,7 @@ toggleGender gender filters =
     }
 
 
-updateDate : WhichDatePicker -> Maybe Date.Date -> TutorFilters -> TutorFilters
+updateDate : WhichDatePicker -> Maybe Date.Date -> StudentFilters -> StudentFilters
 updateDate which date filters =
     case which of
         JoinLower ->
@@ -248,7 +211,7 @@ updateDate which date filters =
             { filters | dobUpper = date }
 
 
-updateText : WhichDatePicker -> String -> TutorFiltersForm -> TutorFiltersForm
+updateText : WhichDatePicker -> String -> StudentFiltersForm -> StudentFiltersForm
 updateText which text form =
     case which of
         JoinLower ->
@@ -264,7 +227,7 @@ updateText which text form =
             { form | dobUpperText = text }
 
 
-updatePicker : WhichDatePicker -> (DatePicker.Model -> DatePicker.Model) -> TutorFiltersForm -> TutorFiltersForm
+updatePicker : WhichDatePicker -> (DatePicker.Model -> DatePicker.Model) -> StudentFiltersForm -> StudentFiltersForm
 updatePicker which modelUpdate filtersForm =
     case which of
         JoinLower ->
@@ -323,7 +286,7 @@ update msg model =
                     in
                     ( newModel, pushUrl newModel )
 
-        GotTutorList result ->
+        GotStudentList result ->
             case result of
                 Err error ->
                     ( { model | data = RemoteData.Failure error }, Cmd.none )
@@ -332,10 +295,10 @@ update msg model =
                     ( { model | data = RemoteData.Success data }, Cmd.none )
 
         ToDetails id ->
-            ( model, Navigation.pushUrl model.key ("/tutor/" ++ id) )
+            ( model, Navigation.pushUrl model.key ("/student/" ++ id) )
 
         ToNew ->
-            ( model, Navigation.pushUrl model.key (Builder.absolute [ "tutors", "new" ] []) )
+            ( model, Navigation.pushUrl model.key (Builder.absolute [ "students", "new" ] []) )
 
         EnteredNameFilter name ->
             ( { model | filtersForm = { filtersForm | nameFilter = name } }, Cmd.none )
@@ -404,13 +367,6 @@ update msg model =
             let
                 newModel =
                     { model | filters = filters |> toggleStatuses status }
-            in
-            ( newModel, pushUrl newModel )
-
-        ToggleAdminLvl adminLvl ->
-            let
-                newModel =
-                    { model | filters = filters |> toggleAdminLvls adminLvl }
             in
             ( newModel, pushUrl newModel )
 
@@ -504,8 +460,8 @@ pushUrl model =
     Navigation.pushUrl
         model.key
         (Builder.absolute
-            [ "tutors" ]
-            (Builder.int "page" model.page :: tutorFiltersToQueryList model.filters)
+            [ "students" ]
+            (Builder.int "page" model.page :: studentFiltersToQueryList model.filters)
         )
 
 
@@ -580,7 +536,7 @@ viewFilterSingle action label =
         ]
 
 
-viewFilters : TutorFiltersForm -> TutorFilters -> Element Msg
+viewFilters : StudentFiltersForm -> StudentFilters -> Element Msg
 viewFilters form filters =
     let
         crossButtonStyle =
@@ -680,15 +636,11 @@ viewFilters form filters =
                 ]
             , Element.row [ Element.spacing 4 ]
                 [ Element.paragraph Styles.textLabelStyle [ Element.text "Filter Status" ]
-                , viewToggleFilter [ ( Tutor.Active, "Active" ), ( Tutor.Inactive, "Inactive" ), ( Tutor.New, "New" ) ] ToggleStatus filters.statuses
+                , viewToggleFilter [ ( Student.Active, "Active" ), ( Student.Inactive, "Inactive" ) ] ToggleStatus filters.statuses
                 ]
             , Element.row [ Element.spacing 4 ]
                 [ Element.paragraph Styles.textLabelStyle [ Element.text "Filter Gender" ]
                 , viewToggleFilter [ ( Utils.Male, "M" ), ( Utils.Female, "F" ) ] ToggleGender filters.genders
-                ]
-            , Element.row [ Element.spacing 4 ]
-                [ Element.paragraph Styles.textLabelStyle [ Element.text "Filter Role" ]
-                , viewToggleFilter [ ( Tutor.LvlAdmin, "Admin" ), ( Tutor.LvlTutor, "Tutor" ) ] ToggleAdminLvl filters.admins
                 ]
             , Element.el [ Element.width <| Element.px 10 ] Element.none
             ]
@@ -740,7 +692,7 @@ viewFilters form filters =
         ]
 
 
-viewData : Int -> WebData (Paged.Paged (List Tutor)) -> Element Msg
+viewData : Int -> WebData (Paged.Paged (List Student)) -> Element Msg
 viewData hovered data =
     case data of
         RemoteData.NotAsked ->
@@ -754,7 +706,7 @@ viewData hovered data =
 
         RemoteData.Success pagedData ->
             let
-                tutorList =
+                studentList =
                     pagedData.data
 
                 toHeader =
@@ -770,21 +722,9 @@ viewData hovered data =
                       , width = Element.fill |> Element.maximum 200
                       , view = .name >> Element.text |> cell
                       }
-                    , { header = "School" |> toHeader
-                      , width = Element.fill |> Element.maximum 150
-                      , view = .school >> Element.text |> cell
-                      }
-                    , { header = "Role" |> toHeader
-                      , width = Element.fill |> Element.maximum 80
-                      , view = .admin >> Tutor.adminLevelAsString >> Element.text |> cell
-                      }
                     , { header = "Status" |> toHeader
                       , width = Element.fill |> Element.maximum 70
-                      , view = .status >> Tutor.tutorStatusAsString >> Element.text |> cell
-                      }
-                    , { header = "Email" |> toHeader
-                      , width = Element.fill |> Element.maximum 150
-                      , view = .email >> Element.text |> cell
+                      , view = .status >> Student.studentStatusAsString >> Element.text |> cell
                       }
                     , { header = "Joined" |> toHeader
                       , width = Element.fill |> Element.maximum 100
@@ -793,11 +733,11 @@ viewData hovered data =
                     , { header = "Details" |> toHeader
                       , width = Element.fill |> Element.maximum 60
                       , view =
-                            (\tutor ->
+                            (\student ->
                                 Input.button
                                     Styles.buttonStyleCozy
                                     { label = Element.text "More" |> Element.el [ Element.centerX ]
-                                    , onPress = Just (ToDetails tutor.id)
+                                    , onPress = Just (ToDetails student.id)
                                     }
                             )
                                 |> cell
@@ -805,7 +745,7 @@ viewData hovered data =
                     , { header = "Delete" |> toHeader
                       , width = Element.fill |> Element.maximum 60
                       , view =
-                            (\tutor ->
+                            (\student ->
                                 Input.button
                                     Styles.buttonStyleCozyRed
                                     { label = Element.text "Delete" |> Element.el [ Element.centerX ]
@@ -815,7 +755,7 @@ viewData hovered data =
                                 |> cell
                       }
                     ]
-                , data = tutorList
+                , data = studentList
                 }
 
 

@@ -2,13 +2,84 @@ module Utils exposing (..)
 
 import Api
 import Colors
+import Date
 import Element exposing (Element)
 import Element.Background as Background
+import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
+import Json.Decode as Decode
 import Maybe.Extra
 import RemoteData exposing (WebData)
 import Time
+
+
+dateDecoder : Decode.Decoder Date.Date
+dateDecoder =
+    Decode.string
+        |> Decode.map Date.fromIsoString
+        |> Decode.andThen
+            (\result ->
+                case result of
+                    Ok date ->
+                        Decode.succeed date
+
+                    Err error ->
+                        Decode.fail error
+            )
+
+
+type Gender
+    = Male
+    | Female
+
+
+genderToString : Gender -> String
+genderToString gender =
+    case gender of
+        Male ->
+            "Male"
+
+        Female ->
+            "Female"
+
+
+toGender : String -> Maybe Gender
+toGender gender =
+    case String.toLower gender of
+        "m" ->
+            Just Male
+
+        "f" ->
+            Just Female
+
+        "male" ->
+            Just Male
+
+        "female" ->
+            Just Female
+
+        _ ->
+            Nothing
+
+
+genderDecoder : Decode.Decoder Gender
+genderDecoder =
+    Decode.string
+        |> Decode.map toGender
+        |> Decode.map (Maybe.map Decode.succeed)
+        |> Decode.andThen
+            (Maybe.withDefault (Decode.fail "Invalid gender"))
+
+
+genderEncoder : Gender -> String
+genderEncoder gender =
+    case gender of
+        Male ->
+            "m"
+
+        Female ->
+            "f"
 
 
 allDays : List Time.Weekday
@@ -91,3 +162,28 @@ cell hoverChanged redirect hovered toElem index e =
             ++ (redirect |> Maybe.Extra.toList |> List.map (\r -> r e) |> List.map Events.onDoubleClick)
         )
         (toElem e |> Element.el [ Element.centerY ])
+
+
+viewValidation : Bool -> Element msg
+viewValidation validated =
+    let
+        color =
+            if validated then
+                Colors.green
+
+            else
+                Colors.red
+    in
+    Element.el
+        [ Element.height Element.fill
+        , Element.width (Element.px 20)
+        , Element.padding 5
+        ]
+        (Element.el
+            [ Background.color color
+            , Element.height Element.fill
+            , Element.width Element.fill
+            , Border.rounded 50
+            ]
+            Element.none
+        )

@@ -124,7 +124,7 @@ viewDetails data =
         , viewRow "School" data .school
         , viewRow "Status" data (.status >> Tutor.tutorStatusAsString)
         , viewRow "Admin Level" data (.admin >> Tutor.adminLevelAsString)
-        , viewRow "Gender" data (.gender >> Tutor.genderToString)
+        , viewRow "Gender" data (.gender >> Utils.genderToString)
         , viewRow "Date of Birth" data (.dateOfBirth >> Date.toIsoString)
         , viewRow "Start date" data (.dateOfRegistration >> Date.toIsoString)
         ]

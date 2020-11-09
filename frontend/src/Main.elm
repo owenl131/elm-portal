@@ -11,16 +11,20 @@ import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
 import Page.Class as ClassPage
-import Page.Class.AddTutor as ClassAddTutorPage
 import Page.Class.Attendance as ClassAttendancePage
 import Page.Class.Edit as ClassEditPage
+import Page.Class.ManageTutors as ClassManageTutorsPage
 import Page.ClassList as ClassListPage
 import Page.Home as Home
 import Page.Login as Login
+import Page.Student as StudentPage
+import Page.Student.Edit as StudentEditPage
+import Page.StudentList as StudentListPage
 import Page.Tutor as TutorPage
 import Page.Tutor.Edit as TutorEditPage
 import Page.TutorList as TutorListPage
-import Tutor exposing (Tutor)
+import Student exposing (StudentId)
+import Tutor exposing (Tutor, TutorId)
 import Url exposing (Url)
 import Url.Parser as UrlParser exposing ((</>), (<?>))
 import Url.Parser.Query as Query
@@ -34,11 +38,14 @@ type Msg
     | GotHomeMsg Home.Msg
     | GotTutorListMsg TutorListPage.Msg
     | GotTutorMsg TutorPage.Msg
+    | GotTutorEditMsg TutorEditPage.Msg
+    | GotStudentListMsg StudentListPage.Msg
+    | GotStudentMsg StudentPage.Msg
+    | GotStudentEditMsg StudentEditPage.Msg
     | GotClassListMsg ClassListPage.Msg
     | GotClassMsg ClassPage.Msg
-    | GotClassAddTutorMsg ClassAddTutorPage.Msg
+    | GotClassManageTutorMsg ClassManageTutorsPage.Msg
     | GotClassAttendanceMsg ClassAttendancePage.Msg
-    | GotTutorEditMsg TutorEditPage.Msg
     | GotClassEditMsg ClassEditPage.Msg
 
 
@@ -47,26 +54,37 @@ type Model
     | Home Home.Model
     | TutorListPage TutorListPage.Model
     | TutorPage TutorPage.Model
+    | TutorEditPage TutorEditPage.Model
+    | StudentListPage StudentListPage.Model
+    | StudentPage StudentPage.Model
+    | StudentEditPage StudentEditPage.Model
     | ClassListPage ClassListPage.Model
     | ClassPage ClassPage.Model
-    | ClassAddTutorPage ClassAddTutorPage.Model
+    | ClassManageTutorsPage ClassManageTutorsPage.Model
     | ClassAttendancePage ClassAttendancePage.Model
-    | TutorEditPage TutorEditPage.Model
     | ClassEditPage ClassEditPage.Model
 
 
 type Route
     = RouteHome
+      -- Tutor Pages
     | RouteTutors TutorListPage.TutorFilters (Maybe Int)
     | RouteTutorNew
-    | RouteTutor String
-    | RouteTutorEdit String
+    | RouteTutor TutorId
+    | RouteTutorEdit TutorId
+      -- Student Pages
+    | RouteStudents StudentListPage.StudentFilters (Maybe Int)
+    | RouteStudentNew
+    | RouteStudent StudentId
+    | RouteStudentEdit StudentId
+      -- Class Pages
     | RouteClasses ClassListPage.ClassFilters (Maybe Int)
     | RouteClassNew
     | RouteClass Class.ClassId
-    | RouteClassAddTutor Class.ClassId
+    | RouteClassManageTutors Class.ClassId
     | RouteClassAttendance Class.ClassId Class.SessionId
     | RouteClassEdit Class.ClassId
+      -- Others
     | RouteLogout
     | NotFound
 
@@ -75,22 +93,36 @@ routeParser : UrlParser.Parser (Route -> Route) Route
 routeParser =
     UrlParser.oneOf
         [ UrlParser.map RouteHome (UrlParser.s "home")
+
+        -- Tutor Pages
         , UrlParser.map RouteTutors
             (UrlParser.s "tutors" <?> TutorListPage.tutorFiltersFromUrl <?> Query.int "page")
         , UrlParser.map RouteTutorNew
             (UrlParser.s "tutors" </> UrlParser.s "new")
         , UrlParser.map RouteTutor (UrlParser.s "tutor" </> UrlParser.string)
         , UrlParser.map RouteTutorEdit (UrlParser.s "tutor" </> UrlParser.string </> UrlParser.s "edit")
+
+        -- Student Pages
+        , UrlParser.map RouteStudents
+            (UrlParser.s "students" <?> StudentListPage.studentFiltersFromUrl <?> Query.int "page")
+        , UrlParser.map RouteStudentNew
+            (UrlParser.s "students" </> UrlParser.s "new")
+        , UrlParser.map RouteStudent (UrlParser.s "student" </> UrlParser.string)
+        , UrlParser.map RouteStudentEdit (UrlParser.s "student" </> UrlParser.string </> UrlParser.s "edit")
+
+        -- Class Pages
         , UrlParser.map RouteClasses
             (UrlParser.s "classes" <?> ClassListPage.classFiltersFromUrl <?> Query.int "page")
         , UrlParser.map RouteClassNew (UrlParser.s "classes" </> UrlParser.s "new")
         , UrlParser.map RouteClass
             (UrlParser.s "class" </> UrlParser.string)
-        , UrlParser.map RouteClassAddTutor
-            (UrlParser.s "class" </> UrlParser.string </> UrlParser.s "addtutor")
+        , UrlParser.map RouteClassManageTutors
+            (UrlParser.s "class" </> UrlParser.string </> UrlParser.s "managetutors")
         , UrlParser.map RouteClassAttendance
             (UrlParser.s "class" </> UrlParser.string </> UrlParser.s "session" </> UrlParser.string)
         , UrlParser.map RouteClassEdit (UrlParser.s "class" </> UrlParser.string </> UrlParser.s "edit")
+
+        -- Other Pages
         , UrlParser.map RouteLogout (UrlParser.s "logout")
         ]
 
@@ -107,30 +139,46 @@ getNestedNavigation model =
         TutorListPage _ ->
             [ ( "Tutors", "/tutors" ) ]
 
-        ClassListPage _ ->
-            [ ( "Classes", "/classes" ) ]
-
         TutorPage submodel ->
             [ ( "Tutors", "/tutors" ), ( TutorPage.getPageTitle submodel, TutorPage.getPageLink submodel.id ) ]
-
-        ClassPage submodel ->
-            [ ( "Classes", "/classes" ), ( ClassPage.getPageTitle submodel, ClassPage.getPageLink submodel.id ) ]
-
-        ClassAddTutorPage submodel ->
-            ClassAddTutorPage.getNestedNavigation submodel
-
-        ClassAttendancePage submodel ->
-            ClassAttendancePage.getNestedNavigation submodel
 
         TutorEditPage submodel ->
             case submodel.id of
                 Nothing ->
                     [ ( TutorEditPage.getPageTitle submodel, TutorEditPage.getPageLink submodel ) ]
 
-                Just tutorId ->
-                    [ ( "Tutor Profile", TutorPage.getPageLink tutorId )
+                Just id ->
+                    [ ( "Tutor Profile", TutorPage.getPageLink id )
                     , ( TutorEditPage.getPageTitle submodel, TutorEditPage.getPageLink submodel )
                     ]
+
+        StudentListPage _ ->
+            [ ( "Students", "/students" ) ]
+
+        StudentPage submodel ->
+            [ ( "Students", "/students" ), ( StudentPage.getPageTitle submodel, StudentPage.getPageLink submodel.id ) ]
+
+        StudentEditPage submodel ->
+            case submodel.id of
+                Nothing ->
+                    [ ( StudentEditPage.getPageTitle submodel, StudentEditPage.getPageLink submodel ) ]
+
+                Just id ->
+                    [ ( "Student Profile", StudentPage.getPageLink id )
+                    , ( StudentEditPage.getPageTitle submodel, StudentEditPage.getPageLink submodel )
+                    ]
+
+        ClassListPage _ ->
+            [ ( "Classes", "/classes" ) ]
+
+        ClassPage submodel ->
+            [ ( "Classes", "/classes" ), ( ClassPage.getPageTitle submodel, ClassPage.getPageLink submodel.id ) ]
+
+        ClassManageTutorsPage submodel ->
+            ClassManageTutorsPage.getNestedNavigation submodel
+
+        ClassAttendancePage submodel ->
+            ClassAttendancePage.getNestedNavigation submodel
 
         ClassEditPage submodel ->
             case submodel.id of
@@ -158,19 +206,28 @@ getCredentials model =
         TutorPage submodel ->
             Just submodel.credentials
 
+        TutorEditPage submodel ->
+            Just submodel.credentials
+
+        StudentListPage submodel ->
+            Just submodel.credentials
+
+        StudentPage submodel ->
+            Just submodel.credentials
+
+        StudentEditPage submodel ->
+            Just submodel.credentials
+
         ClassPage submodel ->
             Just submodel.credentials
 
         ClassListPage submodel ->
             Just submodel.credentials
 
-        ClassAddTutorPage submodel ->
+        ClassManageTutorsPage submodel ->
             Just submodel.credentials
 
         ClassAttendancePage submodel ->
-            Just submodel.credentials
-
-        TutorEditPage submodel ->
             Just submodel.credentials
 
         ClassEditPage submodel ->
@@ -192,13 +249,22 @@ getNavigationKey model =
         TutorPage submodel ->
             submodel.key
 
+        StudentListPage submodel ->
+            submodel.key
+
+        StudentPage submodel ->
+            submodel.key
+
+        StudentEditPage submodel ->
+            submodel.key
+
         ClassListPage submodel ->
             submodel.key
 
         ClassPage submodel ->
             submodel.key
 
-        ClassAddTutorPage submodel ->
+        ClassManageTutorsPage submodel ->
             submodel.key
 
         ClassAttendancePage submodel ->
@@ -251,6 +317,26 @@ handleUrlChange url model =
                         |> Tuple.mapFirst TutorEditPage
                         |> Tuple.mapSecond (Cmd.map GotTutorEditMsg)
 
+                RouteStudents filters maybePage ->
+                    StudentListPage.init credentials key filters (maybePage |> Maybe.withDefault 0)
+                        |> Tuple.mapFirst StudentListPage
+                        |> Tuple.mapSecond (Cmd.map GotStudentListMsg)
+
+                RouteStudentNew ->
+                    StudentEditPage.initWithEmpty credentials key
+                        |> Tuple.mapFirst StudentEditPage
+                        |> Tuple.mapSecond (Cmd.map GotStudentEditMsg)
+
+                RouteStudent id ->
+                    StudentPage.init credentials key id
+                        |> Tuple.mapFirst StudentPage
+                        |> Tuple.mapSecond (Cmd.map GotStudentMsg)
+
+                RouteStudentEdit id ->
+                    StudentEditPage.initWithStudent credentials key id
+                        |> Tuple.mapFirst StudentEditPage
+                        |> Tuple.mapSecond (Cmd.map GotStudentEditMsg)
+
                 RouteClasses filters maybePage ->
                     ClassListPage.init credentials key filters (maybePage |> Maybe.withDefault 0)
                         |> Tuple.mapFirst ClassListPage
@@ -261,10 +347,10 @@ handleUrlChange url model =
                         |> Tuple.mapFirst ClassPage
                         |> Tuple.mapSecond (Cmd.map GotClassMsg)
 
-                RouteClassAddTutor id ->
-                    ClassAddTutorPage.init credentials key id
-                        |> Tuple.mapFirst ClassAddTutorPage
-                        |> Tuple.mapSecond (Cmd.map GotClassAddTutorMsg)
+                RouteClassManageTutors id ->
+                    ClassManageTutorsPage.init credentials key id
+                        |> Tuple.mapFirst ClassManageTutorsPage
+                        |> Tuple.mapSecond (Cmd.map GotClassManageTutorMsg)
 
                 RouteClassAttendance classId sessionId ->
                     ClassAttendancePage.init credentials key classId sessionId
@@ -357,6 +443,18 @@ update msg model =
                 _ ->
                     ignore
 
+        GotTutorEditMsg subMsg ->
+            case model of
+                TutorEditPage submodel ->
+                    let
+                        ( newModel, newMsg ) =
+                            TutorEditPage.update subMsg submodel
+                    in
+                    ( TutorEditPage newModel, Cmd.map GotTutorEditMsg newMsg )
+
+                _ ->
+                    ignore
+
         GotClassListMsg subMsg ->
             case model of
                 ClassListPage submodel ->
@@ -377,12 +475,12 @@ update msg model =
                 _ ->
                     ignore
 
-        GotClassAddTutorMsg subMsg ->
+        GotClassManageTutorMsg subMsg ->
             case model of
-                ClassAddTutorPage submodel ->
-                    case ClassAddTutorPage.update subMsg submodel of
+                ClassManageTutorsPage submodel ->
+                    case ClassManageTutorsPage.update subMsg submodel of
                         ( newModel, newMsg ) ->
-                            ( ClassAddTutorPage newModel, Cmd.map GotClassAddTutorMsg newMsg )
+                            ( ClassManageTutorsPage newModel, Cmd.map GotClassManageTutorMsg newMsg )
 
                 _ ->
                     ignore
@@ -399,18 +497,6 @@ update msg model =
                 _ ->
                     ignore
 
-        GotTutorEditMsg subMsg ->
-            case model of
-                TutorEditPage submodel ->
-                    let
-                        ( newModel, newMsg ) =
-                            TutorEditPage.update subMsg submodel
-                    in
-                    ( TutorEditPage newModel, Cmd.map GotTutorEditMsg newMsg )
-
-                _ ->
-                    ignore
-
         GotClassEditMsg subMsg ->
             case model of
                 ClassEditPage submodel ->
@@ -419,6 +505,38 @@ update msg model =
                             ClassEditPage.update subMsg submodel
                     in
                     ( ClassEditPage newModel, Cmd.map GotClassEditMsg newMsg )
+
+                _ ->
+                    ignore
+
+        GotStudentEditMsg subMsg ->
+            case model of
+                StudentEditPage submodel ->
+                    let
+                        ( newModel, newMsg ) =
+                            StudentEditPage.update subMsg submodel
+                    in
+                    ( StudentEditPage newModel, Cmd.map GotStudentEditMsg newMsg )
+
+                _ ->
+                    ignore
+
+        GotStudentListMsg subMsg ->
+            case model of
+                StudentListPage submodel ->
+                    case StudentListPage.update subMsg submodel of
+                        ( newModel, newMsg ) ->
+                            ( StudentListPage newModel, Cmd.map GotStudentListMsg newMsg )
+
+                _ ->
+                    ignore
+
+        GotStudentMsg subMsg ->
+            case model of
+                StudentPage submodel ->
+                    case StudentPage.update subMsg submodel of
+                        ( newModel, newMsg ) ->
+                            ( StudentPage newModel, Cmd.map GotStudentMsg newMsg )
 
                 _ ->
                     ignore
@@ -467,6 +585,7 @@ viewDrawer _ =
             )
         , viewDrawerElement "Home" "/home"
         , viewDrawerElement "Tutors" "/tutors"
+        , viewDrawerElement "Students" "/students"
         , viewDrawerElement "Classes" "/classes"
         , viewDrawerElement "Logout" "/logout"
         ]
@@ -539,23 +658,32 @@ view model =
                 TutorPage submodel ->
                     viewWrapped model <| Element.map GotTutorMsg (TutorPage.view submodel)
 
+                TutorEditPage submodel ->
+                    viewWrapped model <| Element.map GotTutorEditMsg (TutorEditPage.view submodel)
+
+                StudentListPage submodel ->
+                    viewWrapped model <| Element.map GotStudentListMsg (StudentListPage.view submodel)
+
+                StudentPage submodel ->
+                    viewWrapped model <| Element.map GotStudentMsg (StudentPage.view submodel)
+
+                StudentEditPage submodel ->
+                    viewWrapped model <| Element.map GotStudentEditMsg (StudentEditPage.view submodel)
+
                 ClassListPage submodel ->
                     viewWrapped model <| Element.map GotClassListMsg (ClassListPage.view submodel)
 
                 ClassPage submodel ->
                     viewWrapped model <| Element.map GotClassMsg (ClassPage.view submodel)
 
-                ClassAddTutorPage submodel ->
-                    viewWrapped model <| Element.map GotClassAddTutorMsg (ClassAddTutorPage.view submodel)
+                ClassManageTutorsPage submodel ->
+                    viewWrapped model <| Element.map GotClassManageTutorMsg (ClassManageTutorsPage.view submodel)
 
                 ClassAttendancePage submodel ->
                     viewWrapped model <| Element.map GotClassAttendanceMsg (ClassAttendancePage.view submodel)
 
                 ClassEditPage submodel ->
                     viewWrapped model <| Element.map GotClassEditMsg (ClassEditPage.view submodel)
-
-                TutorEditPage submodel ->
-                    viewWrapped model <| Element.map GotTutorEditMsg (TutorEditPage.view submodel)
         ]
     }
 
