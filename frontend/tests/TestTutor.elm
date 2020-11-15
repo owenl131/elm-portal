@@ -9,6 +9,7 @@ import Json.Encode
 import Test exposing (..)
 import Time
 import Tutor
+import Utils
 
 
 suite : Test
@@ -22,7 +23,7 @@ suite =
             , dateOfBirth = Date.fromWeekDate 2000 1 Time.Mon
             , dateOfRegistration = Date.fromWeekDate 2020 10 Time.Tue
             , email = "test@email.com"
-            , gender = Tutor.Male
+            , gender = Utils.Male
             , school = "Test school"
             , status = Tutor.Active
             , password = Nothing
