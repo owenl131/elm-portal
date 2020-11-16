@@ -240,7 +240,6 @@ class DBTutor
         )->toArray();
         return $results;
     }
-
     static function getTutorList(int $page, array $filters, int $perPage = 20)
     {
         $db = (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');

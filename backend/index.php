@@ -33,6 +33,10 @@ $app->add(function (Request $request, RequestHandler $handler) {
 });
 $app->addRoutingMiddleware();
 
+function getDB(): MongoDB\Database
+{
+    return (new MongoDB\Client(connect_string()))->selectDatabase('elmportal1');
+}
 
 function parseQueryString($queryString)
 {
@@ -111,30 +115,22 @@ $app->options('/auth', function (Request $request, Response $response, $args) {
     return $response->withStatus(200);
 });
 
-
+/**
+ * Gets tutor list
+ */
 $app->get('/tutors', function (Request $request, Response $response, $args) {
-    // gets list of tutors
     $queryString = $request->getUri()->getQuery();
     $queryParams = parseQueryString($queryString);
     $page = 0;
     if (isset($queryParams['page'])) {
         $page = $queryParams['page'][0];
     }
-    $data = DBTutor::getTutorList($page, $queryParams);
-    $data['data'] = array_map(function ($elem) {
-        $elem['id'] = (string) $elem['_id'];
-        unset($elem['_id']);
-        $elem['dateOfBirth'] = $elem['dob']->toDateTime()->format('Y-m-d');
-        unset($elem['dob']);
-        $elem['dateOfRegistration'] = $elem['doc']->toDateTime()->format('Y-m-d');
-        unset($elem['doc']);
-        if (isset($elem['sessionId']))
-            unset($elem['sessionId']);
-        if (isset($elem['sessionExpiry']))
-            unset($elem['sessionExpiry']);
-        return $elem;
-    }, $data['data']);
-    $response = $response->withJson($data, 200);
+    $db = getDB();
+    $tutors = MTutor::retrieveMany($db, $page, $queryParams);
+    $tutors['data'] = array_map(function (MTutor $elem) {
+        return $elem->toAssoc();
+    }, $tutors['data']);
+    $response = $response->withJson($tutors, 200);
     return $response;
 })->add($authMiddleware);
 
@@ -142,52 +138,20 @@ $app->options('/tutors', function (Request $request, Response $response, $args) 
     return $response->withStatus(200);
 });
 
+/**
+ * Post new tutor
+ */
 $app->post('/tutors/new', function (Request $request, Response $response, $args) {
     $body = $request->getParsedBody();
-    // extract required keys
-    $tutor = array();
-    if (!isset($body['name']) || strlen($body['name']) == 0) {
-        return $response->withStatus(400, "Name must be given");
+    $db = getDB();
+    try {
+        $tutor = MTutor::create($db, $body);
+        return $response->withJson(array('id' => $tutor->id), 200);
+    } catch (Exception $e) {
+        $response->withStatus(400, $e->getMessage());
     }
-    $tutor['name'] = $body['name'];
-    if (!isset($body['school']) || strlen($body['school']) == 0) {
-        return $response->withStatus(400, "School must be given");
-    }
-    $tutor['school'] = $body['school'];
-    if (!isset($body['admin']) || !is_int($body['admin']) || $body['admin'] < 0 || $body['admin'] > 1) {
-        return $response->withStatus(400, "Invalid admin level");
-    }
-    $tutor['admin'] = $body['admin'];
-    if (!isset($body['gender']) || ($body['gender'] !== 'm' && $body['gender'] !== 'f')) {
-        return $response->withStatus(400, "Invalid gender");
-    }
-    $tutor['gender'] = $body['gender'];
-    if (!isset($body['status']) || !is_int($body['status']) || $body['status'] < 0 || $body['status'] > 2) {
-        return $response->withStatus(400, "Invalid status");
-    }
-    $tutor['status'] = $body['status'];
-    if (!isset($body['email']) || strlen($body['email']) == 0) {
-        return $response->withStatus(400, "Email must be given");
-    }
-    $tutor['email'] = $body['email'];
-    if (!isset($body['password']) || strlen($body['password']) < 8) {
-        return $response->withStatus(400, "Password must be given");
-    }
-    $tutor['password'] = $body['password'];
-    if (!strtotime($body['dateOfBirth'])) {
-        return $response->withStatus(400, "Invalid date-of-birth");
-    }
-    if (!strtotime($body['dateOfRegistration'])) {
-        return $response->withStatus(400, "Invalid date-of-registration");
-    }
-    $tutor['dob'] = new \MongoDB\BSON\UTCDateTime(strtotime($body['dateOfBirth']) * 1000);
-    $tutor['doc'] = new \MongoDB\BSON\UTCDateTime(strtotime($body['dateOfRegistration']) * 1000);
-    $newId = DBTutor::addTutor($tutor);
-    if (!$newId) {
-        return $response->withStatus(400, "Failed to add tutor");
-    }
-    return $response->withJson(array('id' => $newId), 200);
 });
+
 $app->options('/tutors/new', function (Request $request, Response $response, $args) {
     return $response->withStatus(200);
 });
@@ -342,70 +306,43 @@ $app->get('/classes', function (Request $request, Response $response, $args) {
     if (isset($queryParams['page'])) {
         $page = $queryParams['page'][0];
     }
-    $data = DBClass::getClassList($page, $queryParams);
-    $data['data'] = array_map(function ($elem) {
-        $elem['id'] = (string) $elem['_id'];
-        unset($elem['_id']);
-        return $elem;
-    }, $data['data']);
-    return $response->withJson($data, 200);
+    $db = getDB();
+    $classes = MClass::retrieveMany($db, $page, $queryParams);
+    $classes['data'] = array_map(function (MClass $elem) {
+        return $elem->toAssoc();
+    }, $classes['data']);
+    return $response->withJson($classes, 200);
 })->add($authMiddleware);
 
 $app->options('/classes', function (Request $request, Response $response, $args) {
     return $response->withStatus(200);
 });
 
+/**
+ * Post new class
+ */
 $app->post('/classes/new', function (Request $request, Response $response, $args) {
     $body = $request->getParsedBody();
-    $class = array();
-    if (!isset($body['name']) || strlen($body['name']) == 0) {
-        return $response->withStatus(400, "Name must be given");
-    }
-    $class['name'] = (string) $body['name'];
-    if (!isset($body['duration'])) {
-        $class['duration'] = 3;
-    } else {
-        $class['duration'] = floatval($body['duration']);
-    }
-    if (!isset($body['year'])) {
-        $class['year'] = intval(date("Y"));
-    } else {
-        $class['year'] = intval($body['year']);
-        if ($class['year'] > 2100 || $class['year'] < 2000) {
-            return $response->withStatus(400, "Invalid year");
-        }
-    }
-    $class['timeslot'] = $body['timeslot'] ?? "";
-    $class['active'] = boolval($body['active'] ?? true);
-    $class['days'] = $body['days'] ?? array();
-    $newId = DBClass::addClass($class);
-    if (!$newId) {
-        return $response->withStatus(400, "Failed to add tutor");
-    }
-    return $response->withJson(array('id' => $newId), 200);
+    $db = getDB();
+    $result = MClass::create($db, $body);
+    return $response->withJson(array('id' => $result->id), 200);
 });
+
 $app->options('/classes/new', function (Request $request, Response $response, $args) {
     return $response->withStatus(200);
 });
 
-$app->get('/classestoday', function (Request $Request, Response $response, $args) {
-    // get all active classes with classes on this weekday with the most recent class at most 2 weeks ago
-    return $response;
-})->add($authMiddleware);
-
-
+/**
+ * Operations on a class
+ */
 $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use ($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddleware) {
 
     $group->get('', function (Request $request, Response $response, $args) {
         // get class details
         $classId = $args['id'];
-        $data = DBClass::getClass($classId);
-        if ($data == null) {
-            return $response->withStatus(400);
-        }
-        $data['id'] = (string) $data['_id'];
-        unset($data['_id']);
-        return $response->withJson($data, 200);
+        $db = getDB();
+        $class = MClass::retrieve($db, $classId);
+        return $response->withJson($class->toAssoc(), 200);
     })->add($authMiddleware);
     $group->options('', function (Request $request, Response $response, $args) {
         return $response->withStatus(200);
@@ -415,7 +352,9 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
         // update class details
         $classId = $args['id'];
         $body = $request->getParsedBody();
-        $result = DBClass::updateClassDetails($classId, $body);
+        $db = getDB();
+        $class = MClass::retrieve($db, $classId);
+        $result = $class->update($body);
         if ($result) {
             return $response->withStatus(200);
         }

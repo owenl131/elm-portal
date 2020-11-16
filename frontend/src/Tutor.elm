@@ -1,6 +1,7 @@
 module Tutor exposing
     ( AdminLevel(..)
     , Tutor
+    , TutorExtended
     , TutorId
     , TutorStatus(..)
     , adminLevelAsString
@@ -11,6 +12,8 @@ module Tutor exposing
     , tutorAdminLevelEncoder
     , tutorDecoder
     , tutorEncoder
+    , tutorExtendedDecoder
+    , tutorExtendedEncoder
     , tutorStatusAsString
     , tutorStatusEncoder
     )
@@ -349,6 +352,85 @@ type SchoolType
     | SchoolType_None
 
 
+schoolTypeEncoder : SchoolType -> String
+schoolTypeEncoder school =
+    case school of
+        SchoolType_Primary ->
+            "pri"
+
+        SchoolType_NA ->
+            "n_acad"
+
+        SchoolType_NT ->
+            "n_tech"
+
+        SchoolType_OLvl ->
+            "olvl"
+
+        SchoolType_ALvl ->
+            "alvl"
+
+        SchoolType_IB_IP ->
+            "ibip"
+
+        SchoolType_Polytechnic ->
+            "poly"
+
+        SchoolType_ITE ->
+            "ite"
+
+        SchoolType_University ->
+            "uni"
+
+        SchoolType_None ->
+            "none"
+
+
+toSchoolType : String -> Maybe SchoolType
+toSchoolType school =
+    case school of
+        "pri" ->
+            Just SchoolType_Primary
+
+        "n_acad" ->
+            Just SchoolType_NA
+
+        "n_tech" ->
+            Just SchoolType_NT
+
+        "olvl" ->
+            Just SchoolType_OLvl
+
+        "alvl" ->
+            Just SchoolType_ALvl
+
+        "ibip" ->
+            Just SchoolType_IB_IP
+
+        "poly" ->
+            Just SchoolType_Polytechnic
+
+        "ite" ->
+            Just SchoolType_ITE
+
+        "uni" ->
+            Just SchoolType_University
+
+        "none" ->
+            Just SchoolType_None
+
+        _ ->
+            Nothing
+
+
+schoolTypeDecoder : Decode.Decoder SchoolType
+schoolTypeDecoder =
+    Decode.string
+        |> Decode.map toSchoolType
+        |> Decode.map (Maybe.map Decode.succeed)
+        |> Decode.andThen (Maybe.withDefault (Decode.fail "Invalid tutor school type"))
+
+
 type alias TutorExtended =
     { languages : List TutorLanguage
     , available : List Time.Weekday
@@ -367,6 +449,19 @@ tutorExtendedEncoder tutor =
         , ( "available", Encode.list Encode.int (List.map Date.weekdayToNumber tutor.available) )
         , ( "subjects", Encode.list Encode.int (List.map subjectEncoder tutor.subjects) )
         , ( "careerGoal", Encode.string tutor.careerGoal )
+        , ( "schoolType", Encode.string (schoolTypeEncoder tutor.schoolType) )
         , ( "yearOfGraduation", Encode.int tutor.yearOfGraduation )
         , ( "remarks", Encode.list Encode.string tutor.remarks )
         ]
+
+
+tutorExtendedDecoder : Decode.Decoder TutorExtended
+tutorExtendedDecoder =
+    Decode.succeed TutorExtended
+        |> Pipeline.optional "languages" (Decode.list tutorLanguageDecoder) []
+        |> Pipeline.optional "available" (Decode.list (Decode.int |> Decode.map Date.numberToWeekday)) []
+        |> Pipeline.optional "subjects" (Decode.list subjectDecoder) []
+        |> Pipeline.optional "careerGoal" Decode.string ""
+        |> Pipeline.optional "schoolType" schoolTypeDecoder SchoolType_None
+        |> Pipeline.optional "yearOfGraduation" Decode.int 0
+        |> Pipeline.optional "remarks" (Decode.list Decode.string) []

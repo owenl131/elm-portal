@@ -23,7 +23,7 @@ import Http
 import Json.Decode as Decode
 import RemoteData exposing (RemoteData, WebData)
 import Styles
-import Tutor exposing (Tutor, tutorDecoder)
+import Tutor exposing (Tutor, TutorExtended, TutorId, tutorDecoder)
 import Url.Builder as Builder
 import Utils
 
@@ -33,6 +33,7 @@ type alias Model =
     , credentials : Api.Credentials
     , id : Tutor.TutorId
     , tutorData : WebData Tutor
+    , tutorExtendedData : WebData TutorExtended
     , classData : WebData (List Class)
     , hoveredClass : Int
     }
@@ -41,6 +42,7 @@ type alias Model =
 type Msg
     = GotTutorData (Result Http.Error Tutor)
     | GotClassData (Result Http.Error (List Class))
+    | GotTutorExtendedData (Result Http.Error TutorExtended)
     | ToEditDetails
     | ToClassDetails Class.ClassId
     | HoveredChangedClass Int
@@ -62,6 +64,7 @@ init credentials key id =
       , credentials = credentials
       , id = id
       , tutorData = RemoteData.Loading
+      , tutorExtendedData = RemoteData.NotAsked
       , classData = RemoteData.Loading
       , hoveredClass = -1
       }
@@ -69,7 +72,7 @@ init credentials key id =
     )
 
 
-fetchTutorData : Api.Credentials -> String -> Cmd Msg
+fetchTutorData : Api.Credentials -> TutorId -> Cmd Msg
 fetchTutorData credentials id =
     Http.request
         { method = "GET"
@@ -82,7 +85,20 @@ fetchTutorData credentials id =
         }
 
 
-fetchClassData : Api.Credentials -> String -> Cmd Msg
+fetchTutorExtendedData : Api.Credentials -> TutorId -> Cmd Msg
+fetchTutorExtendedData credentials id =
+    Http.request
+        { method = "GET"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , url = Builder.crossOrigin Api.endpoint [ "tutor", id, "extended" ] []
+        , expect = Http.expectJson GotTutorExtendedData Tutor.tutorExtendedDecoder
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
+fetchClassData : Api.Credentials -> TutorId -> Cmd Msg
 fetchClassData credentials id =
     Http.request
         { method = "GET"
@@ -249,6 +265,9 @@ update msg model =
     case msg of
         GotTutorData result ->
             ( { model | tutorData = RemoteData.fromResult result }, Cmd.none )
+
+        GotTutorExtendedData result ->
+            ( { model | tutorExtendedData = RemoteData.fromResult result }, Cmd.none )
 
         GotClassData result ->
             ( { model | classData = RemoteData.fromResult result }, Cmd.none )
