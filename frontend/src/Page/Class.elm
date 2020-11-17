@@ -542,7 +542,7 @@ viewCalendarWeek today weekStart sessions =
 viewSessionsCalendar : Date.Date -> List ClassSession -> Element Msg
 viewSessionsCalendar today sessions =
     Element.wrappedRow
-        []
+        [ Border.widthEach { bottom = 1, top = 1, left = 0, right = 0 } ]
         (Element.column
             [ Element.paddingXY 0 10 ]
             (Utils.allDays

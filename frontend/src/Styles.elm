@@ -4,6 +4,7 @@ import Colors
 import Element exposing (Element)
 import Element.Background as Background
 import Element.Border as Border
+import Element.Font as Font
 import Element.Input as Input
 
 
@@ -34,6 +35,7 @@ buttonStyleCozyRed =
     , Border.width 1
     , Border.rounded 3
     , Element.paddingXY 10 4
+    , Font.color Colors.white
     ]
 
 

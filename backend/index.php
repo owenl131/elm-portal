@@ -10,6 +10,11 @@ use Slim\Routing\RouteContext;
 
 require 'Model/DBTutor.php';
 require 'Model/DBClass.php';
+require 'Model/MTutor.php';
+require 'Model/MClass.php';
+require 'Model/MClassTutor.php';
+require 'Model/MClassSession.php';
+
 require __DIR__ . '/../vendor/autoload.php';
 
 
@@ -19,16 +24,13 @@ $app->add(function (Request $request, RequestHandler $handler) {
     $routingResults = $routeContext->getRoutingResults();
     $methods = $routingResults->getAllowedMethods();
     $requestHeaders = $request->getHeaderLine('Access-Control-Request-Headers');
-
     $response = $handler->handle($request);
-
     $response = $response
         ->withHeader('Access-Control-Allow-Origin', '*')
         ->withHeader('Access-Control-Allow-Methods', implode(', ', $methods))
         ->withHeader('Access-Control-Allow-Headers', $requestHeaders ?: '*');
 
     $response = $response->withHeader('Access-Control-Allow-Credentials', 'true');
-
     return $response;
 });
 $app->addRoutingMiddleware();
@@ -57,15 +59,19 @@ $authMiddleware = function (Request $request, RequestHandler $handler) {
     $authLine = $request->getHeaderLine("Authorization");
     if (preg_match("/Bearer\s+(.*)$/i", $request->getHeaderLine("Authorization"), $matches)) {
         $sessionId = base64_decode($matches[1]);
-        $result = DBTutor::authenticateBySessionId($sessionId);
-        if ($result) {
+        $db = getDB();
+        $result = MTutor::retrieveBySessionId($db, $sessionId);
+        if ($result != null) {
             $request = $request
                 ->withAttribute('sessionId', $sessionId)
-                ->withAttribute('tutorId', $result);
+                ->withAttribute('tutorId', $result->id);
             $response = $handler->handle($request);
             return $response;
         }
+        error_log("Auth with session id failed");
+        return (new ResponseFactory)->createResponse(401);
     }
+    error_log("Authorization header not matched");
     return (new ResponseFactory)->createResponse(401);
 };
 
@@ -89,24 +95,29 @@ $app->get('/', function (Request $request, Response $response, $args) {
     $response->getBody()->write('Hello world!');
     return $response;
 });
+
 $app->options('/', function (Request $request, Response $response, $args) {
     return $response->withStatus(200);
 });
 
-
+/**
+ * Log in using email and password, returns session id
+ */
 $app->post('/auth', function (Request $request, Response $response, $args) {
     $parsedBody = $request->getParsedBody();
     $email = $parsedBody['email'];
     $password = $parsedBody['password'];
-    $result = DBTutor::authenticateByCredentials($email, $password);
-    if (!$result) {
+    $db = getDB();
+    $result = MTutor::retrieveByCredentials($db, $email, $password);
+    if ($result == null) {
+        error_log("Auth with credentials failed: " . $email);
         return $response->withStatus(401);
     }
     return $response->withJson(
         array(
             'email' => $email,
-            'session' => $result['session'],
-            'sessionExpiry' => $result['sessionExpiry']
+            'session' => $result->sessionId,
+            'sessionExpiry' => $result->sessionExpiry->getTimestamp()
         ),
         200
     );
@@ -175,6 +186,7 @@ $app->group('/my', function (RouteCollectorProxy $group) use ($authMiddleware) {
         }
         return $response->withJson($tutor->toAssoc(), 200);
     })->add($authMiddleware);
+
     $group->options('/details', function (Request $request, Response $response, $args) {
         return $response->withStatus(200);
     });
@@ -186,12 +198,12 @@ $app->group('/my', function (RouteCollectorProxy $group) use ($authMiddleware) {
 
     $group->get('/classes', function (Request $request, Response $response, $args) {
         // get own classes (for home page)
+        $db = getDB();
         $tutorId = $request->getAttribute("tutorId");
-        $result = DBTutor::getClasses($tutorId);
-        $result = array_map(function ($class) {
-            $class['id'] = (string) $class['_id'];
-            unset($class['_id']);
-            return $class;
+        $tutor = MTutor::retrieve($db, $tutorId);
+        $result = $tutor->getClasses();
+        $result = array_map(function (MClass $class) {
+            return $class->toAssoc();
         }, $result);
         return $response->withJson($result, 200);
     })->add($authMiddleware);
@@ -236,15 +248,16 @@ $app->group('/tutor/{id:[0-9a-z]+}', function (RouteCollectorProxy $group) use (
 
     $group->get('/classes', function (Request $request, Response $response, $args) {
         // get tutor classes
+        $db = getDB();
         $tutorId = $args['id'];
-        $result = DBTutor::getClasses($tutorId);
-        $result = array_map(function ($class) {
-            $class['id'] = (string) $class['_id'];
-            unset($class['_id']);
-            return $class;
+        $tutor = MTutor::retrieve($db, $tutorId);
+        $result = $tutor->getClasses();
+        $result = array_map(function (MClass $class) {
+            return $class->toAssoc();
         }, $result);
         return $response->withJson($result, 200);
     })->add($authMiddleware);
+
     $group->options('/classes', function (Request $request, Response $response, $args) {
         return $response->withStatus(200);
     });
@@ -317,8 +330,13 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
 
     $group->get('/tutors', function (Request $request, Response $response, $args) {
         $classId = $args['id'];
-        $data = DBClass::getTutors($classId);
-        return $response->withJson($data, 200);
+        $db = getDB();
+        $class = MClass::retrieve($db, $classId);
+        $tutors = $class->getTutors();
+        $tutors = array_map(function (MClassTutor $elem) {
+            return $elem->toAssoc();
+        }, $tutors);
+        return $response->withJson($tutors, 200);
     })->add($authMiddleware);
     $group->options('/tutors', function (Request $request, Response $response, $args) {
         return $response->withStatus(200);

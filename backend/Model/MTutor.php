@@ -17,8 +17,8 @@ class MTutor
     public DateTime $dob;
     public DateTime $doc;
     public string $password;
-    public DateTime $sessionExpiry;
-    public string $sessionId;
+    public ?DateTime $sessionExpiry;
+    public ?string $sessionId;
 
     public MongoDB\Database $db;
 
@@ -36,31 +36,42 @@ class MTutor
         $this->status = intval($data['status']);
         $this->gender = (string) $data['gender'];
         $this->dob = $data['dob'];
-        $this->doc = $data['dob'];
+        $this->doc = $data['doc'];
         $this->password = (string) $data['password'];
-        $this->sessionExpiry = $data['sessionExpiry'];
-        $this->sessionId = $data['sessionId'];
+        $this->sessionExpiry = $data['sessionExpiry'] ?? null;
+        $this->sessionId = $data['sessionId'] ?? null;
     }
 
-    static function retrieve(MongoDB\Database $db, string $id): MTutor
+    /**
+     * @return MTutor|null
+     */
+    static function retrieve(MongoDB\Database $db, string $id): ?MTutor
     {
+        // check if object has been retrieved before
         if (isset(MTutor::$cache[$id])) {
             return MTutor::$cache[$id];
         }
-
+        // pull data from tutors collection
         $collection = $db->selectCollection('tutors');
         $data = $collection->findOne(
-            array('_id' => new MongoDB\BSON\ObjectId($id)),
-            array('projection' => array())
+            ['_id' => new MongoDB\BSON\ObjectId($id)],
+            ['typeMap' => [
+                'root' => 'array',
+                'document' => 'array',
+                'array' => 'array'
+            ]]
         );
         if (is_null($data))
-            throw new Exception("Invalid tutor id");
+            return null;
+        // handle parsing from MongoDB
         $data['id'] = (string) $data['_id'];
         if (isset($data['dob']))
             $data['dob'] = $data['dob']->toDateTime();
         if (isset($data['doc']))
             $data['doc'] = $data['doc']->toDateTime();
-
+        if (isset($data['sessionExpiry']))
+            $data['sessionExpiry'] = $data['sessionExpiry']->toDateTime();
+        // return result
         $result = new MTutor($db, $data);
         MTutor::$cache[$id] = $result;
         return $result;
@@ -68,29 +79,39 @@ class MTutor
 
     static function retrieveMany(MongoDB\Database $db, int $page, array $filters, int $perPage = 20): array
     {
+        // convert filter array to be used by MongoDB
         $filterBy = MTutor::processTutorFilters($filters);
         $collection = $db->selectCollection('tutors');
+        // report total number of records
         $numResults = $collection->countDocuments($filterBy);
         $result = $collection->find(
             $filterBy,
-            array(
+            [
                 'skip' => $page * $perPage,
-                'limit' => $perPage
-            )
+                'limit' => $perPage,
+                'typeMap' => [
+                    'root' => 'array',
+                    'document' => 'array',
+                    'array' => 'array'
+                ]
+            ]
         )->toArray();
+        // handle parsing from MongoDB
         $tutors = array_map(function ($data) use ($db) {
             $data['id'] = (string) $data['_id'];
             if (isset($data['dob']))
                 $data['dob'] = $data['dob']->toDateTime();
             if (isset($data['doc']))
                 $data['doc'] = $data['doc']->toDateTime();
+            if (isset($data['sessionExpiry']))
+                $data['sessionExpiry'] = $data['sessionExpiry']->toDateTime();
             return new MTutor($db, $data);
         }, $result);
-
+        // save in cache
         foreach ($tutors as $t) {
             MTutor::$cache[$t->id] = $t;
         }
-
+        // return results
         return array(
             'data' => $tutors,
             'total' => $numResults,
@@ -99,19 +120,23 @@ class MTutor
         );
     }
 
-    static function retrieveBySessionId(MongoDB\Database $db, string $sessionId): MTutor
+    /**
+     * @return MTutor|null
+     */
+    static function retrieveBySessionId(MongoDB\Database $db, string $sessionId): ?MTutor
     {
+        // check if it is available in cache
         foreach (MTutor::$cache as $id => $t) {
             if ($t->sessionId == $sessionId) {
                 return $t;
             }
         }
-
         $collection = $db->selectCollection('tutors');
         $result = $collection->countDocuments([
             'sessionId' => new \MongoDB\BSON\ObjectId($sessionId),
             'sessionExpiry' => ['$exists' => 1, '$gte' => new \MongoDB\BSON\UTCDateTime()]
         ]);
+        // extract where sessionId matches and not expired
         if ($result == 1) {
             $tutor = $collection->findOne(
                 ['sessionId' => new \MongoDB\BSON\ObjectId($sessionId)],
@@ -123,16 +148,20 @@ class MTutor
         }
     }
 
-    static function retrieveByEmail(MongoDB\Database $db, string $email): MTutor
+    /**
+     * @return MTutor|null
+     */
+    static function retrieveByEmail(MongoDB\Database $db, string $email): ?MTutor
     {
+        // check if available in cache
         foreach (MTutor::$cache as $id => $t) {
             if ($t->email == $email) {
                 return $t;
             }
         }
-
+        // pull from database
         $collection = $db->selectCollection('tutors');
-        if ($collection->countDocuments(array('email' => $email)) == 1) {
+        if ($collection->countDocuments(['email' => $email]) == 1) {
             $data = $collection->findOne(
                 ['email' => $email],
                 ['projection' => [
@@ -148,19 +177,18 @@ class MTutor
         return null;
     }
 
-    static function retrieveByCredentials(MongoDB\Database $db, string $email, string $password)
+    static function retrieveByCredentials(MongoDB\Database $db, string $email, string $password): ?MTutor
     {
         $collection = $db->selectCollection('tutors');
         // check if email exists
-
         $tutor = MTutor::retrieveByEmail($db, $email);
         if (is_null($tutor)) {
-            throw new Exception("Invalid email provided");
+            return null;
         }
 
         $isValid = password_verify($password, $tutor->password);
         if ($isValid) {
-            if (isset($tutor->sessionExpiry) || $tutor->sessionExpiry < new DateTime()) {
+            if (!isset($tutor->sessionExpiry) || $tutor->sessionExpiry < new DateTime()) {
                 // either does not have any sessionId or sessionId has expired
                 $collection->updateOne(
                     ['_id' => new \MongoDB\BSON\ObjectId($tutor->id)],
@@ -192,13 +220,13 @@ class MTutor
             throw new Exception("Tutor email must not be empty");
         if (!isset($data['status']))
             throw new Exception("Tutor status not set");
-        if (!is_int($data['status']))
+        if (!is_numeric($data['status']))
             throw new Exception("Tutor status must be an integer");
         if ($data['status'] < 0 || $data['status'] > 2)
             throw new Exception("Tutor status is out of range");
         if (!isset($data['admin']))
             throw new Exception("Tutor admin level not set");
-        if (!is_int($data['admin']))
+        if (!is_numeric($data['admin']))
             throw new Exception("Tutor admin level must be an integer");
         if ($data['admin'] < 0 || $data['admin'] > 1)
             throw new Exception("Tutor admin level is out of range");
@@ -208,11 +236,11 @@ class MTutor
             throw new Exception("Tutor gender is invalid");
         if (!isset($data['dob']))
             throw new Exception("Tutor date of birth not set");
-        if (!strtotime($data['dob']))
+        if (!$data['dob'] instanceof DateTime)
             throw new Exception("Tutor date of birth invalid");
         if (!isset($data['doc']))
             throw new Exception("Tutor date of commencement not set");
-        if (!strtotime($data['doc']))
+        if (!$data['doc'] instanceof DateTime)
             throw new Exception("Tutor date of registration invalid");
         if (!isset($data['password']))
             throw new Exception("Tutor password not provided");
@@ -298,12 +326,13 @@ class MTutor
         if (isset($data['school']) && strlen($data['school']) != 0 && $data['school'] != $this->school) {
             $update['school'] = (string) $data['school'];
         }
-        if (isset($data['dob']) && $this->dob->format('Y-m-d') != $data['dob']) {
+        if (isset($data['dob']) && $this->dob->format('Y-m-d') != $data['dob'] && strtotime($data['dob'])) {
             $update['dob'] = new MongoDB\BSON\UTCDateTime(strtotime($data['dob']) * 1000);
         }
-        if (isset($data['doc']) && $this->dob->format('Y-m-d') != $data['doc']) {
+        if (isset($data['doc']) && $this->doc->format('Y-m-d') != $data['doc'] && strtotime($data['doc'])) {
             $update['doc'] = new MongoDB\BSON\UTCDateTime(strtotime($data['doc']) * 1000);
         }
+        error_log(print_r($update, true));
         $collection = $this->db->selectCollection('tutors');
         $result = $collection->updateOne(
             array('_id' => new \MongoDB\BSON\ObjectId($this->id)),
@@ -348,9 +377,28 @@ class MTutor
         return $result;
     }
 
-    function getClasses()
+    /**
+     * @return MClass[]
+     */
+    function getClasses(): array
     {
-        // TODO
+        $collection = $this->db->selectCollection('classes');
+        $results = $collection->find(
+            ['tutors' => [
+                '$elemMatch' => [
+                    'id' => new \MongoDB\BSON\ObjectId($this->id)
+                ]
+            ]],
+            ['projection' => [
+                'sessions' => 0,
+                'tutors' => 0
+            ]]
+        )->toArray();
+        $results = array_values($results);
+        $results = array_map(function ($elem) {
+            return MClass::retrieve($this->db, (string) $elem['_id']);
+        }, $results);
+        return $results;
     }
 
     function getClassSessions()
