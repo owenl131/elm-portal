@@ -2,28 +2,49 @@
 
 class MClassTutor
 {
+    public MongoDB\Database $db;
+
     public MTutor $tutor;
     public MClass $class;
     public DateTime $joinDate;
     public DateTime $leaveDate;
 
-    function __construct(MTutor $tutor, MClass $class, DateTime $joinDate, DateTime $leaveDate)
+    function __construct(MongoDB\Database $db, MTutor $tutor, MClass $class, DateTime $joinDate, DateTime $leaveDate)
     {
+        $this->db = $db;
         $this->tutor = $tutor;
         $this->class = $class;
         $this->joinDate = $joinDate;
         $this->leaveDate = $leaveDate;
     }
 
-    static function create()
+    function updateJoinDate(DateTime $joinDate): bool
     {
+        $collection = $this->db->selectCollection('classes');
+        $result = $collection->updateOne(
+            array(
+                '_id' => new MongoDB\BSON\ObjectId($this->class->id),
+                'tutors.id' => new MongoDB\BSON\ObjectId($this->tutor->id)
+            ),
+            array('$set' => array(
+                'tutors.$.joinedOn' => new MongoDB\BSON\UTCDateTime($joinDate->getTimestamp() * 1000)
+            ))
+        );
+        return $result->isAcknowledged();
     }
 
-    function update()
+    function updateLeaveDate(DateTime $leaveDate): bool
     {
-    }
-
-    function delete()
-    {
+        $collection = $this->db->selectCollection('classes');
+        $result = $collection->updateOne(
+            array(
+                '_id' => new MongoDB\BSON\ObjectId($this->class->id),
+                'tutors.id' => new MongoDB\BSON\ObjectId($this->tutor->id)
+            ),
+            array('$set' => array(
+                'tutors.$.leftOn' => new MongoDB\BSON\UTCDateTime($leaveDate->getTimestamp() * 1000)
+            ))
+        );
+        return $result->isAcknowledged();
     }
 }

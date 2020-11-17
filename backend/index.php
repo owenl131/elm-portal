@@ -168,19 +168,12 @@ $app->group('/my', function (RouteCollectorProxy $group) use ($authMiddleware) {
     $group->get('/details', function (Request $request, Response $response, $args) {
         // get own profile
         $tutorId = $request->getAttribute('tutorId');
-        $tutorData = DBTutor::getTutor($tutorId);
-        if ($tutorData == null) {
+        $db = getDB();
+        $tutor = MTutor::retrieve($db, $tutorId);
+        if ($tutor == null) {
             return $response->withStatus(400);
         }
-        $tutorData['id'] = (string) $tutorData['_id'];
-        unset($tutorData['_id']);
-        $tutorData['dateOfBirth'] = $tutorData['dob']->toDateTime()->format('Y-m-d');
-        unset($tutorData['dob']);
-        $tutorData['dateOfRegistration'] = $tutorData['doc']->toDateTime()->format('Y-m-d');
-        unset($tutorData['doc']);
-        unset($tutorData['sessionId']);
-        unset($tutorData['sessionExpiry']);
-        return $response->withJson($tutorData, 200);
+        return $response->withJson($tutor->toAssoc(), 200);
     })->add($authMiddleware);
     $group->options('/details', function (Request $request, Response $response, $args) {
         return $response->withStatus(200);
@@ -213,21 +206,12 @@ $app->group('/tutor/{id:[0-9a-z]+}', function (RouteCollectorProxy $group) use (
     $group->get('', function (Request $request, Response $response, $args) {
         // get tutor details
         $tutorId = $args['id'];
-        $tutorData = DBTutor::getTutor($tutorId);
-        if ($tutorData == null) {
+        $db = getDB();
+        $tutor = MTutor::retrieve($db, $tutorId);
+        if ($tutor == null) {
             return $response->withStatus(400);
         }
-        $tutorData['id'] = (string) $tutorData['_id'];
-        unset($tutorData['_id']);
-        $tutorData['dateOfBirth'] = $tutorData['dob']->toDateTime()->format('Y-m-d');
-        unset($tutorData['dob']);
-        $tutorData['dateOfRegistration'] = $tutorData['doc']->toDateTime()->format('Y-m-d');
-        unset($tutorData['doc']);
-        if (isset($tutorData['sessionId']))
-            unset($tutorData['sessionId']);
-        if (isset($tutorData['sessionExpiry']))
-            unset($tutorData['sessionExpiry']);
-        return $response->withJson($tutorData, 200);
+        return $response->withJson($tutor->toAssoc(), 200);
     })->add($authMiddleware);
     $group->options('', function (Request $request, Response $response, $args) {
         return $response->withStatus(200);
@@ -237,47 +221,17 @@ $app->group('/tutor/{id:[0-9a-z]+}', function (RouteCollectorProxy $group) use (
         // update tutor details$body = $request->getParsedBody();
         // extract required keys
         $body = $request->getParsedBody();
-        $tutor = array();
-        if (!isset($body['name']) || strlen($body['name']) == 0) {
-            return $response->withStatus(400, "Name must be given");
-        }
-        $tutor['name'] = $body['name'];
-        if (!isset($body['school']) || strlen($body['school']) == 0) {
-            return $response->withStatus(400, "School must be given");
-        }
-        $tutor['school'] = $body['school'];
-        if (!isset($body['admin']) || !is_int($body['admin']) || $body['admin'] < 0 || $body['admin'] > 1) {
-            return $response->withStatus(400, "Invalid admin level");
-        }
-        $tutor['admin'] = $body['admin'];
-        if (!isset($body['gender']) || ($body['gender'] !== 'm' && $body['gender'] !== 'f')) {
-            return $response->withStatus(400, "Invalid gender");
-        }
-        $tutor['gender'] = $body['gender'];
-        if (!isset($body['status']) || !is_int($body['status']) || $body['status'] < 0 || $body['status'] > 2) {
-            return $response->withStatus(400, "Invalid status");
-        }
-        $tutor['status'] = $body['status'];
-        if (!isset($body['email']) || strlen($body['email']) == 0) {
-            return $response->withStatus(400, "Email must be given");
-        }
-        $tutor['email'] = $body['email'];
-        if (isset($body['password'])) {
-            $tutor['password'] = $body['password'];
-            if (strlen($body['password']) < 8)
-                return $response->withStatus(400, "Password must be given");
-        }
-        if (!strtotime($body['dateOfBirth'])) {
-            return $response->withStatus(400, "Invalid date-of-birth");
-        }
-        if (!strtotime($body['dateOfRegistration'])) {
-            return $response->withStatus(400, "Invalid date-of-registration");
-        }
-        $tutor['dob'] = new \MongoDB\BSON\UTCDateTime(strtotime($body['dateOfBirth']) * 1000);
-        $tutor['doc'] = new \MongoDB\BSON\UTCDateTime(strtotime($body['dateOfRegistration']) * 1000);
+        $body['dob'] = $body['dateOfBirth'];
+        $body['doc'] = $body['dateOfRegistration'];
+        $db = getDB();
         $tutorId = $args['id'];
-        DBTutor::updateTutorDetails($tutorId, $tutor);
-        return $response->withStatus(200);
+        $tutor = MTutor::retrieve($db, $tutorId);
+        $result = $tutor->update($body);
+        if ($result) {
+            return $response->withStatus(200);
+        } else {
+            return $response->withStatus(400, "Failed to update tutor");
+        }
     })->add($authMiddleware)->add($adminOnlyMiddleware);
 
     $group->get('/classes', function (Request $request, Response $response, $args) {

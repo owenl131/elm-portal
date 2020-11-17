@@ -111,8 +111,9 @@ class MTutor
                 array('email' => $email),
                 array()
             );
-            if (is_null($data))
-                throw new Exception("Invalid tutor email");
+            if (is_null($data)) {
+                return null;
+            }
             $data['id'] = (string) $data['_id'];
             if (isset($data['dob']))
                 $data['dob'] = $data['dob']->toDateTime();
@@ -160,6 +161,8 @@ class MTutor
         // school optional
         if (!isset($data['email']))
             throw new Exception("Tutor email not provided");
+        if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL))
+            throw new Exception("Tutor email is malformed");
         if (strlen($data['name']) == 0)
             throw new Exception("Tutor email must not be empty");
         if (!isset($data['status']))
@@ -190,6 +193,8 @@ class MTutor
             throw new Exception("Tutor password not provided");
         if (strlen($data['password']) == 0)
             throw new Exception("Tutor password must not be empty");
+        if (strlen($data['password']) < 8)
+            throw new Exception("Tutor password must be at least 8 characters long");
     }
 
     static function create(MongoDB\Database $db, array $data): MTutor
@@ -197,6 +202,9 @@ class MTutor
         // ensure email has not duplicates
         MTutor::validateFieldsPresent($data);
         $data['school'] = $data['school'] ?? "";
+        if (!is_null(MTutor::retrieveByEmail($db, $data['email']))) {
+            throw new Exception("Email already exists");
+        }
         $details = [
             'name' => (string) $data['name'],
             'email' => (string) $data['email'],
@@ -219,13 +227,72 @@ class MTutor
 
     function update($data): bool
     {
+        $update = [];
         // ensure email has no duplicates
+        if (isset($data['name']) && $data['name'] != $this->name && strlen($data['name']) != 0) {
+            $update['name'] = (string) $data['name'];
+        }
+        if (
+            isset($data['email'])
+            && $data['email'] != $this->email
+            && strlen($data['email']) != 0
+            && filter_var($data['email'], FILTER_VALIDATE_EMAIL)
+            && is_null(MTutor::retrieveByEmail($this->db, $data['email']))
+        ) {
+            $update['email'] = (string) $data['email'];
+        }
+        if (
+            isset($data['admin'])
+            && is_int($data['admin'])
+            && $data['admin'] != $this->adminLvl
+            && ($data['admin'] >= 0 && $data['admin'] <= 1)
+        ) {
+            $update['admin'] = $data['admin'];
+        }
+        if (
+            isset($data['status'])
+            && is_int($data['status'])
+            && $data['status'] != $this->status
+            && ($data['status'] >= 0 && $data['status'] <= 2)
+        ) {
+            $update['status'] = $data['status'];
+        }
+        if (
+            isset($data['gender'])
+            && ($data['gender'] == 'm' || $data['gender'] == 'f')
+            && $data['gender'] != $this->gender
+        ) {
+            $update['gender'] = (string) $data['gender'];
+        }
+        if (isset($data['password'])) {
+            if (strlen($data['password']) < 8) {
+                throw new Exception("Password must have at least 8 characters");
+            }
+            $update['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
+        }
+        if (isset($data['school']) && strlen($data['school']) != 0 && $data['school'] != $this->school) {
+            $update['school'] = (string) $data['school'];
+        }
+        if (isset($data['dob']) && $this->dob->format('Y-m-d') != $data['dob']) {
+            $update['dob'] = new MongoDB\BSON\UTCDateTime(strtotime($data['dob']) * 1000);
+        }
+        if (isset($data['doc']) && $this->dob->format('Y-m-d') != $data['doc']) {
+            $update['doc'] = new MongoDB\BSON\UTCDateTime(strtotime($data['doc']) * 1000);
+        }
+        $collection = $this->db->selectCollection('tutors');
+        $result = $collection->updateOne(
+            array('_id' => new \MongoDB\BSON\ObjectId($this->id)),
+            array('$set' => $update)
+        );
+        return $result->isAcknowledged();
     }
 
     function delete(): bool
     {
         // delete attendance records
         // delete from database
+        // TODO
+        return false;
     }
 
     function isLeaderAbove(): bool
@@ -256,14 +323,17 @@ class MTutor
 
     function getClasses()
     {
+        // TODO
     }
 
     function getClassSessions()
     {
+        // TODO
     }
 
     function getClassHours()
     {
+        // TODO
     }
 
     static function processTutorFilters(array $filters)

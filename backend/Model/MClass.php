@@ -266,17 +266,50 @@ class MClass
             } else {
                 $leaveDate = null;
             }
-            return new MClassTutor($tutor, $this, $joinDate, $leaveDate);
+            return new MClassTutor($this->db, $tutor, $this, $joinDate, $leaveDate);
         }, $tutorList);
         return $tutorList;
     }
 
-    function addTutor()
+    function hasTutor(MTutor $tutor): bool
     {
+        foreach ($this->getTutors() as $t) {
+            if ($t->id == $tutor->id) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    function removeTutor()
+    function addTutor(MTutor $tutor, DateTime $joinDate): bool
     {
+        if ($this->hasTutor($tutor)) {
+            return false;
+        }
+        $collection = $this->db->selectCollection('classes');
+        $result = $collection->updateOne(
+            array('_id' => new MongoDB\BSON\ObjectId($this->id)),
+            array('$addToSet' => array('tutors' => array(
+                'id' => new \MongoDB\BSON\ObjectId($tutor->id),
+                'joinedOn' => new \MongoDB\BSON\UTCDateTime($joinDate->getTimestamp() * 1000)
+            )))
+        );
+        return $result->isAcknowledged();
+    }
+
+    function removeTutor(MTutor $tutor): bool
+    {
+        if (!$this->hasTutor($tutor)) {
+            return false;
+        }
+        $collection = $this->db->selectCollection('classes');
+        $collection->updateOne(
+            array('_id' => new MongoDB\BSON\ObjectId($this->id)),
+            array('$pull' => array('tutors', array(
+                'id' => new \MongoDB\BSON\ObjectId($tutor->id)
+            )))
+        );
+        return true;
     }
 
     /**

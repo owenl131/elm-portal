@@ -19,34 +19,57 @@ class MClassSession
 
     function allTutors()
     {
+        // TODO
     }
 
     function tutorsPresent()
     {
+        // TODO
     }
 
     function tutorsAbsent()
     {
+        // TODO
     }
 
     function tutorsExempt()
     {
+        // TODO
     }
 
     function addExternalTutor()
     {
+        // TODO
     }
 
     function removeExternalTutor()
     {
+        // TODO
     }
 
     function update()
     {
+        // TODO
+    }
+
+    function markPresent()
+    {
+        // TODO
+    }
+
+    function markAbsent()
+    {
+        // TODO
+    }
+
+    function markExempt()
+    {
+        // TODO
     }
 
     function delete()
     {
+        // TODO
     }
 
     function toAssoc(): array
