@@ -343,40 +343,43 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
     });
 
     $group->get('/sessions', function (Request $request, Response $response, $args) {
+        $db = getDB();
         $classId = $args['id'];
-        $data = DBClass::getSessions($classId);
-        foreach ($data as &$session) {
-            $session['id'] = (string) $session['_id'];
-            unset($session['_id']);
-            $session['date'] = $session['date']->toDateTime()->format('Y-m-d');
-        }
-        return $response->withJson($data, 200);
+        $class = MClass::retrieve($db, $classId);
+        $sessions = $class->getSessions();
+        $sessions = array_map(function (MClassSession $elem) {
+            return $elem->toAssoc();
+        }, $sessions);
+        return $response->withJson($sessions, 200);
     })->add($authMiddleware);
+
     $group->options('/sessions', function (Request $request, Response $response, $args) {
         return $response->withStatus(200);
     });
 
     $group->post('/addsession', function (Request $request, Response $response, $args) {
-        $classId = $args['id'];
+        $db = getDB();
         $body = $request->getParsedBody();
-        $data = array();
-        $data['date'] = new \MongoDB\BSON\UTCDateTime(strtotime($body['date']) * 1000);
-        $data['remarks'] = $body['remarks'];
-        $data['duration'] = $body['duration'];
-        $sessionId = DBClass::addSession($classId, $data);
-        return $response->withJson(array('id' => $sessionId), 200);
+        $classId = $args['id'];
+        $class = MClass::retrieve($db, $classId);
+        $sess = $class->addSession($body);
+        return $response->withJson(array('id' => $sess->id), 200);
     })->add($authMiddleware)->add($adminOnlyMiddleware);
+
     $group->options('/addsession', function (Request $request, Response $response, $args) {
         return $response->withStatus(200);
     });
 
     $group->post('/addtutor', function (Request $request, Response $response, $args) {
         // add tutor to class
-        $classId = $args['id'];
+        $db = getDB();
         $data = $request->getParsedBody();
+        $classId = $args['id'];
+        $class = MClass::retrieve($db, $classId);
         $tutorId = $data['tutorId'];
+        $tutor = MTutor::retrieve($db, $tutorId);
         $date = $data['joinDate'];
-        $result = DBClass::addTutor($classId, $tutorId, $date);
+        $result = $class->addTutor($tutor, new DateTime($date));
         if ($result) {
             return $response->withStatus(200);
         } else {
