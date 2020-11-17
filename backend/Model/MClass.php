@@ -364,6 +364,18 @@ class MClass
         return $sessList;
     }
 
+    function getSession($sessionId): ?MClassSession
+    {
+        $sessions = $this->getSessions();
+        $sessions = array_filter($sessions, function (MClassSession $elem) use ($sessionId) {
+            return $elem->id == $sessionId;
+        });
+        if (count($sessions) == 0) {
+            return null;
+        }
+        return $sessions[0];
+    }
+
     /**
      * Add a class session
      */
