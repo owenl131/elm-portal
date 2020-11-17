@@ -331,6 +331,7 @@ class MClass
         $sessList = iterator_to_array($data['sessions']);
         $sessList = array_map(function ($s) {
             return new MClassSession(
+                $this->db,
                 $this,
                 (string) $s['_id'],
                 $s['date']->toDateTime(),
@@ -358,12 +359,14 @@ class MClass
 
         $collection = $this->db->selectCollection('classes');
         $body['_id'] = new \MongoDB\BSON\ObjectId();
+
         $result = $collection->updateOne(
             array('_id' => new \MongoDB\BSON\ObjectId($this->id)),
             array('$push' => array('sessions' => $body))
         );
         if ($result->isAcknowledged()) {
             return new MClassSession(
+                $this->db,
                 $this,
                 (string) $body['_id'],
                 $body['date']->toDateTime(),

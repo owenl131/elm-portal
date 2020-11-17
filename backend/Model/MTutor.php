@@ -5,6 +5,8 @@ require_once __DIR__ . '/../config.php';
 
 class MTutor
 {
+    public static array $cache = [];
+
     public string $id;
     public string $name;
     public string $school;
@@ -42,6 +44,10 @@ class MTutor
 
     static function retrieve(MongoDB\Database $db, string $id): MTutor
     {
+        if (isset(MTutor::$cache[$id])) {
+            return MTutor::$cache[$id];
+        }
+
         $collection = $db->selectCollection('tutors');
         $data = $collection->findOne(
             array('_id' => new MongoDB\BSON\ObjectId($id)),
@@ -54,7 +60,10 @@ class MTutor
             $data['dob'] = $data['dob']->toDateTime();
         if (isset($data['doc']))
             $data['doc'] = $data['doc']->toDateTime();
-        return new MTutor($db, $data);
+
+        $result = new MTutor($db, $data);
+        MTutor::$cache[$id] = $result;
+        return $result;
     }
 
     static function retrieveMany(MongoDB\Database $db, int $page, array $filters, int $perPage = 20): array
@@ -77,6 +86,11 @@ class MTutor
                 $data['doc'] = $data['doc']->toDateTime();
             return new MTutor($db, $data);
         }, $result);
+
+        foreach ($tutors as $t) {
+            MTutor::$cache[$t->id] = $t;
+        }
+
         return array(
             'data' => $tutors,
             'total' => $numResults,
@@ -87,6 +101,12 @@ class MTutor
 
     static function retrieveBySessionId(MongoDB\Database $db, string $sessionId): MTutor
     {
+        foreach (MTutor::$cache as $id => $t) {
+            if ($t->sessionId == $sessionId) {
+                return $t;
+            }
+        }
+
         $collection = $db->selectCollection('tutors');
         $result = $collection->countDocuments([
             'sessionId' => new \MongoDB\BSON\ObjectId($sessionId),
@@ -105,21 +125,25 @@ class MTutor
 
     static function retrieveByEmail(MongoDB\Database $db, string $email): MTutor
     {
+        foreach (MTutor::$cache as $id => $t) {
+            if ($t->email == $email) {
+                return $t;
+            }
+        }
+
         $collection = $db->selectCollection('tutors');
         if ($collection->countDocuments(array('email' => $email)) == 1) {
             $data = $collection->findOne(
-                array('email' => $email),
-                array()
+                ['email' => $email],
+                ['projection' => [
+                    '_id' => 1,
+                    'email' => 1
+                ]]
             );
             if (is_null($data)) {
                 return null;
             }
-            $data['id'] = (string) $data['_id'];
-            if (isset($data['dob']))
-                $data['dob'] = $data['dob']->toDateTime();
-            if (isset($data['doc']))
-                $data['doc'] = $data['doc']->toDateTime();
-            return new MTutor($db, $data);
+            return MTutor::retrieve($db, (string) $data['_id']);
         }
         return null;
     }
@@ -128,27 +152,28 @@ class MTutor
     {
         $collection = $db->selectCollection('tutors');
         // check if email exists
-        if ($collection->countDocuments(array('email' => $email)) == 1) {
-            $tutor = MTutor::retrieveByEmail($db, $email);
-            if (is_null($tutor)) {
-                throw new Exception("Tutor should not be null at this point");
-            }
-            $isValid = password_verify($password, $tutor->password);
-            if ($isValid) {
-                if (isset($tutor->sessionExpiry) || $tutor->sessionExpiry < new DateTime()) {
-                    // either does not have any sessionId or sessionId has expired
-                    $collection->updateOne(
-                        ['_id' => new \MongoDB\BSON\ObjectId($tutor->id)],
-                        ['$set' => [
-                            'sessionId' => new \MongoDB\BSON\ObjectId(),
-                            'sessionExpiry' => new \MongoDB\BSON\UTCDateTime((time() + 3600) * 1000)
-                            // Session lasts for 1 hour
-                        ]]
-                    );
-                }
-                return MTutor::retrieve($db, $tutor->id);
-            }
+
+        $tutor = MTutor::retrieveByEmail($db, $email);
+        if (is_null($tutor)) {
+            throw new Exception("Invalid email provided");
         }
+
+        $isValid = password_verify($password, $tutor->password);
+        if ($isValid) {
+            if (isset($tutor->sessionExpiry) || $tutor->sessionExpiry < new DateTime()) {
+                // either does not have any sessionId or sessionId has expired
+                $collection->updateOne(
+                    ['_id' => new \MongoDB\BSON\ObjectId($tutor->id)],
+                    ['$set' => [
+                        'sessionId' => new \MongoDB\BSON\ObjectId(),
+                        'sessionExpiry' => new \MongoDB\BSON\UTCDateTime((time() + 3600) * 1000)
+                        // Session lasts for 1 hour
+                    ]]
+                );
+            }
+            return MTutor::retrieve($db, $tutor->id);
+        }
+
         return null;
     }
 
@@ -284,6 +309,8 @@ class MTutor
             array('_id' => new \MongoDB\BSON\ObjectId($this->id)),
             array('$set' => $update)
         );
+
+        unset(MTutor::$cache[$this->id]);
         return $result->isAcknowledged();
     }
 
