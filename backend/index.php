@@ -8,8 +8,8 @@ use Slim\Psr7\Factory\ResponseFactory;
 use Slim\Routing\RouteCollectorProxy;
 use Slim\Routing\RouteContext;
 
-require 'Model/DBTutor.php';
-require 'Model/DBClass.php';
+// require 'Model/DBTutor.php';
+// require 'Model/DBClass.php';
 require 'Model/MTutor.php';
 require 'Model/MClass.php';
 require 'Model/MClassTutor.php';
@@ -352,7 +352,6 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
         }, $sessions);
         return $response->withJson($sessions, 200);
     })->add($authMiddleware);
-
     $group->options('/sessions', function (Request $request, Response $response, $args) {
         return $response->withStatus(200);
     });
@@ -365,7 +364,6 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
         $sess = $class->addSession($body);
         return $response->withJson(array('id' => $sess->id), 200);
     })->add($authMiddleware)->add($adminOnlyMiddleware);
-
     $group->options('/addsession', function (Request $request, Response $response, $args) {
         return $response->withStatus(200);
     });
@@ -391,13 +389,22 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
     });
 
     $group->get('/suggestions', function (Request $request, Response $response, $args) {
+        $db = getDB();
         $classId = $args['id'];
-        $filter = $request->getQueryParams()['filter'] ?? "";
-        $data = DBClass::tutorSuggestions($classId, $filter);
-        foreach ($data as $elem) {
-            $elem['id'] = (string) $elem['_id'];
-            unset($elem['_id']);
+        $class = MClass::retrieve($db, $classId);
+        $tutors = $class->getTutors();
+        $tutorIds = array_map(function (MClassTutor $elem) {
+            return new MongoDB\BSON\ObjectId($elem->tutor->id);
+        }, $tutors);
+        $filter = [];
+        if (isset($request->getQueryParams()['filter'])) {
+            $filter['name'] = [$request->getQueryParams()['filter']];
         }
+        $filter['excludeIds'] = $tutorIds;
+        $data = MTutor::retrieveMany($db, 0, $filter)['data'];
+        $data = array_map(function (MTutor $elem) {
+            return $elem->toAssoc();
+        }, $data);
         return $response->withJson($data, 200);
     }); //->add($authMiddleware)->add($adminOnlyMiddleware);
     $group->options('/suggestions', function (Request $request, Response $response, $args) {
@@ -406,35 +413,47 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
 
     $group->put('/updatetutor/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
         // used to edit join date or leave date
+        // TODO
         return $response;
     })->add($authMiddleware)->add($adminOnlyMiddleware);
 
     $group->put('/removetutor/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
         // used to delete tutor from class, clears attendance records
+        // TODO
         return $response;
     })->add($authMiddleware)->add($adminOnlyMiddleware);
 
-
+    /**
+     * Functions operating on a specific session
+     */
     $group->group('/session/{sid:[0-9a-z]+}', function (RouteCollectorProxy $subgroup) use ($authMiddleware, $leaderAboveMiddleware) {
-
+        /**
+         * Get session details
+         */
         $subgroup->get('', function (Request $request, Response $response, $args) {
             // get session details
+            $db = getDB();
             $classId = $args['id'];
+            $class = MClass::retrieve($db, $classId);
             $sessionId = $args['sid'];
-            $session = DBClass::getSession($classId, $sessionId);
-            $session['id'] = (string) $session['_id'];
-            unset($session['_id']);
-            $session['date'] = $session['date']->toDateTime()->format('Y-m-d');
-            return $response->withJson($session, 200);
+            $session = $class->getSession($sessionId);
+            return $response->withJson($session->toAssoc(), 200);
         })->add($authMiddleware);
         $subgroup->options('', function (Request $request, Response $response, $args) {
             return $response->withStatus(200);
         });
         $subgroup->delete('', function (Request $request, Response $response, $args) {
+            $db = getDB();
             $classId = $args['id'];
+            $class = MClass::retrieve($db, $classId);
             $sessionId = $args['sid'];
-            DBClass::deleteSession($classId, $sessionId);
-            return $response->withStatus(200);
+            $session = $class->getSession($sessionId);
+            $result = $session->delete();
+            if ($result) {
+                return $response->withStatus(200);
+            } else {
+                return $response->withStatus(400);
+            }
         });
 
         $subgroup->patch('', function (Request $request, Response $response, $args) {
@@ -444,18 +463,14 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
 
         $subgroup->get('/tutors', function (Request $request, Response $response, $args) {
             // get list of tutors in session
+            $db = getDB();
             $classId = $args['id'];
+            $class = MClass::retrieve($db, $classId);
             $sessionId = $args['sid'];
-            $tutors = DBClass::sessionTutors($classId, $sessionId);
-            $tutors = array_map(function ($elem) {
-                $elem['id'] = (string) $elem['id'];
-                $elem['joinDate'] = $elem['joinedOn']->toDateTime()->format('Y-m-d');
-                unset($elem['joinedOn']);
-                if (isset($elem['leftOn'])) {
-                    $elem['leaveDate'] = $elem['leftOn']->toDateTime()->format('Y-m-d');
-                    unset($elem['leftOn']);
-                }
-                return $elem;
+            $session = $class->getSession($sessionId);
+            $tutors = $session->allClassTutors();
+            $tutors = array_map(function (MClassTutor $elem) {
+                return $elem->toAssoc();
             }, $tutors);
             return $response->withJson($tutors, 200);
         })->add($authMiddleware);
@@ -465,11 +480,14 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
 
         $subgroup->get('/present', function (Request $request, Response $response, $args) {
             // get list of tutors present in session
+            $db = getDB();
             $classId = $args['id'];
+            $class = MClass::retrieve($db, $classId);
             $sessionId = $args['sid'];
-            $tutors = DBClass::tutorsPresent($classId, $sessionId);
-            $tutors = array_map(function ($elem) {
-                return (string) $elem;
+            $session = $class->getSession($sessionId);
+            $tutors = $session->tutorsPresent();
+            $tutors = array_map(function (MTutor $elem) {
+                return $elem->id;
             }, $tutors);
             return $response->withJson($tutors, 200);
         })->add($authMiddleware);
@@ -479,11 +497,14 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
 
         $subgroup->get('/absent', function (Request $request, Response $response, $args) {
             // get list of tutors absent in session
+            $db = getDB();
             $classId = $args['id'];
+            $class = MClass::retrieve($db, $classId);
             $sessionId = $args['sid'];
-            $tutors = DBClass::tutorsAbsent($classId, $sessionId);
-            $tutors = array_map(function ($elem) {
-                return (string) $elem;
+            $session = $class->getSession($sessionId);
+            $tutors = $session->tutorsAbsent();
+            $tutors = array_map(function (MTutor $elem) {
+                return $elem->id;
             }, $tutors);
             return $response->withJson($tutors, 200);
         })->add($authMiddleware);
@@ -491,12 +512,39 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
             return $response->withStatus(200);
         });
 
+        $subgroup->get('/exempt', function (Request $request, Response $response, $args) {
+            // get list of tutors exempt in session
+            $db = getDB();
+            $classId = $args['id'];
+            $class = MClass::retrieve($db, $classId);
+            $sessionId = $args['sid'];
+            $session = $class->getSession($sessionId);
+            $tutors = $session->tutorsExempt();
+            $tutors = array_map(function (MTutor $elem) {
+                return $elem->id;
+            }, $tutors);
+            return $response->withJson($tutors, 200);
+        })->add($authMiddleware);
+        $subgroup->options('/exempt', function (Request $request, Response $response, $args) {
+            return $response->withStatus(200);
+        });
+
         $subgroup->post('/present/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
             // mark tutor as present
+            $db = getDB();
             $classId = $args['id'];
+            $class = MClass::retrieve($db, $classId);
             $sessionId = $args['sid'];
+            $session = $class->getSession($sessionId);
             $tutorId = $args['tid'];
-            $result = DBClass::markPresent($classId, $sessionId, $tutorId);
+            $tutor = MTutor::retrieve($db, $tutorId);
+            if ($tutor == null) {
+                return $response->withStatus(400, "Tutor not found");
+            }
+            if (!$session->hasTutor($tutor)) {
+                return $response->withStatus(400, "Tutor not in session");
+            }
+            $result = $session->markPresent($tutor);
             if (!$result) {
                 return $response->withStatus(400);
             }
@@ -508,10 +556,20 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
 
         $subgroup->post('/absent/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
             // mark tutor as absent
+            $db = getDB();
             $classId = $args['id'];
+            $class = MClass::retrieve($db, $classId);
             $sessionId = $args['sid'];
+            $session = $class->getSession($sessionId);
             $tutorId = $args['tid'];
-            $result = DBClass::markAbsent($classId, $sessionId, $tutorId);
+            $tutor = MTutor::retrieve($db, $tutorId);
+            if ($tutor == null) {
+                return $response->withStatus(400, "Tutor not found");
+            }
+            if (!$session->hasTutor($tutor)) {
+                return $response->withStatus(400, "Tutor not in session");
+            }
+            $result = $session->markAbsent($tutor);
             if (!$result) {
                 return $response->withStatus(400);
             }
@@ -521,13 +579,40 @@ $app->group('/class/{id:[a-z0-9]+}', function (RouteCollectorProxy $group) use (
             return $response->withStatus(200);
         });
 
+        $subgroup->post('/exempt/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
+            // mark tutor as absent
+            $db = getDB();
+            $classId = $args['id'];
+            $class = MClass::retrieve($db, $classId);
+            $sessionId = $args['sid'];
+            $session = $class->getSession($sessionId);
+            $tutorId = $args['tid'];
+            $tutor = MTutor::retrieve($db, $tutorId);
+            if ($tutor == null) {
+                return $response->withStatus(400, "Tutor not found");
+            }
+            if (!$session->hasTutor($tutor)) {
+                return $response->withStatus(400, "Tutor not in session");
+            }
+            $result = $session->markExempt($tutor);
+            if (!$result) {
+                return $response->withStatus(400);
+            }
+            return $response->withStatus(200);
+        })->add($authMiddleware)->add($leaderAboveMiddleware);
+        $subgroup->options('/exempt/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
+            return $response->withStatus(200);
+        });
+
         $subgroup->put('/addexternal/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
             // add a tutor that is not under this class to this session
+            // TODO
             return $response;
         })->add($authMiddleware)->add($leaderAboveMiddleware);
 
         $subgroup->put('/removeexternal/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
             // remove a tutor that is not under this class from this session
+            // TODO
             return $response;
         })->add($authMiddleware)->add($leaderAboveMiddleware);
     });

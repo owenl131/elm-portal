@@ -346,9 +346,16 @@ class MTutor
     function delete(): bool
     {
         // delete attendance records
+        $classes = $this->getClasses();
+        foreach ($classes as $class) {
+            $class->removeTutor($this);
+        }
         // delete from database
-        // TODO
-        return false;
+        $collection = $this->db->selectCollection('tutors');
+        $result = $collection->deleteOne([
+            '_id' => new MongoDB\BSON\ObjectId($this->id)
+        ]);
+        return $result->isAcknowledged();
     }
 
     function isLeaderAbove(): bool
@@ -401,14 +408,32 @@ class MTutor
         return $results;
     }
 
-    function getClassSessions()
+    /**
+     * @return MClassSession[]
+     */
+    function getClassSessions(MClass $class)
     {
-        // TODO
+        $sessions = $class->getSessions();
+        $sessions = array_filter($sessions, function (MClassSession $elem) {
+            return $elem->hasTutor($this) && !$elem->isTutorExempt($this);
+        });
+        return $sessions;
     }
 
-    function getClassHours()
+    /**
+     * @return float
+     */
+    function getClassHours(MClass $class): float
     {
-        // TODO
+        $sessions = $this->getClassSessions($class);
+        $sessions = array_filter($sessions, function (MClassSession $elem) {
+            return $elem->isTutorPresent($this);
+        });
+        $hours = array_map(function (MClassSession $elem) {
+            return $elem->duration;
+        }, $sessions);
+        $totalHours = array_sum($hours);
+        return $totalHours;
     }
 
     static function processTutorFilters(array $filters)
@@ -462,6 +487,12 @@ class MTutor
             $result['doc'] = array(
                 '$lte' => new MongoDB\BSON\UTCDateTime(strtotime($filters['joinUpper'][0]) * 1000)
             );
+        }
+        if (isset($filters['excludeIds'])) {
+            if (!isset($result['_id'])) {
+                $result['_id'] = array();
+            }
+            $result['_id']['$nin'] = $filters['excludeIds'];
         }
         // TODO filter by classes
         return $result;

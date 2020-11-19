@@ -15,6 +15,8 @@ class MClass
     public float $duration;
     public bool $active;
 
+    public array $sessions;
+
     public MongoDB\Database $db;
 
     /**
@@ -324,6 +326,11 @@ class MClass
         if (!$this->hasTutor($tutor)) {
             return false;
         }
+        $sessions = $this->getSessions();
+        foreach ($sessions as $session) {
+            if ($session->hasTutor($tutor))
+                $session->markExempt($tutor);
+        }
         $collection = $this->db->selectCollection('classes');
         $collection->updateOne(
             array('_id' => new MongoDB\BSON\ObjectId($this->id)),
@@ -335,19 +342,22 @@ class MClass
     }
 
     /**
-     * Returns an array of MClassSession
+     * @return MClassSession[]
      */
     function getSessions(): array
     {
+        // if result is cached
+        if (isset($this->sessions)) {
+            return $this->sessions;
+        }
         $collection = $this->db->selectCollection('classes');
         $data = $collection->findOne(
             array('_id' => new MongoDB\BSON\ObjectId($this->id)),
             array('projection' => array(
-                'sessions' => 1,
-                'tutors' => 0
+                'sessions' => 1
             ))
         );
-        if (is_null($data)) {
+        if (is_null($data) || !isset($data['sessions'])) {
             return array();
         }
         $sessList = iterator_to_array($data['sessions']);
@@ -361,6 +371,8 @@ class MClass
                 $s['duration'] ?? 3
             );
         }, $sessList);
+        // cache results 
+        $this->sessions = $sessList;
         return $sessList;
     }
 
