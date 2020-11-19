@@ -376,12 +376,12 @@ class MClass
         return $sessList;
     }
 
-    function getSession($sessionId): ?MClassSession
+    function getSession(string $sessionId): ?MClassSession
     {
         $sessions = $this->getSessions();
-        $sessions = array_filter($sessions, function (MClassSession $elem) use ($sessionId) {
+        $sessions = array_values(array_filter($sessions, function (MClassSession $elem) use ($sessionId) {
             return $elem->id == $sessionId;
-        });
+        }));
         if (count($sessions) == 0) {
             return null;
         }
@@ -410,6 +410,7 @@ class MClass
             array('_id' => new \MongoDB\BSON\ObjectId($this->id)),
             array('$push' => array('sessions' => $body))
         );
+        $this->sessions = null;
         if ($result->isAcknowledged()) {
             return new MClassSession(
                 $this->db,

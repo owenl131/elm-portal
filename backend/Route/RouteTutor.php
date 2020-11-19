@@ -77,16 +77,21 @@ function getTutorRoutes($authMiddleware, $adminOnlyMiddleware)
             $tutorId = $args['id'];
             $tutor = MTutor::retrieve($db, $tutorId);
             $classes = $tutor->getClasses();
-            $sessions = array_merge(array_map(function (MClass $elem) use ($tutor) {
+            $sessions = array_merge(...array_map(function (MClass $elem) use ($tutor) {
                 return $tutor->getClassSessions($elem);
             }, $classes));
             $sessions = array_filter($sessions, function (MClassSession $elem) use ($tutor) {
                 return $elem->isTutorPresent($tutor);
             });
-            $sessions = array_map(function (MClassSession $elem) {
-                return $elem->toAssoc();
-            }, $sessions);
-            return $response->withJson($sessions, 200);
+            $result = [];
+            foreach ($sessions as $session) {
+                $classId = $session->class->id;
+                if (!isset($result[$classId]))
+                    $result[$classId] = [];
+                array_push($result[$classId], $session->toAssoc());
+            }
+            error_log(print_r($result, true));
+            return $response->withJson($result, 200);
         })->add($authMiddleware);
         $group->options('/attended', function (Request $request, Response $response, $args) {
             return $response->withStatus(200);

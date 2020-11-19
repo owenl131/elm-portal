@@ -11,7 +11,7 @@ module Page.Tutor exposing
 import Api
 import Base64
 import Browser.Navigation as Navigation
-import Class exposing (Class, ClassTutor)
+import Class exposing (Class, ClassSession, ClassTutor)
 import Colors
 import Date
 import Dict exposing (Dict)
@@ -36,6 +36,7 @@ type alias Model =
     , tutorData : WebData Tutor
     , tutorExtendedData : WebData TutorExtended
     , classData : WebData (List Class)
+    , sessionData : WebData (Dict Class.ClassId (List ClassSession))
     , tutorHours : WebData (Dict Class.ClassId Float)
     , hoveredClass : Int
     }
@@ -44,11 +45,13 @@ type alias Model =
 type Msg
     = GotTutorData (Result Http.Error Tutor)
     | GotClassData (Result Http.Error (List Class))
+    | GotSessionData (Result Http.Error (Dict Class.ClassId (List ClassSession)))
     | GotTutorHours (Result Http.Error (Dict Class.ClassId Float))
     | GotTutorExtendedData (Result Http.Error TutorExtended)
     | ToEditDetails
     | ToClassDetails Class.ClassId
     | HoveredChangedClass Int
+    | HoveredChangedSession Int
 
 
 getPageTitle : Model -> String
@@ -69,12 +72,14 @@ init credentials key id =
       , tutorData = RemoteData.Loading
       , tutorExtendedData = RemoteData.NotAsked
       , classData = RemoteData.Loading
+      , sessionData = RemoteData.Loading
       , tutorHours = RemoteData.Loading
       , hoveredClass = -1
       }
     , Cmd.batch
         [ fetchTutorData credentials id
         , fetchClassData credentials id
+        , fetchSessionData credentials id
         , fetchTutorHours credentials id
         ]
     )
@@ -119,6 +124,19 @@ fetchClassData credentials id =
         }
 
 
+fetchSessionData : Api.Credentials -> TutorId -> Cmd Msg
+fetchSessionData credentials id =
+    Http.request
+        { method = "GET"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , url = Builder.crossOrigin Api.endpoint [ "tutor", id, "attended" ] []
+        , expect = Http.expectJson GotSessionData (Decode.dict (Decode.list Class.classSessionDecoder))
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
 fetchTutorHours : Api.Credentials -> TutorId -> Cmd Msg
 fetchTutorHours credentials id =
     Http.request
@@ -136,7 +154,7 @@ viewRow : String -> Tutor -> (Tutor -> String) -> Element Msg
 viewRow label tutor accessor =
     Element.row
         []
-        [ Element.text label |> Element.el [ Element.width (Element.px 150) ]
+        [ Element.text label |> Element.el [ Element.width (Element.px 150), Font.bold ]
         , Element.text (accessor tutor) |> Element.el []
         ]
 
@@ -170,12 +188,8 @@ viewDetails data =
 viewClasses : Int -> Dict Class.ClassId Float -> List Class.Class -> Element Msg
 viewClasses hovered hours classes =
     let
-        toHeader : String -> Element Msg
-        toHeader text =
-            text
-                |> Element.text
-                |> Element.el [ Font.bold, Element.padding 4 ]
-                |> Element.el [ Element.paddingXY 0 4 ]
+        toHeader =
+            Utils.toHeader
 
         cell =
             Utils.cell HoveredChangedClass (Just (.id >> ToClassDetails)) hovered
@@ -244,27 +258,58 @@ viewClasses hovered hours classes =
         ]
 
 
-viewRecentSessions : List Class.ClassSession -> Element Msg
-viewRecentSessions sessions =
+viewRecentSessions : List Class.Class -> List ( Class.ClassId, Class.ClassSession ) -> Element Msg
+viewRecentSessions classes sessions =
+    let
+        toHeader =
+            Utils.toHeader
+
+        cell =
+            Utils.cell HoveredChangedSession Nothing -1
+    in
     -- Sessions in a calendar format
     Element.column
         [ Background.color Colors.theme.p50
         , Element.padding 20
         , Element.width Element.fill
-        , Element.spacing 10
+        , Element.spacing 20
         ]
-        []
-
-
-viewHours : List Class.Class -> Element Msg
-viewHours classStats =
-    Element.column
-        [ Background.color Colors.theme.p50
-        , Element.padding 20
-        , Element.width Element.fill
-        , Element.spacing 10
+        [ Element.text "Sessions" |> Element.el [ Font.size 16, Font.bold ]
+        , Element.indexedTable
+            []
+            { columns =
+                [ { header = "Date" |> toHeader
+                  , width = Element.fill |> Element.maximum 200
+                  , view = (\( id, s ) -> Date.toIsoString s.date) >> Element.text >> Element.el [ Element.centerY ] |> cell
+                  }
+                , { header = "Remarks" |> toHeader
+                  , width = Element.fill |> Element.maximum 150
+                  , view =
+                        (\( id, s ) -> s.remarks)
+                            >> Element.text
+                            >> Element.el [ Element.centerY ]
+                            |> cell
+                  }
+                , { header = "Duration" |> toHeader
+                  , width = Element.fill |> Element.maximum 150
+                  , view =
+                        (\( id, s ) -> s.duration |> String.fromFloat)
+                            >> Element.text
+                            >> Element.el [ Element.centerY ]
+                            |> cell
+                  }
+                , { header = "Class" |> toHeader
+                  , width = Element.fill |> Element.maximum 80
+                  , view =
+                        (\( id, s ) -> List.filter (.id >> (==) id) classes |> List.head |> Maybe.map .name |> Maybe.withDefault "")
+                            >> Element.text
+                            >> Element.el [ Element.centerY ]
+                            |> cell
+                  }
+                ]
+            , data = sessions
+            }
         ]
-        []
 
 
 viewOtherActivities : List Class.ClassSession -> Element Msg
@@ -287,9 +332,25 @@ view model =
         ]
         [ Utils.viewWebData viewDetails model.tutorData
         , Utils.viewWebData (viewClasses model.hoveredClass (model.tutorHours |> RemoteData.toMaybe |> Maybe.withDefault Dict.empty)) model.classData
-        , viewRecentSessions []
+        , let
+            sessions =
+                model.sessionData |> RemoteData.toMaybe |> Maybe.withDefault Dict.empty
+
+            sessionList : List ( Class.ClassId, ClassSession )
+            sessionList =
+                List.concatMap
+                    (\( classId, sessList ) ->
+                        List.map (\s -> ( classId, s )) sessList
+                    )
+                    (Dict.toList sessions)
+                    |> List.sortBy (\( id, sess ) -> Date.toRataDie sess.date)
+                    |> List.reverse
+
+            classList =
+                model.classData |> RemoteData.toMaybe |> Maybe.withDefault []
+          in
+          viewRecentSessions classList sessionList
         , viewOtherActivities []
-        , viewHours []
         ]
 
 
@@ -308,8 +369,14 @@ update msg model =
         GotClassData result ->
             ( { model | classData = RemoteData.fromResult result }, Cmd.none )
 
+        GotSessionData result ->
+            ( { model | sessionData = RemoteData.fromResult result }, Cmd.none )
+
         HoveredChangedClass value ->
             ( { model | hoveredClass = value }, Cmd.none )
+
+        HoveredChangedSession value ->
+            ( model, Cmd.none )
 
         ToEditDetails ->
             ( model, Navigation.pushUrl model.key (Builder.absolute [ "tutor", model.id, "edit" ] []) )
