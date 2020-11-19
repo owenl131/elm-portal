@@ -674,12 +674,8 @@ viewTutors hovered tutors =
                 { onPress = Just NavigateToManageTutors, label = Element.text "Manage Tutors" }
             ]
         , let
-            toHeader : String -> Element Msg
-            toHeader text =
-                text
-                    |> Element.text
-                    |> Element.el [ Font.bold, Element.padding 4 ]
-                    |> Element.el [ Element.paddingXY 0 4 ]
+            toHeader =
+                Utils.toHeader
 
             cell =
                 Utils.cell HoverChangedTutor (Just (.id >> NavigateToTutor)) hovered

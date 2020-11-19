@@ -146,7 +146,7 @@ ifElse resultIf resultElse result =
 
 toHeader : String -> Element msg
 toHeader text =
-    text |> Element.text |> Element.el [ Font.bold, Element.paddingEach { top = 0, bottom = 8, left = 5, right = 5 } ]
+    text |> Element.text |> Element.el [ Font.bold, Element.paddingEach { top = 0, bottom = 8, left = 16, right = 16 } ]
 
 
 cell : (Int -> msg) -> Maybe (elem -> msg) -> Int -> (elem -> Element msg) -> Int -> elem -> Element msg
@@ -156,7 +156,7 @@ cell hoverChanged redirect hovered toElem index e =
          , Events.onMouseEnter (hoverChanged index)
          , Events.onMouseLeave (hoverChanged -1)
          , Element.height Element.fill
-         , Element.padding 4
+         , Element.paddingXY 16 4
          , Background.color (ifElse Colors.theme.p100 Colors.clear (index == hovered))
          ]
             ++ (redirect |> Maybe.Extra.toList |> List.map (\r -> r e) |> List.map Events.onDoubleClick)
