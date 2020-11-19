@@ -32,7 +32,8 @@ $handleNewTutor = function (Request $request, Response $response, $args) {
         $tutor = MTutor::create($db, $body);
         return $response->withJson(array('id' => $tutor->id), 200);
     } catch (Exception $e) {
-        $response->withStatus(400, $e->getMessage());
+        error_log($e);
+        return $response->withStatus(400, $e->getMessage());
     }
 };
 
@@ -58,8 +59,8 @@ function getTutorRoutes($authMiddleware, $adminOnlyMiddleware)
             // update tutor details$body = $request->getParsedBody();
             // extract required keys
             $body = $request->getParsedBody();
-            $body['dob'] = $body['dateOfBirth'];
-            $body['doc'] = $body['dateOfRegistration'];
+            $body['dob'] = $body['dob'];
+            $body['doc'] = $body['doc'];
             $db = getDB();
             $tutorId = $args['id'];
             $tutor = MTutor::retrieve($db, $tutorId);
@@ -69,6 +70,16 @@ function getTutorRoutes($authMiddleware, $adminOnlyMiddleware)
             } else {
                 return $response->withStatus(400, "Failed to update tutor");
             }
+        })->add($authMiddleware)->add($adminOnlyMiddleware);
+        $group->delete('', function (Request $request, Response $response, $args) {
+            $db = getDB();
+            $tutorId = $args['id'];
+            $tutor = MTutor::retrieve($db, $tutorId);
+            $result = $tutor->delete();
+            if (!$result) {
+                return $response->withStatus(400);
+            }
+            return $response->withStatus(200);
         })->add($authMiddleware)->add($adminOnlyMiddleware);
 
         $group->get('/attended', function (Request $request, Response $response, $args) {

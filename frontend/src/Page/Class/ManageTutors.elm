@@ -75,6 +75,8 @@ type Msg
     | GotClassData (Result Http.Error Class.Class)
     | AddTutor Tutor.TutorId
     | GotAddTutorResult (Result Http.Error ())
+    | GotUpdateTutorResult (Result Http.Error ())
+    | GotRemovedTutorResult (Result Http.Error ())
     | EnteredNameFilter String
     | EditDate Tutor.TutorId
     | EditJoinDateChanged DatePicker.ChangeEvent
@@ -197,7 +199,28 @@ fetchClassDetails credentials classId =
 
 postUpdateDates : Api.Credentials -> Class.ClassId -> Tutor.TutorId -> Date.Date -> Maybe Date.Date -> Cmd Msg
 postUpdateDates credentials classId tutorId joinDate leaveDate =
-    Cmd.none
+    Http.request
+        { method = "PUT"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId, "updatetutor", tutorId ] []
+        , body =
+            Http.jsonBody
+                (Encode.object
+                    ((case leaveDate of
+                        Just date ->
+                            [ ( "leaveDate", Encode.string (Date.toIsoString date) ) ]
+
+                        Nothing ->
+                            []
+                     )
+                        ++ [ ( "joinDate", Encode.string (Date.toIsoString joinDate) )
+                           ]
+                    )
+                )
+        , expect = Http.expectWhatever GotUpdateTutorResult
+        }
 
 
 postAddTutor : Api.Credentials -> Class.ClassId -> Tutor.TutorId -> Date.Date -> Cmd Msg
@@ -223,7 +246,17 @@ postAddTutor credentials classId tutorId joinDate =
 
 postRemoveTutor : Api.Credentials -> Class.ClassId -> Tutor.TutorId -> Cmd Msg
 postRemoveTutor credentials classId tutorId =
-    Cmd.none
+    Http.request
+        { method = "DELETE"
+        , headers =
+            [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session)
+            ]
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId, "removetutor", tutorId ] []
+        , body = Http.emptyBody
+        , expect = Http.expectWhatever GotRemovedTutorResult
+        }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -264,6 +297,12 @@ update msg model =
                 , fetchSuggestions model.credentials model.id ""
                 ]
             )
+
+        GotRemovedTutorResult _ ->
+            ( model, fetchTutorList model.credentials model.id )
+
+        GotUpdateTutorResult _ ->
+            ( { model | editForm = Nothing }, fetchTutorList model.credentials model.id )
 
         CancelEditForm ->
             ( { model | editForm = Nothing }, Cmd.none )
@@ -697,7 +736,10 @@ viewEditDatesForm form =
         , Element.row [ Element.spacing 10, Element.paddingXY 0 5 ]
             [ Input.button Styles.buttonStyleCozyWhite { label = "Cancel" |> Element.text, onPress = Just CancelEditForm }
             , if joinDateValid && leaveDateValid then
-                Input.button Styles.buttonStyleCozy { label = "Update" |> Element.text, onPress = Just SubmitEditForm }
+                Input.button Styles.buttonStyleCozy
+                    { label = "Update" |> Element.text
+                    , onPress = Just SubmitEditForm
+                    }
 
               else
                 Element.none

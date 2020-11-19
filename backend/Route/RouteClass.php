@@ -34,7 +34,10 @@ $handleNewClass = function (Request $request, Response $response, $args) {
 function getClassRoutes($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddleware)
 {
     return function (RouteCollectorProxy $group) use ($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddleware) {
-
+        $respondWithSuccess = function (Request $request, Response $response, $args) {
+            return $response->withStatus(200);
+        };
+        $group->options('', $respondWithSuccess);
         $group->get('', function (Request $request, Response $response, $args) {
             // get class details
             $classId = $args['id'];
@@ -42,10 +45,6 @@ function getClassRoutes($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddl
             $class = MClass::retrieve($db, $classId);
             return $response->withJson($class->toAssoc(), 200);
         })->add($authMiddleware);
-        $group->options('', function (Request $request, Response $response, $args) {
-            return $response->withStatus(200);
-        });
-
         $group->patch('', function (Request $request, Response $response, $args) {
             // update class details
             $classId = $args['id'];
@@ -53,6 +52,17 @@ function getClassRoutes($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddl
             $db = getDB();
             $class = MClass::retrieve($db, $classId);
             $result = $class->update($body);
+            if ($result) {
+                return $response->withStatus(200);
+            }
+            return $response->withStatus(400, "Failed to update class");
+        })->add($authMiddleware)->add($adminOnlyMiddleware);
+        $group->delete('', function (Request $request, Response $response, $args) {
+            $classId = $args['id'];
+            $body = $request->getParsedBody();
+            $db = getDB();
+            $class = MClass::retrieve($db, $classId);
+            $result = $class->delete($body);
             if ($result) {
                 return $response->withStatus(200);
             }
@@ -69,9 +79,7 @@ function getClassRoutes($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddl
             }, $tutors);
             return $response->withJson($tutors, 200);
         })->add($authMiddleware);
-        $group->options('/tutors', function (Request $request, Response $response, $args) {
-            return $response->withStatus(200);
-        });
+        $group->options('/tutors', $respondWithSuccess);
 
         $group->get('/sessions', function (Request $request, Response $response, $args) {
             $db = getDB();
@@ -83,9 +91,7 @@ function getClassRoutes($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddl
             }, $sessions);
             return $response->withJson($sessions, 200);
         })->add($authMiddleware);
-        $group->options('/sessions', function (Request $request, Response $response, $args) {
-            return $response->withStatus(200);
-        });
+        $group->options('/sessions', $respondWithSuccess);
 
         $group->post('/addsession', function (Request $request, Response $response, $args) {
             $db = getDB();
@@ -95,9 +101,7 @@ function getClassRoutes($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddl
             $sess = $class->addSession($body);
             return $response->withJson(array('id' => $sess->id), 200);
         })->add($authMiddleware)->add($adminOnlyMiddleware);
-        $group->options('/addsession', function (Request $request, Response $response, $args) {
-            return $response->withStatus(200);
-        });
+        $group->options('/addsession', $respondWithSuccess);
 
         $group->post('/addtutor', function (Request $request, Response $response, $args) {
             // add tutor to class
@@ -115,9 +119,7 @@ function getClassRoutes($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddl
                 return $response->withStatus(400);
             }
         })->add($authMiddleware)->add($adminOnlyMiddleware);
-        $group->options('/addtutor', function (Request $request, Response $response, $args) {
-            return $response->withStatus(200);
-        });
+        $group->options('/addtutor', $respondWithSuccess);
 
         $group->get('/suggestions', function (Request $request, Response $response, $args) {
             $db = getDB();
@@ -138,29 +140,68 @@ function getClassRoutes($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddl
             }, $data);
             return $response->withJson($data, 200);
         }); //->add($authMiddleware)->add($adminOnlyMiddleware);
-        $group->options('/suggestions', function (Request $request, Response $response, $args) {
-            return $response->withStatus(200);
-        });
+        $group->options('/suggestions', $respondWithSuccess);
 
         $group->put('/updatetutor/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
             // used to edit join date or leave date
-            // TODO
-            return $response;
+            $body = $request->getParsedBody();
+            $db = getDB();
+            $classId = $args['id'];
+            $class = MClass::retrieve($db, $classId);
+            $tutorId = $args['tid'];
+            $tutors = $class->getTutors();
+            $tutors = array_filter($tutors, function (MClassTutor $t) use ($tutorId) {
+                return $t->tutor->id == $tutorId;
+            });
+            if (count($tutors) == 0) {
+                return $response->withStatus(400);
+            }
+            $tutor = $tutors[0];
+            if (isset($body['joinDate'])) {
+                $result = $tutor->updateJoinDate(new DateTime($body['joinDate']));
+                if (!$result) {
+                    return $response->withStatus(400);
+                }
+            }
+            if (isset($body['leaveDate'])) {
+                $result = $tutor->updateLeaveDate(new DateTime($body['leaveDate']));
+                if (!$result) {
+                    return $response->withStatus(400);
+                }
+            }
+            return $response->withStatus(200);
         })->add($authMiddleware)->add($adminOnlyMiddleware);
+        $group->options('/updatetutor/{tid:[0-9a-z]+}', $respondWithSuccess);
 
-        $group->put('/removetutor/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
+        $group->delete('/removetutor/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
             // used to delete tutor from class, clears attendance records
-            // TODO
-            return $response;
+            $db = getDB();
+            $classId = $args['id'];
+            $class = MClass::retrieve($db, $classId);
+            $tutorId = $args['tid'];
+            $tutor = MTutor::retrieve($db, $tutorId);
+            if (!$class->hasTutor($tutor)) {
+                return $response->withStatus(400);
+            }
+            $result = $class->removeTutor($tutor);
+            if (!$result) {
+                return $response->withStatus(400);
+            }
+            return $response->withStatus(200);
         })->add($authMiddleware)->add($adminOnlyMiddleware);
+        $group->options('/removetutor/{tid:[0-9a-z]+}', $respondWithSuccess);
 
         /**
          * Functions operating on a specific session
          */
         $group->group('/session/{sid:[0-9a-z]+}', function (RouteCollectorProxy $subgroup) use ($authMiddleware, $leaderAboveMiddleware) {
+            $respondWithSuccess = function (Request $request, Response $response, $args) {
+                return $response->withStatus(200);
+            };
             /**
              * Get session details
              */
+            $subgroup->options('', $respondWithSuccess);
             $subgroup->get('', function (Request $request, Response $response, $args) {
                 // get session details
                 $db = getDB();
@@ -170,9 +211,7 @@ function getClassRoutes($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddl
                 $session = $class->getSession($sessionId);
                 return $response->withJson($session->toAssoc(), 200);
             })->add($authMiddleware);
-            $subgroup->options('', function (Request $request, Response $response, $args) {
-                return $response->withStatus(200);
-            });
+
             $subgroup->delete('', function (Request $request, Response $response, $args) {
                 $db = getDB();
                 $classId = $args['id'];
@@ -200,14 +239,12 @@ function getClassRoutes($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddl
                 $sessionId = $args['sid'];
                 $session = $class->getSession($sessionId);
                 $tutors = $session->allClassTutors();
-                $tutors = array_map(function (MClassTutor $elem) {
+                $tutors = array_values(array_map(function (MClassTutor $elem) {
                     return $elem->toAssoc();
-                }, $tutors);
+                }, $tutors));
                 return $response->withJson($tutors, 200);
             })->add($authMiddleware);
-            $subgroup->options('/tutors', function (Request $request, Response $response, $args) {
-                return $response->withStatus(200);
-            });
+            $subgroup->options('/tutors', $respondWithSuccess);
 
             $subgroup->get('/present', function (Request $request, Response $response, $args) {
                 // get list of tutors present in session
@@ -222,9 +259,7 @@ function getClassRoutes($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddl
                 }, $tutors);
                 return $response->withJson($tutors, 200);
             })->add($authMiddleware);
-            $subgroup->options('/present', function (Request $request, Response $response, $args) {
-                return $response->withStatus(200);
-            });
+            $subgroup->options('/present', $respondWithSuccess);
 
             $subgroup->get('/absent', function (Request $request, Response $response, $args) {
                 // get list of tutors absent in session
@@ -239,9 +274,7 @@ function getClassRoutes($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddl
                 }, $tutors);
                 return $response->withJson($tutors, 200);
             })->add($authMiddleware);
-            $subgroup->options('/absent', function (Request $request, Response $response, $args) {
-                return $response->withStatus(200);
-            });
+            $subgroup->options('/absent', $respondWithSuccess);
 
             $subgroup->get('/exempt', function (Request $request, Response $response, $args) {
                 // get list of tutors exempt in session
@@ -256,9 +289,7 @@ function getClassRoutes($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddl
                 }, $tutors);
                 return $response->withJson($tutors, 200);
             })->add($authMiddleware);
-            $subgroup->options('/exempt', function (Request $request, Response $response, $args) {
-                return $response->withStatus(200);
-            });
+            $subgroup->options('/exempt', $respondWithSuccess);
 
             $subgroup->post('/present/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
                 // mark tutor as present
@@ -281,9 +312,7 @@ function getClassRoutes($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddl
                 }
                 return $response->withStatus(200);
             })->add($authMiddleware)->add($leaderAboveMiddleware);
-            $subgroup->options('/present/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
-                return $response->withStatus(200);
-            });
+            $subgroup->options('/present/{tid:[0-9a-z]+}', $respondWithSuccess);
 
             $subgroup->post('/absent/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
                 // mark tutor as absent
@@ -306,9 +335,7 @@ function getClassRoutes($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddl
                 }
                 return $response->withStatus(200);
             })->add($authMiddleware)->add($leaderAboveMiddleware);
-            $subgroup->options('/absent/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
-                return $response->withStatus(200);
-            });
+            $subgroup->options('/absent/{tid:[0-9a-z]+}', $respondWithSuccess);
 
             $subgroup->post('/exempt/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
                 // mark tutor as absent
@@ -331,9 +358,7 @@ function getClassRoutes($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddl
                 }
                 return $response->withStatus(200);
             })->add($authMiddleware)->add($leaderAboveMiddleware);
-            $subgroup->options('/exempt/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
-                return $response->withStatus(200);
-            });
+            $subgroup->options('/exempt/{tid:[0-9a-z]+}', $respondWithSuccess);
 
             $subgroup->put('/addexternal/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
                 // add a tutor that is not under this class to this session

@@ -28,6 +28,7 @@ import String
 import Styles
 import Tutor
 import Url.Builder as Builder
+import Utils
 
 
 type alias Model =
@@ -38,25 +39,30 @@ type alias Model =
     , classData : WebData Class.Class
     , sessionData : WebData Class.ClassSession
     , tutors : WebData (List Class.ClassTutor)
-    , present : WebData (List String)
+    , present : WebData (List Class.ClassId)
+    , absent : WebData (List Class.ClassId)
     , hoveredIndex : Int
+    , mode : String
     }
 
 
 type Msg
     = GotTutorsList (Result Http.Error (List Class.ClassTutor))
-    | GotPresentList (Result Http.Error (List String))
+    | GotPresentList (Result Http.Error (List Class.ClassId))
+    | GotAbsentList (Result Http.Error (List Class.ClassId))
     | GotSessionData (Result Http.Error Class.ClassSession)
     | GotClassData (Result Http.Error Class.Class)
     | GotMarkedResult (Result Http.Error ())
-    | MarkPresent String
-    | MarkAbsent String
+    | MarkPresent Class.ClassId
+    | MarkAbsent Class.ClassId
+    | MarkExempt Class.ClassId
     | HoverChanged Int
+    | ModeChanged
 
 
 
--- | AddExternalTutor String
--- | RemoveExternalTutor String
+-- | AddExternalTutor Class.ClassId
+-- | RemoveExternalTutor Class.ClassId
 
 
 fetchClassDetails : Api.Credentials -> Class.ClassId -> Cmd Msg
@@ -111,6 +117,19 @@ fetchPresentList credentials classId sessionId =
         }
 
 
+fetchAbsentList : Api.Credentials -> Class.ClassId -> Class.SessionId -> Cmd Msg
+fetchAbsentList credentials classId sessionId =
+    Http.request
+        { method = "GET"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", sessionId, "absent" ] []
+        , expect = Http.expectJson GotAbsentList (Decode.list Decode.string)
+        }
+
+
 postMarkPresent : Api.Credentials -> Class.ClassId -> Class.SessionId -> Tutor.TutorId -> Cmd Msg
 postMarkPresent credentials classId sessionId tutorId =
     Http.request
@@ -133,6 +152,19 @@ postMarkAbsent credentials classId sessionId tutorId =
         , timeout = Nothing
         , tracker = Nothing
         , url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", sessionId, "absent", tutorId ] []
+        , expect = Http.expectWhatever GotMarkedResult
+        }
+
+
+postMarkExempt : Api.Credentials -> Class.ClassId -> Class.SessionId -> Tutor.TutorId -> Cmd Msg
+postMarkExempt credentials classId sessionId tutorId =
+    Http.request
+        { method = "POST"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", sessionId, "exempt", tutorId ] []
         , expect = Http.expectWhatever GotMarkedResult
         }
 
@@ -174,13 +206,16 @@ init credentials key classId sessionId =
             , sessionData = RemoteData.Loading
             , classData = RemoteData.Loading
             , present = RemoteData.Loading
+            , absent = RemoteData.Loading
             , tutors = RemoteData.Loading
             , hoveredIndex = -1
+            , mode = "view"
             }
     in
     ( model
     , Cmd.batch
         [ fetchPresentList model.credentials model.classId model.sessionId
+        , fetchAbsentList model.credentials model.classId model.sessionId
         , fetchTutorsList model.credentials model.classId model.sessionId
         , fetchSessionDetails model.credentials model.classId model.sessionId
         , fetchClassDetails model.credentials model.classId
@@ -198,6 +233,9 @@ update msg model =
         GotPresentList result ->
             ( { model | present = RemoteData.fromResult result }, Cmd.none )
 
+        GotAbsentList result ->
+            ( { model | absent = RemoteData.fromResult result }, Cmd.none )
+
         GotSessionData result ->
             ( { model | sessionData = RemoteData.fromResult result }, Cmd.none )
 
@@ -208,34 +246,27 @@ update msg model =
             ( { model | classData = RemoteData.fromResult result }, Cmd.none )
 
         GotMarkedResult _ ->
-            ( model, fetchPresentList model.credentials model.classId model.sessionId )
+            ( model
+            , Cmd.batch
+                [ fetchPresentList model.credentials model.classId model.sessionId
+                , fetchAbsentList model.credentials model.classId model.sessionId
+                ]
+            )
 
         HoverChanged value ->
             ( { model | hoveredIndex = value }, Cmd.none )
 
+        ModeChanged ->
+            ( { model | mode = Utils.ifElse "view" "edit" (model.mode == "edit") }, Cmd.none )
+
         MarkPresent tutorId ->
-            case model.present of
-                RemoteData.Success presentList ->
-                    if List.member tutorId presentList then
-                        ignore
-
-                    else
-                        ( model, postMarkPresent model.credentials model.classId model.sessionId tutorId )
-
-                _ ->
-                    ignore
+            ( model, postMarkPresent model.credentials model.classId model.sessionId tutorId )
 
         MarkAbsent tutorId ->
-            case model.present of
-                RemoteData.Success presentList ->
-                    if not (List.member tutorId presentList) then
-                        ignore
+            ( model, postMarkAbsent model.credentials model.classId model.sessionId tutorId )
 
-                    else
-                        ( model, postMarkAbsent model.credentials model.classId model.sessionId tutorId )
-
-                _ ->
-                    ignore
+        MarkExempt tutorId ->
+            ( model, postMarkExempt model.credentials model.classId model.sessionId tutorId )
 
 
 
@@ -264,19 +295,20 @@ viewSessionInfo session =
 viewSummary : List ClassTutor -> List String -> Element Msg
 viewSummary tutors present =
     Element.column
-        [ Element.spacing 5
+        [ Element.spacing 8
         , Element.width Element.fill
         , Element.padding 20
         , Background.color Colors.theme.p50
         ]
-        [ Element.text ((List.length present |> String.fromInt) ++ " Tutors Present")
+        [ Element.text "Summary" |> Element.el [ Font.size 16, Font.bold ]
+        , Element.text ((List.length present |> String.fromInt) ++ " Tutors Present")
         , Element.text (((List.length tutors - List.length present) |> String.fromInt) ++ " Tutors Absent")
         , Element.text ((List.length tutors |> String.fromInt) ++ " Tutors Total")
         ]
 
 
-viewAttendance : Int -> List ClassTutor -> List String -> Element Msg
-viewAttendance hoveredIndex tutors present =
+viewAttendance : String -> Int -> List ClassTutor -> List String -> List String -> Element Msg
+viewAttendance mode hoveredIndex tutors present absent =
     let
         toHeader : String -> Element Msg
         toHeader text =
@@ -292,34 +324,17 @@ viewAttendance hoveredIndex tutors present =
                 |> Element.el [ Element.centerX, Font.bold, Element.padding 4 ]
                 |> Element.el [ Element.width Element.fill, Element.paddingXY 0 10 ]
 
-        cell : (ClassTutor -> Element Msg) -> Int -> ClassTutor -> Element Msg
-        cell toElem index e =
-            Element.el
-                ([ Element.centerY
-                 , Events.onMouseEnter (HoverChanged index)
-                 , Events.onMouseLeave (HoverChanged -1)
-                 , Element.height Element.fill
-                 , Element.padding 4
-                 ]
-                    ++ (if index == hoveredIndex then
-                            [ Background.color Colors.theme.p100 ]
+        cellCentered =
+            Utils.cellCentered HoverChanged Nothing hoveredIndex
 
-                        else
-                            []
-                       )
-                )
-                (toElem e |> Element.el [ Element.centerY ])
+        cell : (ClassTutor -> Element Msg) -> Int -> ClassTutor -> Element Msg
+        cell =
+            Utils.cell HoverChanged Nothing hoveredIndex
 
         presentButton : ClassTutor -> Element Msg
         presentButton t =
             Input.button
-                [ Background.color Colors.theme.a400
-                , Border.width 1
-                , Border.rounded 20
-                , Element.paddingXY 10 6
-                , Element.width (Element.shrink |> Element.minimum 100)
-                , Element.mouseOver [ Background.color Colors.theme.a700 ]
-                ]
+                Styles.buttonStyleMedium
                 { label = Element.text "+" |> Element.el [ Element.centerX ]
                 , onPress = Just (MarkPresent t.id)
                 }
@@ -327,22 +342,79 @@ viewAttendance hoveredIndex tutors present =
         absentButton : ClassTutor -> Element Msg
         absentButton t =
             Input.button
-                [ Background.color Colors.red
-                , Border.width 1
-                , Border.rounded 20
-                , Element.paddingXY 10 6
-                , Element.width (Element.shrink |> Element.minimum 100)
-                , Font.color Colors.white
-                ]
+                Styles.buttonStyleMediumRed
                 { label = Element.text "-" |> Element.el [ Element.centerX ]
                 , onPress = Just (MarkAbsent t.id)
                 }
+
+        exemptButton : ClassTutor -> Element Msg
+        exemptButton t =
+            Input.button
+                Styles.buttonStyleMediumWhite
+                { label = Element.text "=" |> Element.el [ Element.centerX ]
+                , onPress = Just (MarkExempt t.id)
+                }
+
+        getStatus : ClassTutor -> String
+        getStatus =
+            \t ->
+                if List.member t.id present then
+                    "Present"
+
+                else if List.member t.id absent then
+                    "Absent"
+
+                else
+                    "Exempt"
     in
     Element.column
         [ Element.spacing 10
         , Element.width Element.fill
         ]
         [ viewSummary tutors present
+        , Element.row
+            [ Element.padding 10
+            , Element.spacing 5
+            ]
+            [ Element.text "Mode: "
+            , Input.button
+                [ Background.color (Utils.ifElse Colors.theme.a400 Colors.white (mode == "view"))
+                , Font.color (Utils.ifElse Colors.black Colors.grey (mode == "view"))
+                , Element.paddingXY 5 2
+                , Border.rounded 3
+                , Border.width 1
+                ]
+                { label = Element.text "View Mode"
+                , onPress = Just ModeChanged
+                }
+            , Input.button
+                [ Background.color (Utils.ifElse Colors.theme.a400 Colors.white (mode == "edit"))
+                , Font.color (Utils.ifElse Colors.black Colors.grey (mode == "edit"))
+                , Element.paddingXY 5 2
+                , Border.rounded 3
+                , Border.width 1
+                ]
+                { label = Element.text "Edit Mode"
+                , onPress = Just ModeChanged
+                }
+            ]
+        , Utils.ifElse
+            (Element.row [ Element.padding 10, Element.spacing 10, Element.width Element.fill ]
+                [ Input.button
+                    (Element.centerX
+                        :: Styles.buttonStyleMedium
+                    )
+                    { label = "All Present" |> Element.text |> Element.el [ Element.centerX ]
+                    , onPress = Nothing
+                    }
+                , Input.button (Element.centerX :: Styles.buttonStyleMediumRed)
+                    { label = "All Absent" |> Element.text |> Element.el [ Element.centerX ]
+                    , onPress = Nothing
+                    }
+                ]
+            )
+            Element.none
+            (mode == "edit")
         , Element.indexedTable
             [ Element.padding 20
             , Element.width Element.fill
@@ -352,30 +424,42 @@ viewAttendance hoveredIndex tutors present =
             { data = tutors
             , columns =
                 [ { header = "Name" |> toHeader
-                  , width = Element.fill |> Element.maximum 100
-                  , view = .name >> Element.text |> cell
-                  }
-                , { header = Element.none
-                  , width = Element.fill |> Element.maximum 80
+                  , width = Element.shrink |> Element.minimum 120
                   , view =
                         (\t ->
-                            if List.member t.id present then
-                                Element.text "Present"
-
-                            else
-                                Element.text "Absent"
+                            t.name
+                                |> Element.text
+                                |> Element.el (Utils.ifElse [ Font.color Colors.grey ] [] (getStatus t == "Exempt"))
                         )
                             |> cell
                   }
-                , { header = "Mark Present" |> centeredHeader
-                  , width = Element.fill |> Element.maximum 100
-                  , view = presentButton |> cell
-                  }
-                , { header = "Mark Absent" |> centeredHeader
-                  , width = Element.fill |> Element.maximum 100
-                  , view = absentButton |> cell
+                , { header = Element.none
+                  , width = Element.shrink |> Element.minimum 100
+                  , view =
+                        (\t ->
+                            getStatus t
+                                |> Element.text
+                                |> Element.el (Utils.ifElse [ Font.color Colors.grey ] [] (getStatus t == "Exempt"))
+                        )
+                            |> cell
                   }
                 ]
+                    ++ Utils.ifElse
+                        [ { header = "Mark Present" |> centeredHeader
+                          , width = Element.fill |> Element.maximum 100
+                          , view = presentButton |> cellCentered
+                          }
+                        , { header = "Mark Absent" |> centeredHeader
+                          , width = Element.fill |> Element.maximum 100
+                          , view = absentButton |> cellCentered
+                          }
+                        , { header = "Mark Exempted" |> centeredHeader
+                          , width = Element.fill |> Element.maximum 100
+                          , view = exemptButton |> cellCentered
+                          }
+                        ]
+                        []
+                        (mode == "edit")
             }
         ]
 
@@ -387,27 +471,19 @@ view model =
         , Element.padding 20
         , Element.width Element.fill
         ]
-        [ case model.sessionData of
-            RemoteData.NotAsked ->
-                Element.text "Not asked"
+        [ Utils.viewWebData viewSessionInfo model.sessionData
+        , case ( model.tutors, model.present, model.absent ) of
+            ( RemoteData.Success tutorList, RemoteData.Success presentList, RemoteData.Success absentList ) ->
+                viewAttendance model.mode model.hoveredIndex tutorList presentList absentList
 
-            RemoteData.Loading ->
-                Element.text "Loading"
+            ( RemoteData.Failure err, _, _ ) ->
+                Element.text "Failed to get tutor data"
 
-            RemoteData.Success data ->
-                viewSessionInfo data
+            ( _, RemoteData.Failure err, _ ) ->
+                Element.text "Failed to get attendance data"
 
-            RemoteData.Failure err ->
-                Element.text (Debug.toString err)
-        , case ( model.tutors, model.present ) of
-            ( RemoteData.Success tutorList, RemoteData.Success presentList ) ->
-                viewAttendance model.hoveredIndex tutorList presentList
-
-            ( RemoteData.Failure err, _ ) ->
-                Element.text ("Failed to get tutor data: " ++ Debug.toString err)
-
-            ( _, RemoteData.Failure err ) ->
-                Element.text ("Failed to get attendance data" ++ Debug.toString err)
+            ( _, _, RemoteData.Failure err ) ->
+                Element.text "Failed to get attendance data"
 
             _ ->
                 Element.text "Loading"

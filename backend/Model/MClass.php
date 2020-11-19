@@ -195,10 +195,18 @@ class MClass
      */
     function delete(): bool
     {
-        // before deleting itself, it should delete its sessions and tutors
+        // delete each session
+        $sessions = $this->getSessions();
+        foreach ($sessions as $sess) {
+            $result = $sess->delete();
+            if (!$result) {
+                return false;
+            }
+        }
+        // delete class data
         $collection = $this->db->selectCollection('classes');
         $result = $collection->deleteOne(
-            array('_id' => new \MongoDB\BSON\ObjectId($this->id))
+            ['_id' => new \MongoDB\BSON\ObjectId($this->id)]
         );
         return $result->isAcknowledged();
     }
@@ -263,7 +271,7 @@ class MClass
     }
 
     /**
-     * Returns an array of MClassTutor
+     * @return MClassTutor[]
      */
     function getTutors(): array
     {
@@ -298,7 +306,7 @@ class MClass
     function hasTutor(MTutor $tutor): bool
     {
         foreach ($this->getTutors() as $t) {
-            if ($t->id == $tutor->id) {
+            if ($t->tutor->id == $tutor->id) {
                 return true;
             }
         }
@@ -333,10 +341,8 @@ class MClass
         }
         $collection = $this->db->selectCollection('classes');
         $collection->updateOne(
-            array('_id' => new MongoDB\BSON\ObjectId($this->id)),
-            array('$pull' => array('tutors', array(
-                'id' => new \MongoDB\BSON\ObjectId($tutor->id)
-            )))
+            ['_id' => new MongoDB\BSON\ObjectId($this->id)],
+            ['$pull' => ['tutors' => ['id' => new \MongoDB\BSON\ObjectId($tutor->id)]]]
         );
         return true;
     }

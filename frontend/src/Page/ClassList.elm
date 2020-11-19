@@ -10,7 +10,7 @@ import Date
 import Element exposing (Element)
 import Element.Background as Background
 import Element.Border as Border
-import Element.Events
+import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
 import Http
@@ -28,6 +28,13 @@ type alias ClassFilters =
     , yearLower : Int
     , yearUpper : Int
     , days : List Date.Weekday
+    }
+
+
+type alias Modal =
+    { msg : Msg
+    , title : String
+    , description : String
     }
 
 
@@ -56,6 +63,7 @@ type alias Model =
     , nameFilterForm : String
     , hoveredIndex : Int
     , data : WebData (Paged.Paged (List Class))
+    , modal : Maybe Modal
     }
 
 
@@ -71,6 +79,25 @@ type Msg
     | EnteredYearUpperFilter Int
     | TableHover Int
     | ToggleDay Date.Weekday
+    | ShowModal Msg String String
+    | ModalCancel
+    | PostDeleteClass Class.ClassId
+    | GotRemovedClassResult (Result Http.Error ())
+
+
+postDeleteClass : Api.Credentials -> Class.ClassId -> Cmd Msg
+postDeleteClass credentials classId =
+    Http.request
+        { method = "DELETE"
+        , headers =
+            [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session)
+            ]
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId ] []
+        , body = Http.emptyBody
+        , expect = Http.expectWhatever GotRemovedClassResult
+        }
 
 
 init : Api.Credentials -> Navigation.Key -> ClassFilters -> Int -> ( Model, Cmd Msg )
@@ -82,6 +109,7 @@ init credentials key filters page =
       , nameFilterForm = ""
       , hoveredIndex = -1
       , data = RemoteData.Loading
+      , modal = Nothing
       }
     , Http.request
         { method = "GET"
@@ -185,6 +213,18 @@ update msg model =
                         { model | filters = { filters | days = day :: filters.days } }
             in
             ( newModel, pushUrl newModel )
+
+        ShowModal modalMsg title description ->
+            ( { model | modal = Just { msg = modalMsg, title = title, description = description } }, Cmd.none )
+
+        ModalCancel ->
+            ( { model | modal = Nothing }, Cmd.none )
+
+        PostDeleteClass classId ->
+            ( model, postDeleteClass model.credentials classId )
+
+        GotRemovedClassResult _ ->
+            ( model, pushUrl model )
 
 
 viewFilterSingle : (String -> Msg) -> String -> Element Msg
@@ -399,7 +439,13 @@ viewData hovered =
                                 Input.button
                                     Styles.buttonStyleCozyRed
                                     { label = Element.text "Delete" |> Element.el [ Element.centerX ]
-                                    , onPress = Nothing
+                                    , onPress =
+                                        Just
+                                            (ShowModal
+                                                (PostDeleteClass class.id)
+                                                ("Delete class [" ++ class.name ++ "] ?")
+                                                "This action cannot be undone."
+                                            )
                                     }
                             )
                                 |> cell
@@ -418,6 +464,51 @@ blankIfAbsent viewIt webData =
 
         _ ->
             Element.none
+
+
+viewModal : Modal -> Element Msg
+viewModal modal =
+    Element.el
+        [ Element.width Element.fill
+        , Element.height Element.fill
+        , Background.color (Element.rgba255 0 0 0 0.2)
+        , Events.onClick ModalCancel
+        ]
+        (Element.column
+            [ Background.color Colors.white
+            , Element.spacing 10
+            , Element.padding 20
+            , Element.centerX
+            , Element.centerY
+            , Border.shadow { offset = ( 1, 1 ), size = 2, blur = 5, color = Colors.black }
+            ]
+            [ Element.text modal.title |> Element.el [ Font.bold ]
+            , Element.paragraph
+                [ Element.width (Element.fill |> Element.maximum 200)
+                ]
+                [ Element.text modal.description ]
+            , Element.row [ Element.spacing 5 ]
+                [ Input.button
+                    [ Element.paddingXY 20 5
+                    , Border.width 1
+                    , Border.rounded 5
+                    ]
+                    { label = Element.text "Cancel"
+                    , onPress = Just ModalCancel
+                    }
+                , Input.button
+                    [ Element.paddingXY 20 5
+                    , Border.width 1
+                    , Background.color Colors.red
+                    , Font.color Colors.white
+                    , Border.rounded 5
+                    ]
+                    { label = Element.text "Proceed"
+                    , onPress = Just modal.msg
+                    }
+                ]
+            ]
+        )
 
 
 viewActionBar : Element Msg
@@ -446,8 +537,10 @@ view : Model -> Element Msg
 view model =
     Element.column
         [ Element.width Element.fill
+        , Element.height Element.fill
         , Element.spacing 10
         , Element.padding 20
+        , Element.inFront (model.modal |> Maybe.map viewModal |> Maybe.withDefault Element.none)
         ]
         [ viewActionBar
         , viewClassFilters model.nameFilterForm model.filters

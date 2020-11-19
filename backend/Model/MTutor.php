@@ -252,6 +252,8 @@ class MTutor
 
     static function create(MongoDB\Database $db, array $data): MTutor
     {
+        if (isset($data['dob'])) $data['dob'] = new DateTime($data['dob']);
+        if (isset($data['doc'])) $data['doc'] = new DateTime($data['doc']);
         // ensure email has not duplicates
         MTutor::validateFieldsPresent($data);
         $data['school'] = $data['school'] ?? "";
@@ -266,8 +268,8 @@ class MTutor
             'password' => password_hash($data['password'], PASSWORD_DEFAULT),
             'gender' => (string) $data['gender'],
             'school' => (string) $data['school'],
-            'dob' => new MongoDB\BSON\UTCDateTime(strtotime($data['dob']) * 1000),
-            'doc' => new MongoDB\BSON\UTCDateTime(strtotime($data['doc']) * 1000)
+            'dob' => new MongoDB\BSON\UTCDateTime($data['dob']->getTimestamp() * 1000),
+            'doc' => new MongoDB\BSON\UTCDateTime($data['doc']->getTimestamp() * 1000)
         ];
         $collection = $db->selectCollection('tutors');
         $result = $collection->insertOne($details);
@@ -378,8 +380,8 @@ class MTutor
             'admin' => $this->adminLvl,
             'status' => $this->status,
             'gender' => $this->gender,
-            'dateOfBirth' => $this->dob->format('Y-m-d'),
-            'dateOfRegistration' => $this->doc->format('Y-m-d'),
+            'dob' => $this->dob->format('Y-m-d'),
+            'doc' => $this->doc->format('Y-m-d'),
         ];
         return $result;
     }

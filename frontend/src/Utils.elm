@@ -164,6 +164,22 @@ cell hoverChanged redirect hovered toElem index e =
         (toElem e |> Element.el [ Element.centerY ])
 
 
+cellCentered : (Int -> msg) -> Maybe (elem -> msg) -> Int -> (elem -> Element msg) -> Int -> elem -> Element msg
+cellCentered hoverChanged redirect hovered toElem index e =
+    Element.el
+        ([ Element.centerY
+         , Element.centerX
+         , Events.onMouseEnter (hoverChanged index)
+         , Events.onMouseLeave (hoverChanged -1)
+         , Element.height Element.fill
+         , Element.paddingXY 16 4
+         , Background.color (ifElse Colors.theme.p100 Colors.clear (index == hovered))
+         ]
+            ++ (redirect |> Maybe.Extra.toList |> List.map (\r -> r e) |> List.map Events.onDoubleClick)
+        )
+        (toElem e |> Element.el [ Element.centerY ])
+
+
 viewValidation : Bool -> Element msg
 viewValidation validated =
     let

@@ -168,8 +168,8 @@ tutorDecoder =
         |> Pipeline.required "name" Decode.string
         |> Pipeline.required "email" Decode.string
         |> Pipeline.required "school" Decode.string
-        |> Pipeline.required "dateOfBirth" Utils.dateDecoder
-        |> Pipeline.required "dateOfRegistration" Utils.dateDecoder
+        |> Pipeline.required "dob" Utils.dateDecoder
+        |> Pipeline.required "doc" Utils.dateDecoder
         |> Pipeline.required "gender" Utils.genderDecoder
         |> Pipeline.required "status" tutorStatusDecoder
         |> Pipeline.required "admin" tutorAdminLevelDecoder
@@ -182,8 +182,8 @@ tutorEncoder tutor =
         ([ ( "id", Encode.string tutor.id )
          , ( "name", Encode.string tutor.name )
          , ( "email", Encode.string tutor.email )
-         , ( "dateOfBirth", Encode.string (Date.toIsoString tutor.dateOfBirth) )
-         , ( "dateOfRegistration", Encode.string (Date.toIsoString tutor.dateOfRegistration) )
+         , ( "dob", Encode.string (Date.toIsoString tutor.dateOfBirth) )
+         , ( "doc", Encode.string (Date.toIsoString tutor.dateOfRegistration) )
          , ( "school", Encode.string tutor.school )
          , ( "admin", Encode.int (tutorAdminLevelEncoder tutor.admin) )
          , ( "status", Encode.int (tutorStatusEncoder tutor.status) )

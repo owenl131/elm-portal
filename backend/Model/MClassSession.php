@@ -26,7 +26,7 @@ class MClassSession
     function allClassTutors(): array
     {
         $tutors = $this->class->getTutors();
-        $tutors = array_filter($tutors, function (MClassTutor $elem) {
+        $tutors = array_values(array_filter($tutors, function (MClassTutor $elem) {
             if ($this->date < $elem->joinDate) {
                 return false;
             }
@@ -34,7 +34,7 @@ class MClassSession
                 return false;
             }
             return true;
-        });
+        }));
         return $tutors;
     }
 
@@ -93,9 +93,9 @@ class MClassSession
                 array_push($result, (string) $tutorId);
             }
         }
-        $result = array_map(function (string $id) {
+        $result = array_values(array_map(function (string $id) {
             return MTutor::retrieve($this->db, $id);
-        }, $result);
+        }, $result));
         return $result;
     }
 
@@ -156,9 +156,9 @@ class MClassSession
                 array_push($result, (string) $tutorId);
             }
         }
-        $result = array_map(function (string $id) {
+        $result = array_values(array_map(function (string $id) {
             return MTutor::retrieve($this->db, $id);
-        }, $result);
+        }, $result));
         return $result;
     }
 
@@ -182,9 +182,9 @@ class MClassSession
         if (!isset($session['attendance']))
             return $tutors;
         $attendance = $session['attendance'];
-        $tutors = array_filter($tutors, function ($elem) {
+        $tutors = array_values(array_filter($tutors, function ($elem) {
             return isset($attendance[$elem->id]);
-        });
+        }));
         return $tutors;
     }
 
@@ -255,6 +255,15 @@ class MClassSession
 
     function delete(): bool
     {
+        // delete attendance records
+        $collection = $this->db->selectCollection('attendance');
+        $result = $collection->deleteOne(
+            ['_id' => new MongoDB\BSON\ObjectId($this->id)]
+        );
+        if (!$result->isAcknowledged()) {
+            return false;
+        }
+        // delete session data
         $collection = $this->db->selectCollection('classes');
         $result = $collection->updateOne(
             ['_id' => new \MongoDB\BSON\ObjectId($this->class->id)],

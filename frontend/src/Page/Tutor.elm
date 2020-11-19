@@ -274,7 +274,7 @@ viewRecentSessions classes sessions =
         , Element.width Element.fill
         , Element.spacing 20
         ]
-        [ Element.text "Sessions" |> Element.el [ Font.size 16, Font.bold ]
+        [ Element.text "Sessions Attended" |> Element.el [ Font.size 16, Font.bold ]
         , Element.indexedTable
             []
             { columns =

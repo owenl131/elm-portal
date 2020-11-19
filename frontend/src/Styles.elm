@@ -11,11 +11,11 @@ import Element.Input as Input
 buttonStyleComfy : List (Element.Attribute msg)
 buttonStyleComfy =
     [ Background.color Colors.theme.a400
+    , Element.mouseOver [ Background.color Colors.theme.a200 ]
     , Border.width 1
     , Border.rounded 3
     , Element.paddingXY 10 4
     , Element.width (Element.shrink |> Element.minimum 100)
-    , Element.mouseOver [ Background.color Colors.theme.a200 ]
     ]
 
 
@@ -56,6 +56,37 @@ buttonStyleWide =
     , Border.width 1
     , Border.rounded 3
     , Element.paddingXY 20 10
+    ]
+
+
+buttonStyleMedium : List (Element.Attribute msg)
+buttonStyleMedium =
+    [ Element.width (Element.shrink |> Element.minimum 120)
+    , Background.color Colors.theme.a400
+    , Element.mouseOver [ Background.color Colors.theme.a200 ]
+    , Border.width 1
+    , Border.rounded 3
+    , Element.paddingXY 15 5
+    ]
+
+
+buttonStyleMediumWhite : List (Element.Attribute msg)
+buttonStyleMediumWhite =
+    [ Element.width (Element.shrink |> Element.minimum 120)
+    , Border.width 1
+    , Border.rounded 3
+    , Element.paddingXY 15 5
+    ]
+
+
+buttonStyleMediumRed : List (Element.Attribute msg)
+buttonStyleMediumRed =
+    [ Element.width (Element.shrink |> Element.minimum 120)
+    , Background.color Colors.red
+    , Border.width 1
+    , Border.rounded 3
+    , Element.paddingXY 15 5
+    , Font.color Colors.white
     ]
 
 

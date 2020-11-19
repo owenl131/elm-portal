@@ -18,7 +18,7 @@ import DatePicker
 import Element exposing (Element)
 import Element.Background as Background
 import Element.Border as Border
-import Element.Events
+import Element.Events as Events
 import Element.Font as Font
 import Element.Input as Input
 import Http
@@ -53,6 +53,28 @@ type alias TutorFiltersForm =
     , joinUpperText : String
     , classFilter : String
     }
+
+
+type alias Modal =
+    { msg : Msg
+    , title : String
+    , description : String
+    }
+
+
+postDeleteTutor : Api.Credentials -> Tutor.TutorId -> Cmd Msg
+postDeleteTutor credentials tutorId =
+    Http.request
+        { method = "DELETE"
+        , headers =
+            [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session)
+            ]
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "tutor", tutorId ] []
+        , body = Http.emptyBody
+        , expect = Http.expectWhatever GotRemovedTutorResult
+        }
 
 
 updatePickerWithDate : Maybe Date.Date -> DatePicker.Model -> DatePicker.Model
@@ -133,6 +155,7 @@ type alias Model =
     , page : Int
     , hoveredIndex : Int
     , data : WebData (Paged.Paged (List Tutor))
+    , modal : Maybe Modal
     }
 
 
@@ -152,6 +175,7 @@ type Msg
     | ToNew
     | TableHover Int
     | GotTutorList (Result Http.Error (Paged.Paged (List Tutor)))
+    | GotRemovedTutorResult (Result Http.Error ())
     | EnteredNameFilter String
     | EnteredSchoolFilter String
     | EnteredClassFilter String
@@ -164,6 +188,9 @@ type Msg
     | ToggleStatus Tutor.TutorStatus
     | ToggleGender Utils.Gender
     | ToggleAdminLvl Tutor.AdminLevel
+    | PostDeleteTutor Tutor.TutorId
+    | ShowModal Msg String String
+    | ModalCancel
 
 
 fetchTutorList : Api.Credentials -> TutorFilters -> Int -> Cmd Msg
@@ -188,6 +215,7 @@ init credentials key filters page =
       , page = page
       , data = RemoteData.Loading
       , hoveredIndex = -1
+      , modal = Nothing
       }
     , Cmd.batch
         [ Task.perform SetToday Date.today
@@ -322,6 +350,9 @@ update msg model =
                             { model | page = page }
                     in
                     ( newModel, pushUrl newModel )
+
+        GotRemovedTutorResult _ ->
+            ( model, pushUrl model )
 
         GotTutorList result ->
             case result of
@@ -498,6 +529,15 @@ update msg model =
                     , Cmd.none
                     )
 
+        ShowModal modalMsg title description ->
+            ( { model | modal = Just { msg = modalMsg, title = title, description = description } }, Cmd.none )
+
+        ModalCancel ->
+            ( { model | modal = Nothing }, Cmd.none )
+
+        PostDeleteTutor tutorId ->
+            ( model, postDeleteTutor model.credentials tutorId )
+
 
 pushUrl : Model -> Cmd Msg
 pushUrl model =
@@ -506,6 +546,51 @@ pushUrl model =
         (Builder.absolute
             [ "tutors" ]
             (Builder.int "page" model.page :: tutorFiltersToQueryList model.filters)
+        )
+
+
+viewModal : Modal -> Element Msg
+viewModal modal =
+    Element.el
+        [ Element.width Element.fill
+        , Element.height Element.fill
+        , Background.color (Element.rgba255 0 0 0 0.2)
+        , Events.onClick ModalCancel
+        ]
+        (Element.column
+            [ Background.color Colors.white
+            , Element.spacing 10
+            , Element.padding 20
+            , Element.centerX
+            , Element.centerY
+            , Border.shadow { offset = ( 1, 1 ), size = 2, blur = 5, color = Colors.black }
+            ]
+            [ Element.text modal.title |> Element.el [ Font.bold ]
+            , Element.paragraph
+                [ Element.width (Element.fill |> Element.maximum 200)
+                ]
+                [ Element.text modal.description ]
+            , Element.row [ Element.spacing 5 ]
+                [ Input.button
+                    [ Element.paddingXY 20 5
+                    , Border.width 1
+                    , Border.rounded 5
+                    ]
+                    { label = Element.text "Cancel"
+                    , onPress = Just ModalCancel
+                    }
+                , Input.button
+                    [ Element.paddingXY 20 5
+                    , Border.width 1
+                    , Background.color Colors.red
+                    , Font.color Colors.white
+                    , Border.rounded 5
+                    ]
+                    { label = Element.text "Proceed"
+                    , onPress = Just modal.msg
+                    }
+                ]
+            ]
         )
 
 
@@ -809,7 +894,13 @@ viewData hovered data =
                                 Input.button
                                     Styles.buttonStyleCozyRed
                                     { label = Element.text "Delete" |> Element.el [ Element.centerX ]
-                                    , onPress = Nothing
+                                    , onPress =
+                                        Just
+                                            (ShowModal
+                                                (PostDeleteTutor tutor.id)
+                                                ("Delete Tutor [" ++ tutor.name ++ "] ?")
+                                                "All attendance records will be lost. This action cannot be undone."
+                                            )
                                     }
                             )
                                 |> cell
@@ -872,6 +963,7 @@ view model =
         , Element.height Element.fill
         , Element.spacing 10
         , Element.padding 20
+        , Element.inFront (model.modal |> Maybe.map viewModal |> Maybe.withDefault Element.none)
         ]
         [ viewActionBar
         , viewFilters model.filtersForm model.filters
