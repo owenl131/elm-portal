@@ -692,7 +692,7 @@ viewTutors hovered tutors =
                   , width = Element.fill |> Element.maximum 200
                   , view = .name >> Element.text |> cell
                   }
-                , { header = "Name" |> toHeader
+                , { header = "Role" |> toHeader
                   , width = Element.fill |> Element.maximum 200
                   , view = .admin >> Tutor.adminLevelAsString >> Element.text |> cell
                   }

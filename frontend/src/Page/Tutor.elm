@@ -14,6 +14,7 @@ import Browser.Navigation as Navigation
 import Class exposing (Class, ClassTutor)
 import Colors
 import Date
+import Dict exposing (Dict)
 import Element exposing (Element)
 import Element.Background as Background
 import Element.Border as Border
@@ -21,7 +22,7 @@ import Element.Font as Font
 import Element.Input as Input
 import Http
 import Json.Decode as Decode
-import RemoteData exposing (RemoteData, WebData)
+import RemoteData exposing (RemoteData, WebData, withDefault)
 import Styles
 import Tutor exposing (Tutor, TutorExtended, TutorId, tutorDecoder)
 import Url.Builder as Builder
@@ -35,6 +36,7 @@ type alias Model =
     , tutorData : WebData Tutor
     , tutorExtendedData : WebData TutorExtended
     , classData : WebData (List Class)
+    , tutorHours : WebData (Dict Class.ClassId Float)
     , hoveredClass : Int
     }
 
@@ -42,6 +44,7 @@ type alias Model =
 type Msg
     = GotTutorData (Result Http.Error Tutor)
     | GotClassData (Result Http.Error (List Class))
+    | GotTutorHours (Result Http.Error (Dict Class.ClassId Float))
     | GotTutorExtendedData (Result Http.Error TutorExtended)
     | ToEditDetails
     | ToClassDetails Class.ClassId
@@ -66,9 +69,14 @@ init credentials key id =
       , tutorData = RemoteData.Loading
       , tutorExtendedData = RemoteData.NotAsked
       , classData = RemoteData.Loading
+      , tutorHours = RemoteData.Loading
       , hoveredClass = -1
       }
-    , Cmd.batch [ fetchTutorData credentials id, fetchClassData credentials id ]
+    , Cmd.batch
+        [ fetchTutorData credentials id
+        , fetchClassData credentials id
+        , fetchTutorHours credentials id
+        ]
     )
 
 
@@ -111,6 +119,19 @@ fetchClassData credentials id =
         }
 
 
+fetchTutorHours : Api.Credentials -> TutorId -> Cmd Msg
+fetchTutorHours credentials id =
+    Http.request
+        { method = "GET"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , url = Builder.crossOrigin Api.endpoint [ "tutor", id, "hours" ] []
+        , expect = Http.expectJson GotTutorHours (Decode.dict Decode.float)
+        , timeout = Nothing
+        , tracker = Nothing
+        }
+
+
 viewRow : String -> Tutor -> (Tutor -> String) -> Element Msg
 viewRow label tutor accessor =
     Element.row
@@ -146,8 +167,8 @@ viewDetails data =
         ]
 
 
-viewClasses : Int -> List Class.Class -> Element Msg
-viewClasses hovered classes =
+viewClasses : Int -> Dict Class.ClassId Float -> List Class.Class -> Element Msg
+viewClasses hovered hours classes =
     let
         toHeader : String -> Element Msg
         toHeader text =
@@ -189,6 +210,18 @@ viewClasses hovered classes =
                   , view =
                         .year
                             >> String.fromInt
+                            >> Element.text
+                            >> Element.el [ Element.centerY ]
+                            |> cell
+                  }
+                , { header = "Hours" |> toHeader
+                  , width = Element.fill |> Element.maximum 60
+                  , view =
+                        (\class ->
+                            Dict.get class.id hours
+                                |> Maybe.map String.fromFloat
+                                |> Maybe.withDefault ""
+                        )
                             >> Element.text
                             >> Element.el [ Element.centerY ]
                             |> cell
@@ -253,7 +286,7 @@ view model =
         , Element.padding 20
         ]
         [ Utils.viewWebData viewDetails model.tutorData
-        , Utils.viewWebData (viewClasses model.hoveredClass) model.classData
+        , Utils.viewWebData (viewClasses model.hoveredClass (model.tutorHours |> RemoteData.toMaybe |> Maybe.withDefault Dict.empty)) model.classData
         , viewRecentSessions []
         , viewOtherActivities []
         , viewHours []
@@ -268,6 +301,9 @@ update msg model =
 
         GotTutorExtendedData result ->
             ( { model | tutorExtendedData = RemoteData.fromResult result }, Cmd.none )
+
+        GotTutorHours result ->
+            ( { model | tutorHours = RemoteData.fromResult result }, Cmd.none )
 
         GotClassData result ->
             ( { model | classData = RemoteData.fromResult result }, Cmd.none )
