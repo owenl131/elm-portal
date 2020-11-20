@@ -142,35 +142,49 @@ view model =
             , let
                 disabled =
                     model.email == "" || model.password == ""
+
+                submitButton =
+                    Input.button
+                        [ Background.color
+                            (if disabled then
+                                Colors.grey
+
+                             else
+                                Colors.theme.a400
+                            )
+                        , Element.paddingXY 50 8
+                        , Border.width 2
+                        , Border.color Colors.black
+                        , Border.rounded 20
+                        , Element.centerX
+                        , Element.mouseOver
+                            (if disabled then
+                                []
+
+                             else
+                                [ Background.color Colors.theme.a200 ]
+                            )
+                        ]
+                        { onPress =
+                            if disabled then
+                                Nothing
+
+                            else
+                                Just SubmittedForm
+                        , label = Element.text "Login"
+                        }
               in
-              Input.button
-                [ Background.color
-                    (if disabled then
-                        Colors.grey
+              case model.attempt of
+                RemoteData.NotAsked ->
+                    submitButton
 
-                     else
-                        Colors.theme.a400
-                    )
-                , Element.paddingXY 50 8
-                , Border.width 2
-                , Border.color Colors.black
-                , Border.rounded 20
-                , Element.centerX
-                , Element.mouseOver
-                    (if disabled then
-                        []
+                RemoteData.Loading ->
+                    Element.none
 
-                     else
-                        [ Background.color Colors.theme.a200 ]
-                    )
-                ]
-                { onPress =
-                    if disabled then
-                        Nothing
+                RemoteData.Failure _ ->
+                    submitButton
 
-                    else
-                        Just SubmittedForm
-                , label = Element.text "Login"
-                }
+                RemoteData.Success _ ->
+                    Element.none
             ]
         )

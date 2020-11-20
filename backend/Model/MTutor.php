@@ -20,6 +20,14 @@ class MTutor
     public ?DateTime $sessionExpiry;
     public ?string $sessionId;
 
+    public array $languages;
+    public array $available;
+    public array $subjects;
+    public ?string $careerGoal;
+    public ?string $schoolType;
+    public ?int $yearOfGraduation;
+    public array $remarks;
+
     public MongoDB\Database $db;
 
     function __construct(MongoDB\Database $db, array $data)
@@ -40,6 +48,14 @@ class MTutor
         $this->password = (string) $data['password'];
         $this->sessionExpiry = $data['sessionExpiry'] ?? null;
         $this->sessionId = $data['sessionId'] ?? null;
+        // extended fields
+        $this->languages = $data['languages'] ?? [];
+        $this->available = $data['available'] ?? [];
+        $this->subjects = $data['subjects'] ?? [];
+        $this->careerGoal = $data['careerGoal'] ?? "";
+        $this->schoolType = $data['schoolType'] ?? "none";
+        $this->yearOfGraduation = $data['yearOfGraduation'] ?? null;
+        $this->remarks = $data['remarks'] ?? [];
     }
 
     /**
@@ -199,6 +215,7 @@ class MTutor
                     ]]
                 );
             }
+            unset(MTutor::$cache[$tutor->id]);
             return MTutor::retrieve($db, $tutor->id);
         }
 
@@ -334,7 +351,6 @@ class MTutor
         if (isset($data['doc']) && $this->doc->format('Y-m-d') != $data['doc'] && strtotime($data['doc'])) {
             $update['doc'] = new MongoDB\BSON\UTCDateTime(strtotime($data['doc']) * 1000);
         }
-        error_log(print_r($update, true));
         $collection = $this->db->selectCollection('tutors');
         $result = $collection->updateOne(
             array('_id' => new \MongoDB\BSON\ObjectId($this->id)),
@@ -383,6 +399,21 @@ class MTutor
             'dob' => $this->dob->format('Y-m-d'),
             'doc' => $this->doc->format('Y-m-d'),
         ];
+        return $result;
+    }
+
+    function toExtendedAssoc(): array
+    {
+        $result = [
+            'languages' => $this->languages,
+            'available' => $this->available,
+            'subjects' => $this->subjects,
+            'careerGoal' => $this->careerGoal,
+            'schoolType' => $this->schoolType,
+            'remarks' => $this->remarks
+        ];
+        if (isset($this->yearOfGraduation))
+            $result['yearOfGraduation'] = $this->yearOfGraduation;
         return $result;
     }
 

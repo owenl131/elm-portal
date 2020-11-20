@@ -81,6 +81,7 @@ init credentials key id =
         , fetchClassData credentials id
         , fetchSessionData credentials id
         , fetchTutorHours credentials id
+        , fetchTutorExtendedData credentials id
         ]
     )
 
@@ -150,12 +151,39 @@ fetchTutorHours credentials id =
         }
 
 
-viewRow : String -> Tutor -> (Tutor -> String) -> Element Msg
-viewRow label tutor accessor =
+viewRow : String -> String -> Element Msg
+viewRow label value =
     Element.row
         []
         [ Element.text label |> Element.el [ Element.width (Element.px 150), Font.bold ]
-        , Element.text (accessor tutor) |> Element.el []
+        , Element.text value |> Element.el []
+        ]
+
+
+viewOptionsRow : String -> List a -> List ( a, String ) -> Element Msg
+viewOptionsRow label selected labels =
+    let
+        all =
+            List.map Tuple.first labels
+
+        getLabel e =
+            List.filter (Tuple.first >> (==) e) labels
+                |> List.head
+                |> Maybe.map Tuple.second
+                |> Maybe.withDefault "<Invalid>"
+    in
+    Element.row
+        []
+        [ Element.text label |> Element.el [ Element.width (Element.px 150), Font.bold ]
+        , Element.row [ Element.spacing 5 ]
+            (List.map
+                (\elem ->
+                    Input.button
+                        (Styles.optionButtonStyle (List.member elem selected))
+                        { label = getLabel elem |> Element.text, onPress = Nothing }
+                )
+                all
+            )
         ]
 
 
@@ -174,14 +202,45 @@ viewDetails data =
                 { onPress = Just ToEditDetails, label = Element.text "Edit" |> Element.el [ Element.centerX ] }
             ]
         , Element.el [ Element.height (Element.px 10) ] Element.none
-        , viewRow "Name" data .name
-        , viewRow "Email" data .email
-        , viewRow "School" data .school
-        , viewRow "Status" data (.status >> Tutor.tutorStatusAsString)
-        , viewRow "Admin Level" data (.admin >> Tutor.adminLevelAsString)
-        , viewRow "Gender" data (.gender >> Utils.genderToString)
-        , viewRow "Date of Birth" data (.dateOfBirth >> Date.toIsoString)
-        , viewRow "Start date" data (.dateOfRegistration >> Date.toIsoString)
+        , viewRow "Name" data.name
+        , viewRow "Email" data.email
+        , viewRow "School" data.school
+        , viewRow "Status" (data.status |> Tutor.tutorStatusAsString)
+        , viewRow "Admin Level" (data.admin |> Tutor.adminLevelAsString)
+        , viewRow "Gender" (data.gender |> Utils.genderToString)
+        , viewRow "Date of Birth" (data.dateOfBirth |> Date.format "d MMM y")
+        , viewRow "Start date" (data.dateOfRegistration |> Date.format "d MMM y")
+        ]
+
+
+viewRemarks : List String -> Element Msg
+viewRemarks remarks =
+    Element.row
+        []
+        [ Element.text "Remarks" |> Element.el [ Element.width (Element.px 150), Font.bold ]
+        , Element.column []
+            (List.map
+                Element.text
+                remarks
+            )
+        ]
+
+
+viewExtendedDetails : TutorExtended -> Element Msg
+viewExtendedDetails tutor =
+    Element.column
+        [ Background.color Colors.theme.p50
+        , Element.padding 20
+        , Element.width Element.fill
+        , Element.spacing 10
+        ]
+        [ viewOptionsRow "Languages spoken" tutor.languages (Tutor.allLanguages |> List.map (\x -> ( x, Tutor.tutorLanguageAsString x )))
+        , viewOptionsRow "Available days" tutor.available (Utils.allDays |> List.map (\x -> ( x, Utils.daysToString x )))
+        , viewOptionsRow "Subjects keen" tutor.subjects (Tutor.allSubjects |> List.map (\x -> ( x, Tutor.subjectAsString x )))
+        , viewRow "Career goal" tutor.careerGoal
+        , viewRow "School type" (tutor.schoolType |> Tutor.schoolTypeAsString)
+        , viewRow "Year of Graduation" (tutor.yearOfGraduation |> String.fromInt)
+        , viewRemarks tutor.remarks
         ]
 
 
@@ -331,6 +390,7 @@ view model =
         , Element.padding 20
         ]
         [ Utils.viewWebData viewDetails model.tutorData
+        , Utils.viewWebData viewExtendedDetails model.tutorExtendedData
         , Utils.viewWebData (viewClasses model.hoveredClass (model.tutorHours |> RemoteData.toMaybe |> Maybe.withDefault Dict.empty)) model.classData
         , let
             sessions =

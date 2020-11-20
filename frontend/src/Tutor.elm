@@ -5,7 +5,11 @@ module Tutor exposing
     , TutorId
     , TutorStatus(..)
     , adminLevelAsString
+    , allLanguages
+    , allSubjects
     , emptyTutor
+    , schoolTypeAsString
+    , subjectAsString
     , toTutorAdminLevel
     , toTutorStatus
     , tutorAdminLevelDecoder
@@ -14,6 +18,7 @@ module Tutor exposing
     , tutorEncoder
     , tutorExtendedDecoder
     , tutorExtendedEncoder
+    , tutorLanguageAsString
     , tutorStatusAsString
     , tutorStatusEncoder
     )
@@ -22,6 +27,7 @@ import Date
 import Json.Decode as Decode
 import Json.Decode.Pipeline as Pipeline
 import Json.Encode as Encode
+import Student exposing (schoolTypeAsString)
 import Time
 import Utils
 
@@ -202,6 +208,11 @@ type TutorLanguage
     | LangTamil
 
 
+allLanguages : List TutorLanguage
+allLanguages =
+    [ LangEnglish, LangChinese, LangMalay, LangTamil ]
+
+
 tutorLanguageAsString : TutorLanguage -> String
 tutorLanguageAsString lang =
     case lang of
@@ -268,6 +279,11 @@ type Subject
     | Mathematics
     | Computing
     | Science
+
+
+allSubjects : List Subject
+allSubjects =
+    [ English, Reading, Mathematics, Computing, Science ]
 
 
 subjectAsString : Subject -> String
@@ -384,6 +400,11 @@ schoolTypeEncoder school =
 
         SchoolType_None ->
             "none"
+
+
+schoolTypeAsString : SchoolType -> String
+schoolTypeAsString =
+    schoolTypeEncoder
 
 
 toSchoolType : String -> Maybe SchoolType

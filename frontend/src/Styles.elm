@@ -107,3 +107,30 @@ textFieldStyle =
 textLabelStyle : List (Element.Attribute msg)
 textLabelStyle =
     [ Element.width (Element.px 100), Element.centerY ]
+
+
+optionButtonStyle : Bool -> List (Element.Attribute msg)
+optionButtonStyle isActive =
+    let
+        backgroundColor : Bool -> Element.Color
+        backgroundColor active =
+            if active then
+                Colors.theme.a700
+
+            else
+                Colors.white
+
+        fontColor : Bool -> Element.Color
+        fontColor active =
+            if active then
+                Colors.black
+
+            else
+                Colors.grey
+    in
+    [ Background.color (backgroundColor isActive)
+    , Font.color (fontColor isActive)
+    , Element.paddingXY 5 2
+    , Border.rounded 3
+    , Border.width 1
+    ]

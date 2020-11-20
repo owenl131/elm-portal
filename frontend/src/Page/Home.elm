@@ -37,8 +37,10 @@ type alias Model =
 
 type Msg
     = GotClassData (Result Http.Error (List Class))
+    | GotMyData (Result Http.Error Tutor)
     | SetToday Date.Date
     | ToClass Class.ClassId
+    | ToProfile Tutor.TutorId
     | StartHover Class.ClassId
     | StopHover Class.ClassId
 
@@ -56,6 +58,19 @@ fetchMyClasses credentials =
         }
 
 
+fetchMyData : Api.Credentials -> Cmd Msg
+fetchMyData credentials =
+    Http.request
+        { method = "GET"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "my", "details" ] []
+        , expect = Http.expectJson GotMyData Tutor.tutorDecoder
+        }
+
+
 init : Api.Credentials -> Navigation.Key -> ( Model, Cmd Msg )
 init credentials key =
     ( { key = key
@@ -66,7 +81,11 @@ init credentials key =
       , myData = RemoteData.NotAsked
       , hovered = Set.empty
       }
-    , Cmd.batch [ fetchMyClasses credentials, Task.perform SetToday Date.today ]
+    , Cmd.batch
+        [ fetchMyClasses credentials
+        , fetchMyData credentials
+        , Task.perform SetToday Date.today
+        ]
     )
 
 
@@ -75,6 +94,9 @@ update msg model =
     case msg of
         GotClassData result ->
             ( { model | myClasses = RemoteData.fromResult result }, Cmd.none )
+
+        GotMyData result ->
+            ( { model | myData = RemoteData.fromResult result }, Cmd.none )
 
         SetToday today ->
             ( { model | today = Just today }, Cmd.none )
@@ -87,6 +109,9 @@ update msg model =
 
         ToClass classId ->
             ( model, Navigation.pushUrl model.key (Builder.absolute [ "class", classId ] []) )
+
+        ToProfile tutorId ->
+            ( model, Navigation.pushUrl model.key (Builder.absolute [ "tutor", tutorId ] []) )
 
 
 viewMyClassesSingle : Set Class.ClassId -> Maybe Date.Date -> Class -> Element Msg
@@ -140,13 +165,31 @@ viewMyClasses hovered today classes =
         (List.map (viewMyClassesSingle hovered today) classes)
 
 
+viewQuickLinks : Tutor -> Element Msg
+viewQuickLinks tutor =
+    Element.wrappedRow
+        [ Element.spacing 20, Element.padding 20 ]
+        [ Input.button
+            [ Element.paddingXY 40 20
+            , Background.color Colors.theme.p200
+            , Border.width 1
+            , Border.rounded 3
+            , Element.mouseOver [ Background.color Colors.theme.a400 ]
+            ]
+            { label = Element.text "View My Profile →"
+            , onPress = Just (ToProfile tutor.id)
+            }
+        ]
+
+
 view : Model -> Element Msg
 view model =
     Element.column
         [ Element.spacing 5
         , Element.padding 20
         ]
-        ([ Utils.viewWebData (viewMyClasses model.hovered model.today) model.myClasses
+        ([ Utils.viewWebData viewQuickLinks model.myData
+         , Utils.viewWebData (viewMyClasses model.hovered model.today) model.myClasses
          , Element.el [ Element.height (Element.px 50) ] Element.none
          ]
             ++ List.map Element.text
@@ -162,6 +205,8 @@ view model =
                 , "Show exempt field in attendance"
                 , "Implement sort by which field"
                 , "Implement student fields"
+                , "Implement export/import data"
+                , "Tag day as attendance unmarked if class is active"
                 , "Separate API out into its own file"
                 , "Possibly set up a mock API for demo without server"
                 , "Add information tooltips around"

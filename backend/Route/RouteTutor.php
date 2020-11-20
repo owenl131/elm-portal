@@ -40,6 +40,9 @@ $handleNewTutor = function (Request $request, Response $response, $args) {
 function getTutorRoutes($authMiddleware, $adminOnlyMiddleware)
 {
     return function (RouteCollectorProxy $group) use ($authMiddleware, $adminOnlyMiddleware) {
+        $respondWithSuccess = function (Request $request, Response $response, $args) {
+            return $response->withStatus(200);
+        };
 
         $group->get('', function (Request $request, Response $response, $args) {
             // get tutor details
@@ -51,9 +54,7 @@ function getTutorRoutes($authMiddleware, $adminOnlyMiddleware)
             }
             return $response->withJson($tutor->toAssoc(), 200);
         })->add($authMiddleware);
-        $group->options('', function (Request $request, Response $response, $args) {
-            return $response->withStatus(200);
-        });
+        $group->options('', $respondWithSuccess);
 
         $group->patch('', function (Request $request, Response $response, $args) {
             // update tutor details$body = $request->getParsedBody();
@@ -104,9 +105,7 @@ function getTutorRoutes($authMiddleware, $adminOnlyMiddleware)
             error_log(print_r($result, true));
             return $response->withJson($result, 200);
         })->add($authMiddleware);
-        $group->options('/attended', function (Request $request, Response $response, $args) {
-            return $response->withStatus(200);
-        });
+        $group->options('/attended', $respondWithSuccess);
 
         $group->get('/classes', function (Request $request, Response $response, $args) {
             // get tutor classes
@@ -119,9 +118,7 @@ function getTutorRoutes($authMiddleware, $adminOnlyMiddleware)
             }, $result);
             return $response->withJson($result, 200);
         })->add($authMiddleware);
-        $group->options('/classes', function (Request $request, Response $response, $args) {
-            return $response->withStatus(200);
-        });
+        $group->options('/classes', $respondWithSuccess);
 
         $group->get('/hours', function (Request $request, Response $response, $args) {
             $db = getDB();
@@ -134,8 +131,14 @@ function getTutorRoutes($authMiddleware, $adminOnlyMiddleware)
             }
             return $response->withJson($result, 200);
         })->add($authMiddleware);
-        $group->options('/hours', function (Request $request, Response $response, $args) {
-            return $response->withStatus(200);
-        });
+        $group->options('/hours', $respondWithSuccess);
+
+        $group->get('/extended', function (Request $request, Response $response, $args) {
+            $db = getDB();
+            $tutorId = $args['id'];
+            $tutor = MTutor::retrieve($db, $tutorId);
+            return $response->withJson($tutor->toExtendedAssoc(), 200);
+        })->add($authMiddleware);
+        $group->options('/extended', $respondWithSuccess);
     };
 }
