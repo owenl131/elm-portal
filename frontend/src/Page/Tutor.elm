@@ -20,10 +20,12 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input as Input
+import Html.Attributes
 import Http
 import Json.Decode as Decode
 import RemoteData exposing (RemoteData, WebData, withDefault)
 import Styles
+import Task
 import Tutor exposing (Tutor, TutorExtended, TutorId, tutorDecoder)
 import Url.Builder as Builder
 import Utils
@@ -33,6 +35,7 @@ type alias Model =
     { key : Navigation.Key
     , credentials : Api.Credentials
     , id : Tutor.TutorId
+    , today : Maybe Date.Date
     , tutorData : WebData Tutor
     , tutorExtendedData : WebData TutorExtended
     , classData : WebData (List Class)
@@ -48,6 +51,7 @@ type Msg
     | GotSessionData (Result Http.Error (Dict Class.ClassId (List ClassSession)))
     | GotTutorHours (Result Http.Error (Dict Class.ClassId Float))
     | GotTutorExtendedData (Result Http.Error TutorExtended)
+    | GotToday Date.Date
     | ToEditDetails
     | ToClassDetails Class.ClassId
     | HoveredChangedClass Int
@@ -75,6 +79,7 @@ init credentials key id =
       , sessionData = RemoteData.Loading
       , tutorHours = RemoteData.Loading
       , hoveredClass = -1
+      , today = Nothing
       }
     , Cmd.batch
         [ fetchTutorData credentials id
@@ -82,6 +87,7 @@ init credentials key id =
         , fetchSessionData credentials id
         , fetchTutorHours credentials id
         , fetchTutorExtendedData credentials id
+        , Task.perform GotToday Date.today
         ]
     )
 
@@ -317,6 +323,139 @@ viewClasses hovered hours classes =
         ]
 
 
+viewCalendarDay : Date.Date -> List ClassSession -> Date.Date -> Element Msg
+viewCalendarDay today sessions date =
+    let
+        text =
+            Element.row
+                []
+                [ date |> Date.day |> String.fromInt |> Element.text
+                , Utils.ifElse (" " ++ Date.format "MMM" date) "" (Date.day date == 1)
+                    |> Element.text
+                    |> Element.el [ Font.size 10, Element.alignBottom ]
+                ]
+
+        sessionsOnDate =
+            List.filter (.date >> (==) date) sessions
+    in
+    text
+        |> Element.el
+            []
+        |> Element.el
+            (List.concat
+                [ -- Today marker
+                  Utils.ifElse
+                    [ Element.behindContent
+                        (Element.el
+                            [ Element.width Element.fill
+                            , Element.height Element.fill
+                            , Border.rounded 10
+                            , Border.width 1
+                            , Border.color Colors.black
+                            ]
+                            Element.none
+                        )
+                    ]
+                    []
+                    (date == today)
+                , -- Session marker
+                  Utils.ifElse
+                    []
+                    [ Element.inFront
+                        (Input.button
+                            [ Background.color Colors.theme.p700
+                            , Element.width Element.fill
+                            , Element.height Element.fill
+                            , Border.rounded 10
+                            , Element.paddingEach { top = 5, bottom = 5, left = 8, right = 0 }
+                            , Border.width (Utils.ifElse 1 0 (date == today))
+                            , Border.color Colors.black
+                            ]
+                            { label = text
+                            , onPress = Nothing
+                            }
+                        )
+                    , Font.color Colors.white
+                    ]
+                    (List.isEmpty sessionsOnDate)
+                , -- Other attributes
+                  [ Background.color
+                        (Utils.ifElse
+                            Colors.theme.p200
+                            Colors.theme.p50
+                            ((date |> Date.monthNumber |> Basics.modBy 2) == 0)
+                        )
+                  , Element.width (Element.fill |> Element.minimum 40)
+                  , Element.paddingEach { top = 5, bottom = 5, left = 8, right = 0 }
+                  , Element.htmlAttribute (Html.Attributes.title (Date.format "dd MMMM YYYY" date))
+                  ]
+                ]
+            )
+
+
+viewCalendarWeek : Date.Date -> Date.Date -> List ClassSession -> Element Msg
+viewCalendarWeek today weekStart sessions =
+    let
+        year =
+            Date.year weekStart
+
+        weekNo =
+            Date.weekNumber weekStart
+    in
+    Element.column
+        [ Element.paddingXY 0 10 ]
+        (Utils.allDays
+            |> List.map (Date.fromWeekDate year weekNo)
+            |> List.map (viewCalendarDay today sessions)
+        )
+
+
+viewRecentSessionsCalendar : Date.Date -> List Class.Class -> List ( Class.ClassId, Class.ClassSession ) -> Element Msg
+viewRecentSessionsCalendar today classes sessions =
+    let
+        headings =
+            Utils.allDays
+                |> List.map Utils.daysToString
+                |> List.map Element.text
+                |> List.map
+                    (Element.el
+                        [ Element.paddingEach
+                            { top = 5
+                            , bottom = 5
+                            , left = 0
+                            , right = 10
+                            }
+                        , Font.bold
+                        ]
+                    )
+                |> Element.column
+                    [ Element.paddingXY 0 10 ]
+    in
+    Element.wrappedRow
+        [ Border.widthEach
+            { bottom = 1
+            , top = 1
+            , left = 0
+            , right = 0
+            }
+        ]
+        (headings
+            :: (List.range 0 20
+                    |> List.reverse
+                    |> List.map
+                        (\before ->
+                            viewCalendarWeek
+                                today
+                                (Date.toRataDie today - 7 * before |> Date.fromRataDie)
+                                (sessions |> List.map Tuple.second)
+                        )
+               )
+        )
+        |> Element.el
+            [ Element.paddingXY 20 0
+            ]
+
+
 viewRecentSessions : List Class.Class -> List ( Class.ClassId, Class.ClassSession ) -> Element Msg
 viewRecentSessions classes sessions =
     let
@@ -384,6 +523,23 @@ viewOtherActivities activities =
 
 view : Model -> Element Msg
 view model =
+    let
+        sessions =
+            model.sessionData |> RemoteData.toMaybe |> Maybe.withDefault Dict.empty
+
+        sessionList : List ( Class.ClassId, ClassSession )
+        sessionList =
+            List.concatMap
+                (\( classId, sessList ) ->
+                    List.map (\s -> ( classId, s )) sessList
+                )
+                (Dict.toList sessions)
+                |> List.sortBy (\( id, sess ) -> Date.toRataDie sess.date)
+                |> List.reverse
+
+        classList =
+            model.classData |> RemoteData.toMaybe |> Maybe.withDefault []
+    in
     Element.column
         [ Element.width Element.fill
         , Element.spacing 20
@@ -392,24 +548,13 @@ view model =
         [ Utils.viewWebData viewDetails model.tutorData
         , Utils.viewWebData viewExtendedDetails model.tutorExtendedData
         , Utils.viewWebData (viewClasses model.hoveredClass (model.tutorHours |> RemoteData.toMaybe |> Maybe.withDefault Dict.empty)) model.classData
-        , let
-            sessions =
-                model.sessionData |> RemoteData.toMaybe |> Maybe.withDefault Dict.empty
+        , viewRecentSessions classList sessionList
+        , case model.today of
+            Just today ->
+                viewRecentSessionsCalendar today classList sessionList
 
-            sessionList : List ( Class.ClassId, ClassSession )
-            sessionList =
-                List.concatMap
-                    (\( classId, sessList ) ->
-                        List.map (\s -> ( classId, s )) sessList
-                    )
-                    (Dict.toList sessions)
-                    |> List.sortBy (\( id, sess ) -> Date.toRataDie sess.date)
-                    |> List.reverse
-
-            classList =
-                model.classData |> RemoteData.toMaybe |> Maybe.withDefault []
-          in
-          viewRecentSessions classList sessionList
+            Nothing ->
+                Element.none
         , viewOtherActivities []
         ]
 
@@ -417,6 +562,9 @@ view model =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        GotToday today ->
+            ( { model | today = Just today }, Cmd.none )
+
         GotTutorData result ->
             ( { model | tutorData = RemoteData.fromResult result }, Cmd.none )
 

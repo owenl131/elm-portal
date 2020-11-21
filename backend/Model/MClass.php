@@ -15,7 +15,7 @@ class MClass
     public float $duration;
     public bool $active;
 
-    public array $sessions;
+    public ?array $sessions;
 
     public MongoDB\Database $db;
 

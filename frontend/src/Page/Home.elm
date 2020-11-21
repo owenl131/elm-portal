@@ -193,16 +193,12 @@ view model =
          , Element.el [ Element.height (Element.px 50) ] Element.none
          ]
             ++ List.map Element.text
-                [ "Tutor extended fields, view fields by selection across tutors"
-                , "Extended fields : languages spoken, days available, subjects keen, career goal, date of graduation, school type, remarks"
+                [ "View fields by selection across tutors"
                 , "On tutor page display sessions attended on calendar"
                 , "When creating session check for correct day, and check if same session already exists"
                 , "View tutor attendance stats in tutor/class"
-                , "For session calendar mark if attendance has not been taken"
                 , "Mark all present/absent"
                 , "Edit session fields from attendance page"
-                , "Have view/edit mode on attendance page"
-                , "Show exempt field in attendance"
                 , "Implement sort by which field"
                 , "Implement student fields"
                 , "Implement export/import data"

@@ -273,7 +273,7 @@ update msg model =
                     ( { model | form = { newForm | errorMessage = Just "Date must be provided." } }, Cmd.none )
 
                 Just date ->
-                    ( model
+                    ( { model | form = { newForm | display = False } }
                     , postNewSession model.credentials
                         model.id
                         { date = date
@@ -284,7 +284,12 @@ update msg model =
                     )
 
         GotNewSession result ->
-            ( model, fetchSessionsData model.credentials model.id )
+            case result of
+                Ok _ ->
+                    ( { model | form = emptyForm }, fetchSessionsData model.credentials model.id )
+
+                Err _ ->
+                    ( { model | form = { newForm | display = True } }, fetchSessionsData model.credentials model.id )
 
         FormPickerChanged change ->
             case change of
