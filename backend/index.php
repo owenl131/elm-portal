@@ -8,6 +8,7 @@ use Slim\Psr7\Factory\ResponseFactory;
 use Slim\Routing\RouteContext;
 
 require_once 'Model/MTutor.php';
+require_once 'Model/MStudent.php';
 require_once 'Model/MClass.php';
 require_once 'Model/MClassTutor.php';
 require_once 'Model/MClassSession.php';
@@ -139,6 +140,18 @@ $app->post('/tutors/new', $handleNewTutor)->add($authMiddleware);
 $app->options('/tutors/new', $respondWithSuccess);
 
 /**
+ * Post new tutor
+ */
+$app->post('/students/new', $handleNewStudent)->add($authMiddleware);
+$app->options('/students/new', $respondWithSuccess);
+
+/**
+ * Gets tutor list
+ */
+$app->get('/students', $handleGetStudents)->add($authMiddleware);
+$app->options('/students', $respondWithSuccess);
+
+/**
  * Display demographics
  */
 $app->get('/tutorstats', function (Request $request, Response $response, $args) {
@@ -159,6 +172,11 @@ $app->group('/my', getUserRoutes($authMiddleware));
 $app->group('/tutor/{id:[0-9a-z]+}', getTutorRoutes($authMiddleware, $adminOnlyMiddleware));
 
 /**
+ * Tutor functions
+ */
+$app->group('/student/{id:[0-9a-z]+}', getStudentRoutes($authMiddleware, $adminOnlyMiddleware));
+
+/**
  * Get class list
  */
 $app->get('/classes', $handleGetClasses)->add($authMiddleware);
@@ -174,6 +192,7 @@ $app->options('/classes/new', $respondWithSuccess);
  * Operations on a class
  */
 $app->group('/class/{id:[a-z0-9]+}', getClassRoutes($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddleware));
+
 
 $errorMiddleware = $app->addErrorMiddleware(true, true, true);
 // $app->setBasePath('/backend');

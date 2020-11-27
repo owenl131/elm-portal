@@ -60,8 +60,6 @@ function getTutorRoutes($authMiddleware, $adminOnlyMiddleware)
             // update tutor details$body = $request->getParsedBody();
             // extract required keys
             $body = $request->getParsedBody();
-            $body['dob'] = $body['dob'];
-            $body['doc'] = $body['doc'];
             $db = getDB();
             $tutorId = $args['id'];
             $tutor = MTutor::retrieve($db, $tutorId);

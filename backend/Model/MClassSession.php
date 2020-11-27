@@ -206,6 +206,63 @@ class MClassSession
         return false;
     }
 
+    function markAllPresent(): bool
+    {
+        $update = [];
+        $tutors = $this->allTutors();
+        foreach ($tutors as $t) {
+            $update["attendance.{$t->id}"] = "p";
+        }
+        $collection = $this->db->selectCollection('attendance');
+        $result = $collection->updateOne(
+            [
+                '_id' => new MongoDB\BSON\ObjectId($this->id),
+                'classId' => new MongoDB\BSON\ObjectId($this->class->id)
+            ],
+            ['$set' => $update],
+            ['upsert' => true]
+        );
+        return $result->isAcknowledged();
+    }
+
+    function markAllAbsent(): bool
+    {
+        $update = [];
+        $tutors = $this->allTutors();
+        foreach ($tutors as $t) {
+            $update["attendance.{$t->id}"] = "a";
+        }
+        $collection = $this->db->selectCollection('attendance');
+        $result = $collection->updateOne(
+            [
+                '_id' => new MongoDB\BSON\ObjectId($this->id),
+                'classId' => new MongoDB\BSON\ObjectId($this->class->id)
+            ],
+            ['$set' => $update],
+            ['upsert' => true]
+        );
+        return $result->isAcknowledged();
+    }
+
+    function markAllExempt(): bool
+    {
+        $update = [];
+        $tutors = $this->allTutors();
+        foreach ($tutors as $t) {
+            $update["attendance.{$t->id}"] = 1;
+        }
+        $collection = $this->db->selectCollection('attendance');
+        $result = $collection->updateOne(
+            [
+                '_id' => new MongoDB\BSON\ObjectId($this->id),
+                'classId' => new MongoDB\BSON\ObjectId($this->class->id)
+            ],
+            ['$unset' => $update],
+            ['upsert' => true]
+        );
+        return $result->isAcknowledged();
+    }
+
     function markPresent(MTutor $tutor): bool
     {
         $collection = $this->db->selectCollection('attendance');

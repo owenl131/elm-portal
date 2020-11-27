@@ -194,6 +194,8 @@ view model =
          ]
             ++ List.map Element.text
                 [ "View fields by selection across tutors"
+                , "Edit for extended fields"
+                , "Calculate level from school type and graduation year"
                 , "On tutor page display sessions attended on calendar"
                 , "When creating session check for correct day, and check if same session already exists"
                 , "View tutor attendance stats in tutor/class"

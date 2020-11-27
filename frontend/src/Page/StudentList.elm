@@ -18,7 +18,7 @@ import Json.Decode as Decode
 import List.Extra
 import Maybe.Extra
 import RemoteData exposing (WebData)
-import Student exposing (Student, toStudentStatus)
+import Student exposing (Student, studentDecoder, toStudentStatus)
 import Styles
 import Task
 import Url.Builder as Builder
@@ -118,6 +118,7 @@ type alias Model =
     , page : Int
     , hoveredIndex : Int
     , data : WebData (Paged.Paged (List Student))
+    , modal : Maybe (Utils.Modal Msg)
     }
 
 
@@ -148,11 +149,20 @@ type Msg
     | RemoveClassFilter String
     | ToggleStatus Student.StudentStatus
     | ToggleGender Utils.Gender
+    | ModalCancel
 
 
 fetchStudentList : Api.Credentials -> StudentFilters -> Int -> Cmd Msg
 fetchStudentList credentials filters page =
-    Cmd.none
+    Http.request
+        { method = "GET"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , url = Builder.crossOrigin Api.endpoint [ "students" ] (Builder.int "page" page :: studentFiltersToQueryList filters)
+        , expect = Http.expectJson GotStudentList <| Paged.pagedDecoder (Decode.list studentDecoder)
+        , timeout = Nothing
+        , tracker = Nothing
+        }
 
 
 init : Api.Credentials -> Navigation.Key -> StudentFilters -> Int -> ( Model, Cmd Msg )
@@ -164,6 +174,7 @@ init credentials key filters page =
       , page = page
       , data = RemoteData.Loading
       , hoveredIndex = -1
+      , modal = Nothing
       }
     , Cmd.batch
         [ Task.perform SetToday Date.today
@@ -453,6 +464,9 @@ update msg model =
                       }
                     , Cmd.none
                     )
+
+        ModalCancel ->
+            ( { model | modal = Nothing }, Cmd.none )
 
 
 pushUrl : Model -> Cmd Msg
@@ -812,12 +826,13 @@ view model =
         , Element.height Element.fill
         , Element.spacing 10
         , Element.padding 20
+        , Element.inFront (model.modal |> Maybe.map (Utils.viewModal ModalCancel) |> Maybe.withDefault Element.none)
         ]
         [ viewActionBar
         , viewFilters model.filtersForm model.filters
-        , blankIfAbsent Paged.viewPagination model.data
+        , Utils.viewWebData Paged.viewPagination model.data
             |> Element.map PaginationChanged
         , viewData model.hoveredIndex model.data
-        , blankIfAbsent Paged.viewPagination model.data
+        , Utils.viewWebData Paged.viewPagination model.data
             |> Element.map PaginationChanged
         ]

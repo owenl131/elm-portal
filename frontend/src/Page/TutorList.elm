@@ -55,13 +55,6 @@ type alias TutorFiltersForm =
     }
 
 
-type alias Modal =
-    { msg : Msg
-    , title : String
-    , description : String
-    }
-
-
 postDeleteTutor : Api.Credentials -> Tutor.TutorId -> Cmd Msg
 postDeleteTutor credentials tutorId =
     Http.request
@@ -155,7 +148,7 @@ type alias Model =
     , page : Int
     , hoveredIndex : Int
     , data : WebData (Paged.Paged (List Tutor))
-    , modal : Maybe Modal
+    , modal : Maybe (Utils.Modal Msg)
     }
 
 
@@ -549,7 +542,7 @@ pushUrl model =
         )
 
 
-viewModal : Modal -> Element Msg
+viewModal : Utils.Modal Msg -> Element Msg
 viewModal modal =
     Element.el
         [ Element.width Element.fill
@@ -963,13 +956,13 @@ view model =
         , Element.height Element.fill
         , Element.spacing 10
         , Element.padding 20
-        , Element.inFront (model.modal |> Maybe.map viewModal |> Maybe.withDefault Element.none)
+        , Element.inFront (model.modal |> Maybe.map (Utils.viewModal ModalCancel) |> Maybe.withDefault Element.none)
         ]
         [ viewActionBar
         , viewFilters model.filtersForm model.filters
-        , blankIfAbsent Paged.viewPagination model.data
+        , Utils.viewWebData Paged.viewPagination model.data
             |> Element.map PaginationChanged
         , viewData model.hoveredIndex model.data
-        , blankIfAbsent Paged.viewPagination model.data
+        , Utils.viewWebData Paged.viewPagination model.data
             |> Element.map PaginationChanged
         ]

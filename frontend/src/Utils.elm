@@ -8,6 +8,7 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Events as Events
 import Element.Font as Font
+import Element.Input as Input
 import Json.Decode as Decode
 import Maybe.Extra
 import RemoteData exposing (WebData)
@@ -202,4 +203,56 @@ viewValidation validated =
             , Border.rounded 50
             ]
             Element.none
+        )
+
+
+type alias Modal msg =
+    { msg : msg
+    , title : String
+    , description : String
+    }
+
+
+viewModal : msg -> Modal msg -> Element msg
+viewModal msgCancel modal =
+    Element.el
+        [ Element.width Element.fill
+        , Element.height Element.fill
+        , Background.color (Element.rgba255 0 0 0 0.2)
+        , Events.onClick msgCancel
+        ]
+        (Element.column
+            [ Background.color Colors.white
+            , Element.spacing 10
+            , Element.padding 20
+            , Element.centerX
+            , Element.centerY
+            , Border.shadow { offset = ( 1, 1 ), size = 2, blur = 5, color = Colors.black }
+            ]
+            [ Element.text modal.title |> Element.el [ Font.bold ]
+            , Element.paragraph
+                [ Element.width (Element.fill |> Element.maximum 200)
+                ]
+                [ Element.text modal.description ]
+            , Element.row [ Element.spacing 5 ]
+                [ Input.button
+                    [ Element.paddingXY 20 5
+                    , Border.width 1
+                    , Border.rounded 5
+                    ]
+                    { label = Element.text "Cancel"
+                    , onPress = Just msgCancel
+                    }
+                , Input.button
+                    [ Element.paddingXY 20 5
+                    , Border.width 1
+                    , Background.color Colors.red
+                    , Font.color Colors.white
+                    , Border.rounded 5
+                    ]
+                    { label = Element.text "Proceed"
+                    , onPress = Just modal.msg
+                    }
+                ]
+            ]
         )

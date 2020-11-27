@@ -360,6 +360,48 @@ function getClassRoutes($authMiddleware, $adminOnlyMiddleware, $leaderAboveMiddl
             })->add($authMiddleware)->add($leaderAboveMiddleware);
             $subgroup->options('/exempt/{tid:[0-9a-z]+}', $respondWithSuccess);
 
+            $subgroup->post('/markallpresent', function (Request $request, Response $response, $args) {
+                $db = getDB();
+                $classId = $args['id'];
+                $class = MClass::retrieve($db, $classId);
+                $sessionId = $args['sid'];
+                $session = $class->getSession($sessionId);
+                $result = $session->markAllPresent();
+                if (!$result) {
+                    return $response->withStatus(400);
+                }
+                return $response->withStatus(200);
+            })->add($authMiddleware)->add($leaderAboveMiddleware);
+            $subgroup->options('/markallpresent', $respondWithSuccess);
+
+            $subgroup->post('/markallabsent', function (Request $request, Response $response, $args) {
+                $db = getDB();
+                $classId = $args['id'];
+                $class = MClass::retrieve($db, $classId);
+                $sessionId = $args['sid'];
+                $session = $class->getSession($sessionId);
+                $result = $session->markAllAbsent();
+                if (!$result) {
+                    return $response->withStatus(400);
+                }
+                return $response->withStatus(200);
+            })->add($authMiddleware)->add($leaderAboveMiddleware);
+            $subgroup->options('/markallabsent', $respondWithSuccess);
+
+            $subgroup->post('/markallexempt', function (Request $request, Response $response, $args) {
+                $db = getDB();
+                $classId = $args['id'];
+                $class = MClass::retrieve($db, $classId);
+                $sessionId = $args['sid'];
+                $session = $class->getSession($sessionId);
+                $result = $session->markAllExempt();
+                if (!$result) {
+                    return $response->withStatus(400);
+                }
+                return $response->withStatus(200);
+            })->add($authMiddleware)->add($leaderAboveMiddleware);
+            $subgroup->options('/markallexempt', $respondWithSuccess);
+
             $subgroup->put('/addexternal/{tid:[0-9a-z]+}', function (Request $request, Response $response, $args) {
                 // add a tutor that is not under this class to this session
                 // TODO
