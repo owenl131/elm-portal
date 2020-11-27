@@ -82,12 +82,28 @@ getPageLink model =
 
 postNewStudent : Api.Credentials -> Student -> Cmd Msg
 postNewStudent credentials student =
-    Cmd.none
+    Http.request
+        { method = "POST"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.jsonBody (Student.studentEncoder student)
+        , url = Builder.crossOrigin Api.endpoint [ "students", "new" ] []
+        , expect = Http.expectJson GotStudentAdded (Decode.field "id" Decode.string)
+        , timeout = Nothing
+        , tracker = Nothing
+        }
 
 
 postStudentUpdate : Api.Credentials -> Student -> Cmd Msg
 postStudentUpdate credentials student =
-    Cmd.none
+    Http.request
+        { method = "PATCH"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.jsonBody (Student.studentEncoder student)
+        , url = Builder.crossOrigin Api.endpoint [ "student", student.id ] []
+        , expect = Http.expectWhatever GotUpdated
+        , timeout = Nothing
+        , tracker = Nothing
+        }
 
 
 fetchStudentData : Api.Credentials -> StudentId -> Cmd Msg

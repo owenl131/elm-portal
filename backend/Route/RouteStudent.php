@@ -4,7 +4,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Http\Response as Response;
 use Slim\Routing\RouteCollectorProxy;
 
-require_once 'Model/MTutor.php';
+require_once 'Model/MStudent.php';
 require_once 'Model/MClass.php';
 require_once 'Model/MClassTutor.php';
 require_once 'Model/MClassSession.php';
@@ -32,7 +32,7 @@ $handleNewStudent = function (Request $request, Response $response, $args) {
         $student = MStudent::create($db, $body);
         return $response->withJson(array('id' => $student->id), 200);
     } catch (Exception $e) {
-        $response->withStatus(400, $e->getMessage());
+        return $response->withStatus(400, $e->getMessage());
     }
 };
 

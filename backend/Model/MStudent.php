@@ -69,8 +69,8 @@ class MStudent
             $data['dob'] = $data['dob']->toDateTime();
         if (isset($data['doc']))
             $data['doc'] = $data['doc']->toDateTime();
-        $result = new MTutor($db, $data);
-        MTutor::$cache[$id] = $result;
+        $result = new MStudent($db, $data);
+        MStudent::$cache[$id] = $result;
         return $result;
     }
 
@@ -196,6 +196,7 @@ class MStudent
             'gender' => $this->gender,
             'dob' => $this->dob->format('Y-m-d'),
             'doc' => $this->doc->format('Y-m-d'),
+            'schools' => [],
         ];
     }
 }

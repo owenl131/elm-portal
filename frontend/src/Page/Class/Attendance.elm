@@ -53,16 +53,19 @@ type Msg
     | GotSessionData (Result Http.Error Class.ClassSession)
     | GotClassData (Result Http.Error Class.Class)
     | GotMarkedResult (Result Http.Error ())
-    | MarkPresent Class.ClassId
-    | MarkAbsent Class.ClassId
-    | MarkExempt Class.ClassId
+    | MarkPresent Tutor.TutorId
+    | MarkAbsent Tutor.TutorId
+    | MarkExempt Tutor.TutorId
+    | MarkAllPresent
+    | MarkAllAbsent
+    | MarkAllExempt
     | HoverChanged Int
     | ModeChanged
 
 
 
--- | AddExternalTutor Class.ClassId
--- | RemoveExternalTutor Class.ClassId
+-- | AddExternalTutor Tutor.TutorId
+-- | RemoveExternalTutor Tutor.TutorId
 
 
 fetchClassDetails : Api.Credentials -> Class.ClassId -> Cmd Msg
@@ -169,6 +172,45 @@ postMarkExempt credentials classId sessionId tutorId =
         }
 
 
+postMarkAllAbsent : Api.Credentials -> Class.ClassId -> Class.SessionId -> Cmd Msg
+postMarkAllAbsent credentials classId sessionId =
+    Http.request
+        { method = "POST"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", sessionId, "markallabsent" ] []
+        , expect = Http.expectWhatever GotMarkedResult
+        }
+
+
+postMarkAllPresent : Api.Credentials -> Class.ClassId -> Class.SessionId -> Cmd Msg
+postMarkAllPresent credentials classId sessionId =
+    Http.request
+        { method = "POST"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", sessionId, "markallpresent" ] []
+        , expect = Http.expectWhatever GotMarkedResult
+        }
+
+
+postMarkAllExempt : Api.Credentials -> Class.ClassId -> Class.SessionId -> Cmd Msg
+postMarkAllExempt credentials classId sessionId =
+    Http.request
+        { method = "POST"
+        , headers = [ Http.header "Authorization" ("Bearer " ++ Base64.encode credentials.session) ]
+        , body = Http.emptyBody
+        , timeout = Nothing
+        , tracker = Nothing
+        , url = Builder.crossOrigin Api.endpoint [ "class", classId, "session", sessionId, "markallexempt" ] []
+        , expect = Http.expectWhatever GotMarkedResult
+        }
+
+
 getNestedNavigation : Model -> List ( String, String )
 getNestedNavigation model =
     [ ( "Classes", Builder.absolute [ "classes" ] [] )
@@ -267,6 +309,15 @@ update msg model =
 
         MarkExempt tutorId ->
             ( model, postMarkExempt model.credentials model.classId model.sessionId tutorId )
+
+        MarkAllPresent ->
+            ( model, postMarkAllPresent model.credentials model.classId model.sessionId )
+
+        MarkAllAbsent ->
+            ( model, postMarkAllAbsent model.credentials model.classId model.sessionId )
+
+        MarkAllExempt ->
+            ( model, postMarkAllExempt model.credentials model.classId model.sessionId )
 
 
 
@@ -405,11 +456,15 @@ viewAttendance mode hoveredIndex tutors present absent =
                         :: Styles.buttonStyleMedium
                     )
                     { label = "All Present" |> Element.text |> Element.el [ Element.centerX ]
-                    , onPress = Nothing
+                    , onPress = Just MarkAllPresent
                     }
                 , Input.button (Element.centerX :: Styles.buttonStyleMediumRed)
                     { label = "All Absent" |> Element.text |> Element.el [ Element.centerX ]
-                    , onPress = Nothing
+                    , onPress = Just MarkAllAbsent
+                    }
+                , Input.button (Element.centerX :: Styles.buttonStyleMediumWhite)
+                    { label = "Reset all" |> Element.text |> Element.el [ Element.centerX ]
+                    , onPress = Just MarkAllExempt
                     }
                 ]
             )

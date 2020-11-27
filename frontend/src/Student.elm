@@ -178,8 +178,8 @@ studentEncoder student =
     Encode.object
         [ ( "id", Encode.string student.id )
         , ( "name", Encode.string student.name )
-        , ( "dateOfBirth", Encode.string (Date.toIsoString student.dateOfBirth) )
-        , ( "dateOfRegistration", Encode.string (Date.toIsoString student.dateOfRegistration) )
+        , ( "dob", Encode.string (Date.toIsoString student.dateOfBirth) )
+        , ( "doc", Encode.string (Date.toIsoString student.dateOfRegistration) )
         , ( "gender", Encode.string (Utils.genderEncoder student.gender) )
         , ( "status", Encode.int (studentStatusEncoder student.status) )
         , ( "schools", Encode.list schoolRecordEncoder student.schools )
@@ -191,8 +191,8 @@ studentDecoder =
     Decode.succeed Student
         |> Pipeline.required "id" Decode.string
         |> Pipeline.required "name" Decode.string
-        |> Pipeline.required "dateOfBirth" Utils.dateDecoder
-        |> Pipeline.required "dateOfRegistration" Utils.dateDecoder
+        |> Pipeline.required "dob" Utils.dateDecoder
+        |> Pipeline.required "doc" Utils.dateDecoder
         |> Pipeline.required "gender" Utils.genderDecoder
         |> Pipeline.required "status" studentStatusDecoder
         |> Pipeline.required "schools" (Decode.list schoolRecordDecoder)
